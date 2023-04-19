@@ -1,0 +1,173 @@
+---
+title: "Change-point report"
+output: html_document
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# load delay_parms
+load("/Shared/AML/params/delay_any_params.RData")
+
+delay_params <- delay_any_params[[params$cond]]
+
+in_path <- paste0(delay_params$path,"delay_results")
+
+load(paste0(in_path,"/all_dx_visits.RData"))
+
+```
+
+```{r functions, include=FALSE}
+fit_model <- function(data,cp,model="lm",periodicity = FALSE, return_fit=FALSE){
+  
+  tmp <- data %>% 
+    mutate(before_cp = period>=cp)
+  
+  if (model=="lm"){
+    if (periodicity){
+      fit <- lm(n~period*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~period*before_cp, data = tmp) 
+    }
+  } else if (model=="quad"){
+    if (periodicity){
+      fit <- lm(n~poly(period,2)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~poly(period,2)*before_cp, data = tmp) 
+    }
+  } else if (model=="cubic") {
+    if (periodicity){
+      fit <- lm(n~poly(period,3)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~poly(period,3)*before_cp, data = tmp) 
+    }
+  } else if (model=="exp"){
+    if (periodicity){
+      fit <- lm(n~log(period)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~log(period)*before_cp, data = tmp) 
+    }
+  }
+  
+  rmse <- sqrt(mean(fit$residuals^2))
+  
+  if (return_fit){
+    return(list(fit=fit,
+                rmse=rmse))
+  } else {
+    return(rmse)
+  }
+  
+}
+
+find_cp <- function(data,cp_range,model="lm",periodicity = FALSE){
+  out1 <- tibble(cp = cp_range) %>% 
+    mutate(rmse = map_dbl(cp,~fit_model(data = data,
+                                        cp = .,
+                                        model = model,
+                                        periodicity = periodicity))) %>% 
+    filter(rmse==min(rmse))
+  
+  out2 <- fit_model(data = data,cp = out1$cp,
+                    model = model,
+                    periodicity = periodicity,
+                    return_fit = TRUE)
+  
+  out3 <- data %>% 
+    mutate(before_cp = TRUE) %>%
+    mutate(pred1=predict(out2$fit,newdata=.)) %>%
+    mutate(before_cp = period>=out1$cp) %>% 
+    mutate(pred2=predict(out2$fit,newdata=.)) %>% 
+    select(period,n,pred1,pred2)
+  
+  return(list(cp=out1$cp,
+              fit=out2$fit,
+              pred=out3))
+}
+
+find_pred_bound_cp <- function(pred_data){
+  pred_data %>% 
+    arrange(period)  %>%
+    mutate(above_cp=cumsum(n>pred1)==row_number()) %>%
+    filter(above_cp) %>%
+    summarise(cp=max(period)) %>% 
+    .$cp
+}
+
+```
+
+
+# Change-point Report
+
+## SSD Visits
+
+
+## All Visits
+
+```{r, include=FALSE}
+
+count_data <- visit_counts %>% 
+  filter(is.na(dx_ver)) %>% 
+  filter(days_since_index<0) %>% 
+  mutate(period = -days_since_index) %>% 
+  mutate(dow = as.factor(period %% 7))
+
+tmp <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~find_cp(count_data,
+                                cp_range = 3:300,
+                                model = .x,
+                                periodicity = .y))) %>% 
+  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
+  mutate(pred = map(cp_res,~.$pred)) %>% 
+  select(model,label,periodicity,cp,pred) %>% 
+  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+
+tmp1 <- tmp %>%
+  filter(periodicity)
+
+tmp2 <- tmp %>%
+  filter(!periodicity)
+
+```
+
+### Plots
+
+
+Plot with periodicity
+```{r, include = FALSE}
+tmp1 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp1, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp1, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+
+```
+
+###
+
