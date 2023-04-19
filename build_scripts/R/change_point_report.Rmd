@@ -118,7 +118,7 @@ fit_cumsum_mods <- function(count_data, model, periodicity){
   cp_est <- suppressWarnings( cpts(cpt.mean(t_series,pen.value = 1, penalty = "None", test.stat = 'CUSUM')))
   cp <- cp_out$period[cp_est]
   
-  fit <- fit_model(data = count_data_ssd,cp = cp,model = model,periodicity = periodicity,return_fit = TRUE)
+  fit <- fit_model(data = count_data,cp = cp,model = model,periodicity = periodicity,return_fit = TRUE)
   
   pred_data <-  count_data %>% 
     mutate(before_cp = TRUE) %>% 
