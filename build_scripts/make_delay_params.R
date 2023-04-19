@@ -1,0 +1,233 @@
+
+################################################################################
+### This Script Contains the parameters necessary for running automated builds 
+### and analysis 
+################################################################################
+
+delay_any_params <- list(ami = list(path = "/Shared/AML/small_dbs/ami/truven/enroll_restrict_365/",
+                                    cp = 30,
+                                    upper_bound = 365,
+                                    final_model = NA,
+                                    miss_bins = c(1,2,3,4,5),
+                                    duration_bins = c(1,2,3,4,5,6,7,10,14,17)),
+                         
+                         append = list(path = "/Shared/AML/small_dbs/append/truven/enroll_restrict_365/",
+                                       cp = 21,
+                                       upper_bound = 365,
+                                       final_model = NA,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17)),
+                         
+                         bladder_cancer = list(path = "/Shared/AML/small_dbs/bladder_cancer/truven/enroll_restrict_365/",
+                                               cp = 100,
+                                               upper_bound = 365,
+                                               final_model = NA,
+                                               miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                               duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         cardiac_arrhythmia = list(path = "/Shared/AML/small_dbs/cardiac_arrhythmia/truven/enroll_restrict_365/",
+                                                   cp = 50,
+                                                   upper_bound = 365,
+                                                   final_model = NA,
+                                                   miss_bins = c(1,2,3,4,5),
+                                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28,35)),
+                         
+                         colon_cancer = list(path = "/Shared/AML/small_dbs/colon_cancer/truven/enroll_restrict_365/",
+                                             cp = 120,
+                                             upper_bound = 365*2,
+                                             final_model = NA,
+                                             miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                             duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         conduction_disorders = list(path = "/Shared/AML/small_dbs/conduction_disorders/truven/enroll_restrict_365/",
+                                                     cp = 50,
+                                                     upper_bound = 365,
+                                                     final_model = NA,
+                                                     miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                                     duration_bins = c(1,7,14,21,30,45)),
+                         
+                         crohns_uc = list(path = "/Shared/AML/small_dbs/crohns_uc/truven/enroll_restrict_365/",
+                                          cp = 90,
+                                          upper_bound = 365,
+                                          final_model = NA,
+                                          miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                          duration_bins = c(1,7,14,21,30,45,60,75)),
+                         
+                         endocarditis = list(path = "/Shared/AML/small_dbs/endocarditis/truven/enroll_restrict_365/",
+                                             cp = 45,
+                                             upper_bound = 365,
+                                             final_model = NA,
+                                             miss_bins = c(1,2,3,4,5),
+                                             duration_bins = c(1,2,3,4,5,6,7,10,14,21,35,42)),
+                         
+                         endometriosis = list(path = "/Shared/AML/small_dbs/endometriosis/truven/enroll_restrict_365/",
+                                              cp = 150,
+                                              upper_bound = 365,
+                                              final_model = NA,
+                                              miss_bins = c(1,2,3,4,5),
+                                              duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,75,90)),
+                         
+                         epidural_abs = list(path = "/Shared/AML/small_dbs/epidural_abs/truven/enroll_restrict_365/",
+                                             cp = 60,
+                                             upper_bound = 365,
+                                             final_model = NA,
+                                             miss_bins = c(1,2,3,4,5),
+                                             duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28,35)),
+                         
+                         gout = list(path = "/Shared/AML/small_dbs/gout/truven/enroll_restrict_365/",
+                                     cp = 50,
+                                     upper_bound = 365,
+                                     final_model = NA,
+                                     miss_bins = c(1,2,3,4,5),
+                                     duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28,35)),
+                         
+                         head_neck_cancer = list(path = "/Shared/AML/small_dbs/head_neck_cancer/truven/enroll_restrict_365/",
+                                                 cp = 100,
+                                                 upper_bound = 365,
+                                                 final_model = NA,
+                                                 miss_bins = c(1,2,3,4,5),
+                                                 duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,75)),
+                         
+                         histo = list(path = "/Shared/AML/small_dbs/histo/truven/enroll_restrict_365/",
+                                      cp = 100,
+                                      upper_bound = 365,
+                                      final_model = NA,
+                                      miss_bins = c(1,2,3,4,5),
+                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
+                         
+                         hiv = list(path = "/Shared/AML/small_dbs/hiv/truven/enroll_restrict_365/",
+                                    cp = 45,
+                                    upper_bound = 365,
+                                    final_model = NA,
+                                    miss_bins = c(1,2,3,4,5),
+                                    duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
+                         
+                         hsv_enceph = list(path = "/Shared/AML/small_dbs/hsv_enceph/truven/enroll_restrict_365/",
+                                           cp = 40,
+                                           upper_bound = 365,
+                                           final_model = NA,
+                                           miss_bins = c(1,2,3,4,5),
+                                           duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28)),
+                         
+                         intestinal_obstruction = list(path = "/Shared/AML/small_dbs/intestinal_obstruction/truven/enroll_restrict_365/",
+                                                       cp = 50,
+                                                       upper_bound = 365,
+                                                       final_model = NA,
+                                                       miss_bins = c(1,2,3,4,5),
+                                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28,35)),
+                         
+                         lung_cancer = list(path = "/Shared/AML/small_dbs/lung_cancer/truven/enroll_restrict_365/",
+                                            cp = 90,
+                                            upper_bound = 365,
+                                            final_model = NA,
+                                            miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                            duration_bins = c(1,7,14,21,30,45,60)),
+                         
+                         lupus = list(path = "/Shared/AML/small_dbs/lupus/truven/enroll_restrict_365/",
+                                      cp = 200,
+                                      upper_bound = 365*2,
+                                      final_model = NA,
+                                      miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                      duration_bins = c(1,7,14,21,30,45,60,75,90,120,150)),
+                         
+                         meningitis = list(path = "/Shared/AML/small_dbs/meningitis/truven/enroll_restrict_365/",
+                                           cp = 21,
+                                           upper_bound = 365,
+                                           final_model = NA,
+                                           miss_bins = c(1,2,3,4,5),
+                                           duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28)),
+                         
+                         multiple_myeloma  = list(path = "/Shared/AML/small_dbs/multiple_myeloma/truven/enroll_restrict_365/",
+                                                  cp = 120,
+                                                  upper_bound = 365*2,
+                                                  final_model = NA,
+                                                  miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                                  duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         multiple_sclerosis = list(path = "/Shared/AML/small_dbs/multiple_sclerosis/truven/enroll_restrict_365/",
+                                                   cp = 100,
+                                                   upper_bound = 365,
+                                                   final_model = NA,
+                                                   miss_bins = c(1,2,3,4,5),
+                                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,75)),
+                         
+                         non_hodgkins_lymphoma = list(path = "/Shared/AML/small_dbs/non_hodgkins_lymphoma/truven/enroll_restrict_365/",
+                                                      cp = 100,
+                                                      upper_bound = 365,
+                                                      final_model = NA,
+                                                      miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                                      duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         pd  = list(path = "/Shared/AML/small_dbs/pd/truven/enroll_restrict_365/",
+                                    cp = 150,
+                                    upper_bound = 365*2,
+                                    final_model = NA,
+                                    miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                    duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         pe = list(path = "/Shared/AML/small_dbs/pe/truven/enroll_restrict_365/",
+                                   cp = 50,
+                                   upper_bound = 365,
+                                   final_model = NA,
+                                   miss_bins = c(1,2,3,4,5),
+                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28)),
+                         
+                         pneumonia = list(path = "/Shared/AML/small_dbs/pneumonia/truven/enroll_restrict_365/",
+                                          cp = 50,
+                                          upper_bound = 365,
+                                          final_model = NA,
+                                          miss_bins = c(1,2,3,4,5),
+                                          duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28)),
+                         
+                         pulmonary_hypertension = list(path = "/Shared/AML/small_dbs/pulmonary_hypertension/truven/enroll_restrict_365/",
+                                                       cp = 50,
+                                                       upper_bound = 365,
+                                                       final_model = NA,
+                                                       miss_bins = c(1,2,3,4,5),
+                                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,28)),
+                         
+                         ra  = list(path = "/Shared/AML/small_dbs/ra/truven/enroll_restrict_365/",
+                                    cp = 100,
+                                    upper_bound = 365*2,
+                                    final_model = NA,
+                                    miss_bins = c(1,2,3,4,5,6,7,8,9,10),
+                                    duration_bins = c(1,7,14,21,30,45,60,75,90)),
+                         
+                         stroke = list(path = "/Shared/AML/small_dbs/stroke/truven/enroll_restrict_365/",
+                                       cp = 30,
+                                       upper_bound = 365,
+                                       final_model = NA,
+                                       add_validity_constraint = FALSE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17)),
+                         
+                         sarcoid = list(path = "/Shared/AML/small_dbs/sarcoid/truven/enroll_restrict_365/",
+                                        cp = 150,
+                                        upper_bound = 365*2,
+                                        final_model = NA,
+                                        add_validity_constraint = FALSE,
+                                        miss_bins = c(1,2,3,4,5,7,10),
+                                        duration_bins = c(3,7,14,21,30,60,90,120,150)),
+                         
+                         tb = list(path = "/Shared/AML/small_dbs/tb/truven/enroll_restrict_365/",
+                                   cp = 100,
+                                   upper_bound = 365,
+                                   final_model = NA,
+                                   add_validity_constraint = TRUE,
+                                   miss_bins = c(1,2,3,4,5),
+                                   duration_bins = c(1,3,5,7,14,21,30,45,60,75,90))
+                         
+)
+
+# save parameters
+save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")
+
+# update master list
+library(tidyverse)
+codeBuildr::avail_disease_codes() %>% 
+  inner_join(tibble(name = names(delay_any_params))) %>% 
+  mutate(cp = map_dbl(name,~delay_any_params[[.]]$cp)) %>% 
+  mutate(upper_bound = map_dbl(name,~delay_any_params[[.]]$upper_bound)) %>% 
+  mutate(final_model = map_dbl(name,~delay_any_params[[.]]$final_model)) 
+
+
