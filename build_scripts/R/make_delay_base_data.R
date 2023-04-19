@@ -17,6 +17,7 @@ args = commandArgs(trailingOnly=TRUE)
 cond_name <- args[1]
 # cond_name <- "tb"
 
+# Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
@@ -102,19 +103,21 @@ all_dx_visits <- con %>%
   collect() %>%
   filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound))
 
-# make sure to only count cases with continuous enrollment
+# make sure to only count cases with continuous enrollment (i.e., join with filtered index dates)
 all_dx_visits <- all_dx_visits %>%
   inner_join(distinct(index_dx_dates,enrolid), by = "enrolid")
 
+# dx counts
 dx_counts <- all_dx_visits %>%
   distinct(enrolid,dx,dx_ver,days_since_index) %>%
   count(dx,dx_ver,days_since_index)
 
+# visit counts
 visit_counts <- all_dx_visits %>%
   distinct(enrolid,dx_ver,days_since_index) %>%
   count(dx_ver,days_since_index)
 
-# populate missing vals
+# populate missing valules in visit counts (i.e., assign 0 to days missing)
 visit_counts <- tibble(days_since_index=-delay_params$upper_bound:delay_params$upper_bound) %>%
   mutate(dx_ver=map(days_since_index,~c(9,10))) %>%
   unnest(dx_ver) %>%
