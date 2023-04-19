@@ -110,12 +110,10 @@ find_pred_bound_cp <- function(pred_data){
 ```
 
 
-# Change-point Report
-
-## SSD Visits
+# SSD Visits
 
 
-## All Visits
+# All Visits
 
 ```{r, include=FALSE}
 
@@ -149,10 +147,12 @@ tmp2 <- tmp %>%
 
 ```
 
-### Plots
+## Results
+
+## Plots
 
 
-Plot with periodicity
+### Piecewise model with periodicity
 ```{r, include = TRUE}
 tmp1 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -169,5 +169,20 @@ tmp1 %>%
 
 ```
 
-###
+### Piecewise model without periodicity
+```{r, include = TRUE}
+tmp2 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp2, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp2, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+
+```
 
