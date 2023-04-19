@@ -19,6 +19,14 @@ The build scripts folder contains two subfolders: `R` and `jobs`. The `R` folder
 
 -   **get_change_points** - performs change point analysis for
 
+-   **get_delay_res_ssd** - runs a preliminary delay diagnosis analysis for SSD visits
+
+-   **get_delay_res_any** - runs a preliminary delay diagnosis analysis for any visits
+
+-   **make_delay_report** - generates a report of delayed diagnosis results
+
+-   **run_risk_models** - runs a risk model analysis using a set of standard conditions
+
 NOTE: Each of these scripts requires an entry into the `delay_any_params.RData` file located at `/AML/params/delay_any_params.RData`. This file contains the necessary parameters (e.g., data location, change-point, upper bound window, final model to use, etc.) for performing analysis. This file should be regularly updated throughout the analysis process. The script for generating and updating this file is located at `/delay_diagnosis/build_scripts/make_delay_params.R`. A corresponding file for performing the final analysis for each disease is also located within the projects folder.
 
 ## Build Scripts
