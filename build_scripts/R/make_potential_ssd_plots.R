@@ -13,7 +13,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
-base_path <- paste0(delay_params$path,"cluster_results")
+base_path <- delay_params$path
 
 
 ### Paths for plot output ------------------------------------------------------
