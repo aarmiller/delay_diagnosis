@@ -153,7 +153,7 @@ tmp2 <- tmp %>%
 
 
 Plot with periodicity
-```{r, include = FALSE}
+```{r, include = TRUE}
 tmp1 %>%
   select(label,cp,pred_bound_cp,pred) %>%
   unnest(pred) %>%
