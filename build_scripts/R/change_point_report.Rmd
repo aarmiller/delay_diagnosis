@@ -290,16 +290,43 @@ tmp4 <- ssd_res2 %>%
 
 ## Results
 
-The following is a summary of of the estimated change-point and the implied 
+#### Change-point summary
+The following is a summary of the estimated change-point and the implied 
 change-point using the prediction bound approach along with the corresponding
 number of missed opportunities for each change-point:
 
 ```{r}
 ssd_res_out %>% 
-  select(label,cp,pred_bound_cp,cp_n_miss,pb_cp_n_miss) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
+
+#### Performance Summary
+The following is a summary of the performance metrics for each change-point approach:
+```{r}
+ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Change-point rankings
+The following is a ranking of change-point methods in terms of their consistency
+with the implied change-point from the prediction-bound approach, overall mse 
+before the change-point and mse within 7 and 14 days prior to the change-point.
+
+```{r}
+get_rankings(ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+#### Optimal Change-point(s)
+The following
+
 
 ## Plots
 
