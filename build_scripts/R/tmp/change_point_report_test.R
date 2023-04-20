@@ -352,5 +352,36 @@ ssd_res_out %>%
 all_res_out %>% 
   mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
 
+opt_mods <- get_rankings(ssd_res_out) %>% 
+  filter(avg_rank == min(avg_rank))
 
+opt_mods_text <- ifelse(nrow(opt_mods)>1,
+                            paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
+                            paste0("The optimal model was ",opt_mods$label))
 
+paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or "))
+
+opt_mods %>% 
+  select(label) %>% 
+  inner_join(ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss)
+
+tmp <- bind_rows(mutate(ssd_res1,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("Piecewise ", model, tmp)),
+                 mutate(ssd_res2,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("CUSUM ", model, tmp))) %>% 
+  inner_join(select(opt_mods,label)) %>% 
+  select(label,cp,pred_bound_cp,pred)
+
+tmp %>% 
+  unnest(pred) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()

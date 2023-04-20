@@ -5,6 +5,9 @@ date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
 params:
   cond:
     value: x
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -208,9 +211,8 @@ count_data_ssd <- all_dx_visits %>%
   mutate(dow = as.factor(period %% 7))
 ```
 
-
-
 # SSD Visits
+
 ```{r, include=FALSE}
 
 # piecewise model results
@@ -290,41 +292,11 @@ tmp4 <- ssd_res2 %>%
 
 ## Results
 
-#### Change-point summary
-The following is a summary of the estimated change-point and the implied 
-change-point using the prediction bound approach along with the corresponding
-number of missed opportunities for each change-point:
-
-```{r}
-ssd_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-#### Performance Summary
-The following is a summary of the performance metrics for each change-point approach:
-```{r}
-ssd_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-#### Change-point rankings
-The following is a ranking of change-point methods in terms of their consistency
-with the implied change-point from the prediction-bound approach, overall mse 
-before the change-point and mse within 7 and 14 days prior to the change-point.
-
-```{r}
-get_rankings(ssd_res_out) %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
+The following summarizes the results across the various change-point
+approaches applied to trends in SSD-related visits.
 
 #### Optimal Change-point(s)
+
 ```{r}
 opt_mods <- get_rankings(ssd_res_out) %>% 
   filter(avg_rank == min(avg_rank))
@@ -333,11 +305,13 @@ opt_mods_text <- ifelse(nrow(opt_mods)>1,
                             paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
                             paste0("The optimal model was ",opt_mods$label))
 ```
+
 `r opt_mods_text`
 
+The following is a summary of the *estimated* (from given method) and
+*implied* (from prediction-bound) change-points for the optimal model,
+along with the corresponding number of missed opportunities:
 
-The following is a summary of the estimated and implied change-points for the 
-optimal model.
 ```{r}
 opt_mods %>% 
   select(label) %>% 
@@ -347,7 +321,11 @@ opt_mods %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a plot of the optimal models
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
 ```{r}
 tmp <- bind_rows(mutate(ssd_res1,
                         tmp = ifelse(periodicity," w/ periodicity",""),
@@ -370,9 +348,50 @@ tmp %>%
   theme_bw()
 ```
 
+#### Change-point summary
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+```{r}
+ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Performance Summary
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+```{r}
+ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Change-point rankings
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+```{r}
+get_rankings(ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
 ## Plots
 
 ### Piecewise models with periodicity
+
 ```{r, include = TRUE}
 tmp1 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -390,6 +409,7 @@ tmp1 %>%
 ```
 
 ### Piecewise models without periodicity
+
 ```{r, include = TRUE}
 tmp2 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -406,8 +426,8 @@ tmp2 %>%
 
 ```
 
-
 ### CUSUM models with periodicity
+
 ```{r, include = TRUE}
 tmp3 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -423,6 +443,7 @@ tmp3 %>%
 ```
 
 ### CUSUM models without periodicity
+
 ```{r, include = TRUE}
 tmp4 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -436,8 +457,6 @@ tmp4 %>%
   facet_wrap(~label, ncol = 2) +
   theme_bw()
 ```
-
-
 
 # All Visits
 
@@ -521,8 +540,8 @@ tmp4 <- all_res2 %>%
 
 ## Plots
 
-
 ### Piecewise model with periodicity
+
 ```{r, include = TRUE}
 tmp1 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -539,6 +558,7 @@ tmp1 %>%
 ```
 
 ### Piecewise model without periodicity
+
 ```{r, include = TRUE}
 tmp2 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -555,6 +575,7 @@ tmp2 %>%
 ```
 
 ### CUSUM models with periodicity
+
 ```{r, include = TRUE}
 tmp3 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -570,6 +591,7 @@ tmp3 %>%
 ```
 
 ### CUSUM models without periodicity
+
 ```{r, include = TRUE}
 tmp4 %>%
   select(label,cp,pred_bound_cp,pred) %>%
@@ -583,4 +605,3 @@ tmp4 %>%
   facet_wrap(~label, ncol = 2) +
   theme_bw()
 ```
-
