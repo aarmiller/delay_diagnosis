@@ -128,6 +128,48 @@ fit_cumsum_mods <- function(count_data, model, periodicity){
               pred = pred_data))
 }
 
+get_rankings <- function(cp_data){
+  tmp1 <- cp_data %>% 
+    mutate(tmp=abs(cp_consistency)) %>% 
+    distinct(tmp) %>% 
+    arrange(tmp) %>% 
+    mutate(consistency_rank=row_number()) %>% 
+    inner_join(cp_data %>% 
+                 mutate(tmp=abs(cp_consistency))) %>% 
+    select(label,consistency_rank)
+  
+  tmp2 <- cp_data %>% 
+    distinct(mse) %>% 
+    arrange(mse) %>% 
+    mutate(mse_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse_rank)
+  
+  tmp3 <- cp_data %>% 
+    distinct(mse7) %>% 
+    arrange(mse7) %>% 
+    mutate(mse7_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse7_rank)
+  
+  tmp4 <- cp_data %>% 
+    distinct(mse14) %>% 
+    arrange(mse14) %>% 
+    mutate(mse14_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse14_rank)
+  
+  cp_data %>% 
+    select(label, cp, pb_cp = pred_bound_cp) %>% 
+    left_join(tmp1, by = "label") %>% 
+    left_join(tmp2, by = "label") %>% 
+    left_join(tmp3, by = "label") %>% 
+    left_join(tmp4, by = "label") %>% 
+    mutate(avg_rank = (consistency_rank+mse_rank+mse7_rank+mse14_rank)/4) %>% 
+    arrange(avg_rank) %>% 
+    select(label,avg_rank,cp, pb_cp,consistency_rank:mse14_rank)
+}
+
 ```
 
 ```{r count_data, include = FALSE}
@@ -202,6 +244,36 @@ ssd_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
   mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
 
+# aggregate results output
+ssd_res_out <- bind_rows(mutate(ssd_res1,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("Piecewise ", model, tmp)),
+                          mutate(ssd_res2,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("CUSUM ", model, tmp))) %>% 
+  select(label,cp,pred_bound_cp,pred) %>% 
+  mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  unnest(cp_n_miss) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  unnest(pb_cp_n_miss) %>% 
+  mutate(mse = map2(pred,cp,
+                    ~filter(.x, period>.y) %>% 
+                      summarise(mse = mean((n-pred1)^2)))) %>%
+  unnest(mse) %>% 
+  mutate(mse7 = map2(pred,cp,
+                    ~filter(.x, between(period,.y,.y+6)) %>% 
+                      summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+13)) %>% 
+                       summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
+
+# split up results for plotting
 tmp1 <- ssd_res1 %>%
   filter(periodicity)
 
@@ -217,6 +289,17 @@ tmp4 <- ssd_res2 %>%
 ```
 
 ## Results
+
+The following is a summary of of the estimated change-point and the implied 
+change-point using the prediction bound approach along with the corresponding
+number of missed opportunities for each change-point:
+
+```{r}
+ssd_res_out %>% 
+  select(label,cp,pred_bound_cp,cp_n_miss,pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
 
 ## Plots
 
@@ -321,6 +404,36 @@ all_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
   mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
 
+## aggregate results output
+all_res_out <- bind_rows(mutate(all_res1,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("Piecewise ", model, tmp)),
+                         mutate(all_res2,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("CUSUM ", model, tmp))) %>% 
+  select(label,cp,pred_bound_cp,pred) %>% 
+  mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  unnest(cp_n_miss) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  unnest(pb_cp_n_miss) %>% 
+  mutate(mse = map2(pred,cp,
+                    ~filter(.x, period>.y) %>% 
+                      summarise(mse = mean((n-pred1)^2)))) %>% 
+  unnest(mse) %>% 
+  mutate(mse7 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+6)) %>% 
+                       summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                      ~filter(.x, between(period,.y,.y+13)) %>% 
+                        summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
+
+## split up results for plotting
 tmp1 <- all_res1 %>%
   filter(periodicity)
 

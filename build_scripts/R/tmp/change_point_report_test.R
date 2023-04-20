@@ -22,6 +22,10 @@ if (!dir.exists(out_path)){
 }
 
 
+### Set bounds on cp analysis
+cp_lower <- ifelse(is.na(delay_params$cp_lower),3,delay_params$cp_lower)
+cp_upper <- ifelse(is.na(delay_params$cp_upper),round(.80*delay_params$upper_bound,0),delay_params$cp_upper)
+
 ######################
 ##### Get Counts #####
 ######################
@@ -170,7 +174,7 @@ fit_cumsum_mods <- function(count_data, model, periodicity){
 #### Get Change-Point Results for all visits #####
 ##################################################
 
-#### peicewise models ----------------------------------------------------------
+#### ssd visits ----------------------------------------------------------------
 ssd_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
   mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
   mutate(periodicity = map(model,~c(T,F))) %>% 
@@ -178,7 +182,7 @@ ssd_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~find_cp(count_data_ssd,
-                                cp_range = 3:300,
+                                cp_range = cp_lower:cp_upper,
                                 model = .x,
                                 periodicity = .y))) %>% 
   mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
@@ -200,7 +204,7 @@ ssd_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
   mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
 
-
+#### all visits ----------------------------------------------------------------
 all_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
   mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
   mutate(periodicity = map(model,~c(T,F))) %>% 
@@ -208,7 +212,7 @@ all_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~find_cp(count_data_all,
-                                cp_range = 3:300,
+                                cp_range = cp_lower:cp_upper,
                                 model = .x,
                                 periodicity = .y))) %>% 
   mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
@@ -230,12 +234,44 @@ all_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
   mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
 
+###########################
+#### Aggregate Results ####
+###########################
 
-### Cusum models ---------------------------------------------------------------
+ssd_res_out <- bind_rows(mutate(ssd_res1,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("Piecewise ", model, tmp)),
+                          mutate(ssd_res2,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("CUSUM ", model, tmp))) %>% 
+  select(label,cp,pred_bound_cp,pred) %>% 
+  mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  unnest(cp_n_miss) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  unnest(pb_cp_n_miss) %>% 
+  mutate(mse = map2(pred,cp,
+                    ~filter(.x, period>.y) %>% 
+                      summarise(mse = mean((n-pred1)^2)))) %>%
+  unnest(mse) %>% 
+  mutate(mse7 = map2(pred,cp,
+                    ~filter(.x, between(period,.y,.y+6)) %>% 
+                      summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+13)) %>% 
+                       summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
 
-ssd_res_out1 <- mutate(ssd_res1,
-       tmp = ifelse(periodicity," w/ periodicity",""),
-       label = paste0("Piecewise ", model, tmp)) %>% 
+all_res_out <- bind_rows(mutate(all_res1,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("Piecewise ", model, tmp)),
+                         mutate(all_res2,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("CUSUM ", model, tmp))) %>% 
   select(label,cp,pred_bound_cp,pred) %>% 
   mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
   mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
@@ -246,175 +282,75 @@ ssd_res_out1 <- mutate(ssd_res1,
                     ~filter(.x, period>.y) %>% 
                       summarise(mse = mean((n-pred1)^2)))) %>% 
   unnest(mse) %>% 
-  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss)
+  mutate(mse7 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+6)) %>% 
+                       summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                      ~filter(.x, between(period,.y,.y+13)) %>% 
+                        summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
 
-ssd_res_out1
-
-
-ssd_res1$pred[[1]] %>% 
-  filter(period<=58) %>% 
-  mutate(., n_miss = ifelse(n>pred1,n-pred1,0)) %>% 
-  summarise(sum(n_miss))
-
-
-ssd_res1$pred[[1]] %>% 
-  mutate(n_miss = ifelse(n>pred1,n-pred1,0)) 
-
-library(trend)
-install.packages("trend")
-
-library(changepoint)
-install.packages("changepoint")
-
-
-cp_out <- count_data_ssd %>% 
-  arrange(-period)
-
-t_series <- ts(cp_out$n, start = min(-1*cp_out$period), frequency = 1)
-
-cp_est <- cpts(cpt.mean(t_series,pen.value = 1, penalty = "None", test.stat = 'CUSUM'))
-cp <- cp_out$period[cp_est]
-cp
-
-fit <- fit_model(data = count_data_ssd,cp = cp,model = "lm",periodicity = FALSE,return_fit = TRUE)
-
-count_data_ssd %>% 
-  mutate(before_cp = TRUE) %>% 
-  mutate(pred1 = predict(fit$fit, newdata = .)) %>% 
-  ggplot(aes(days_since_index,n)) +
-  geom_point() +
-  geom_line(aes(y = pred1), color = "red") +
-  geom_vline(aes(xintercept = -cp))
-
-fit_cumsum_mods <- function(count_data, model, periodicity){
-  cp_out <- count_data %>% 
-    arrange(-period)
+get_rankings <- function(cp_data){
+  tmp1 <- cp_data %>% 
+    mutate(tmp=abs(cp_consistency)) %>% 
+    distinct(tmp) %>% 
+    arrange(tmp) %>% 
+    mutate(consistency_rank=row_number()) %>% 
+    inner_join(cp_data %>% 
+                 mutate(tmp=abs(cp_consistency))) %>% 
+    select(label,consistency_rank)
   
-  t_series <- ts(cp_out$n, start = min(-1*cp_out$period), frequency = 1)
+  tmp2 <- cp_data %>% 
+    distinct(mse) %>% 
+    arrange(mse) %>% 
+    mutate(mse_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse_rank)
   
-  cp_est <- suppressWarnings( cpts(cpt.mean(t_series,pen.value = 1, penalty = "None", test.stat = 'CUSUM')))
-  cp <- cp_out$period[cp_est]
+  tmp3 <- cp_data %>% 
+    distinct(mse7) %>% 
+    arrange(mse7) %>% 
+    mutate(mse7_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse7_rank)
   
-  fit <- fit_model(data = count_data_ssd,cp = cp,model = model,periodicity = periodicity,return_fit = TRUE)
+  tmp4 <- cp_data %>% 
+    distinct(mse14) %>% 
+    arrange(mse14) %>% 
+    mutate(mse14_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse14_rank)
   
-  pred_data <-  count_data %>% 
-    mutate(before_cp = TRUE) %>% 
-    mutate(pred1 = predict(fit$fit, newdata = .))
-  
-  return(list(cp = cp,
-              pred = pred_data))
+  cp_data %>% 
+    select(label, cp, pb_cp = pred_bound_cp) %>% 
+    left_join(tmp1, by = "label") %>% 
+    left_join(tmp2, by = "label") %>% 
+    left_join(tmp3, by = "label") %>% 
+    left_join(tmp4, by = "label") %>% 
+    mutate(avg_rank = (consistency_rank+mse_rank+mse7_rank+mse14_rank)/4) %>% 
+    arrange(avg_rank) %>% 
+    select(label,avg_rank,cp, pb_cp,consistency_rank:mse14_rank)
 }
 
-fit_cumsum_mods(count_data_ssd,model = "lm",periodicity = TRUE)
+ssd_res_out %>% 
+  select(label,cp,pred_bound_cp,cp_n_miss,pb_cp_n_miss)
 
-tibble(model = c("lm","quad","cubic","exp")) %>% 
-  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
-  mutate(periodicity = map(model,~c(T,F))) %>% 
-  unnest(periodicity) %>% 
-  mutate(label = ifelse(periodicity==TRUE,paste0("CUSUM ",label," w/ periodicity"),label)) %>% 
-  mutate(cp_res = map2(model,periodicity,
-                       ~fit_cumsum_mods(count_data_all,model = .x, periodicity = .y))) %>% 
-  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
-  mutate(pred = map(cp_res,~.$pred)) %>% 
-  select(model,label,periodicity,cp,pred) %>% 
-  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
-  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+get_rankings(ssd_res_out)
+get_rankings(all_res_out)
 
+ssd_res_out %>% 
+  distinct(mse7) %>% 
+  arrange(mse7) %>% 
+  mutate(mse7_rank=row_number()) %>% 
+  inner_join(ssd_res_out) %>% 
+  select(label,mse7_rank)
 
-
-
-tmp3 <- ssd_res2 %>%
-  filter(periodicity)
-
-tmp4 <- ssd_res2 %>%
-  filter(!periodicity)
-
-tmp3 %>%
-  select(label,cp,pred_bound_cp,pred) %>%
-  unnest(pred) %>%
-  ggplot(aes(period,n)) +
-  geom_point() +
-  scale_x_reverse()+
-  geom_line(aes(y = pred1), color ="red", size = .75) +
-  geom_vline(data = tmp3, aes(xintercept=cp), linetype=2) +
-  geom_vline(data = tmp3, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
-  facet_wrap(~label, ncol = 2) +
-  theme_bw()
-
-tmp4 %>%
-  select(label,cp,pred_bound_cp,pred) %>%
-  unnest(pred) %>%
-  ggplot(aes(period,n)) +
-  geom_point() +
-  scale_x_reverse()+
-  geom_line(aes(y = pred1), color ="red", size = .75) +
-  geom_vline(data = tmp4, aes(xintercept=cp), linetype=2) +
-  geom_vline(data = tmp4, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
-  facet_wrap(~label, ncol = 2) +
-  theme_bw()
-
-tmp2 %>%
-  select(label,cp,pred_bound_cp,pred) %>%
-  unnest(pred) %>%
-  ggplot(aes(period,n)) +
-  geom_point() +
-  scale_x_reverse()+
-  geom_line(aes(y = pred2), color = "blue") +
-  geom_line(aes(y = pred1), color ="red") +
-  geom_vline(data = tmp2, aes(xintercept=cp), linetype=2) +
-  geom_vline(data = tmp2, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
-  facet_wrap(~label, ncol = 2) +
-  theme_bw()
-
-#### SSD Visits ####
-
-ssd_codes <- bind_rows(codeBuildr::load_ssd_codes(cond_name) %>%
-                         filter(type == "icd9") %>%
-                         select(dx=code) %>%
-                         mutate(icd_ver=9),
-                       codeBuildr::load_ssd_codes(cond_name) %>%
-                         filter(type == "icd10") %>%
-                         select(dx=code) %>%
-                         mutate(icd_ver=10))
+all_res_out %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
 
 
-# load(paste0(in_path,"/all_dx_visits.RData"))
 
-tibble(days_since_index=min(visit_counts$days_since_index):-1)
-
-#Change this to read from wherever the data is stored for you
-count_data_ssd <- all_dx_visits %>%
-  inner_join(ssd_codes, by = "dx") %>%
-  distinct(enrolid,days_since_index) %>%
-  count(days_since_index) %>%
-  left_join(tibble(days_since_index=min(visit_counts$days_since_index):-1),., by = "days_since_index") %>% 
-  mutate(n = replace_na(n,0L)) %>% 
-  mutate(period = -days_since_index) %>%
-  select(period,n,days_since_index) %>% 
-  filter(days_since_index<0) %>% 
-  mutate(period = -days_since_index) %>% 
-  mutate(dow = as.factor(period %% 7))
-
-
-tmp <- tibble(model = c("lm","quad","cubic","exp")) %>% 
-  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
-  mutate(periodicity = map(model,~c(T,F))) %>% 
-  unnest(periodicity) %>% 
-  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
-  mutate(cp_res = map2(model,periodicity,
-                       ~find_cp(count_data_ssd,
-                                cp_range = 3:300,
-                                model = .x,
-                                periodicity = .y))) %>% 
-  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
-  mutate(pred = map(cp_res,~.$pred)) %>% 
-  select(model,label,periodicity,cp,pred) %>% 
-  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
-  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
-
-
-tmp1 <- tmp %>%
-  filter(periodicity)
-
-tmp2 <- tmp %>%
-  filter(!periodicity)

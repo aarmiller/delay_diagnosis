@@ -1,0 +1,521 @@
+---
+title: "Delay Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "tb"
+
+# load delay_parms
+load("/Shared/AML/params/delay_any_params.RData")
+
+delay_params <- delay_any_params[[params$cond]]
+
+delay_base_path <- paste0(delay_params$path,"delay_results/")
+
+ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
+
+## Pull in the data
+load(paste0(delay_base_path,"all_dx_visits.RData"))
+
+total_patients <- nrow(index_dx_dates)
+
+total_visit_days_in_window <- all_dx_visits %>% 
+  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  distinct(enrolid,days_since_index) %>% 
+  nrow()
+
+total_ssd_visit_days_in_window <- all_dx_visits %>% 
+  inner_join(ssd_codes) %>% 
+  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  distinct(enrolid,days_since_index) %>% 
+  nrow()
+
+
+```
+
+
+# Delay Report for `r params$cond`
+
+There were ``r total_patients`` enrollees diagnosed with `r params$cond`. 
+
+The diagnostic opportunity window was set between 1 and `r delay_params$cp` days before diagnosis.
+
+### Visit Trends
+
+During the diagnostic opportunity window there were ``r total_visit_days_in_window`` total patient visit days,
+and ``r total_ssd_visit_days_in_window`` total SSD visit days.
+
+The following is a plot of all patient visits and SSD visits that occurred in the `r delay_params$upper_bound` days prior to the index diagnosis
+```{r, echo = FALSE}
+bind_rows(all_dx_visits %>% 
+            inner_join(ssd_codes) %>%
+            distinct(enrolid,days_since_index) %>% 
+            count(days_since_index) %>% 
+            mutate(group = "SSD Visits"),
+          visit_counts %>% 
+            filter(days_since_index<0) %>% 
+            filter(is.na(dx_ver)) %>% 
+            select(days_since_index,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  filter(days_since_index<0) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Visits") +
+  xlab("Days Before Diagnosis") +
+  geom_vline(aes(xintercept = 100), linetype = 2) +
+  facet_wrap(~group, scales = "free_y")
+
+```
+
+## SSD Visit Results
+
+
+### Expected Visit Trends
+
+The following figure depicts the estimated trends in expected visit counts for SSD  
+```{r, echo = FALSE}
+sim_tm <- all_dx_visits %>%
+  mutate(period = -days_since_index) %>%
+  inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
+  distinct(enrolid,period,days_since_index) %>%
+  rename(patient_id=enrolid) %>%
+  mutate(obs=row_number())
+
+all_vis_count <- sim_tm %>%
+  count(period) %>%
+  filter(period>0)
+
+#### fit models ----------------------------------------------------------------
+fit1 <- lm(n ~ period, filter(all_vis_count, period>delay_params$cp))
+fit2 <- lm(n ~ log(period), filter(all_vis_count, period>delay_params$cp))
+fit3 <- lm(n ~ poly(period,degree = 2), filter(all_vis_count, period>delay_params$cp))
+fit4 <- lm(n ~ poly(period,degree = 3), filter(all_vis_count, period>delay_params$cp))
+
+mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
+                  model = c("linear","exponential","quadratic","cubic"),
+                  rmse = c(sqrt(sum(fit1$residuals^2)),
+                           sqrt(sum(fit2$residuals^2)),
+                           sqrt(sum(fit3$residuals^2)),
+                           sqrt(sum(fit4$residuals^2)))) %>%
+  mutate(label = paste("RMSE: ", round(rmse,2)))
+
+y_pos <- .9*max(all_vis_count$n)
+x_pos <- .8*delay_params$upper_bound
+
+predicted_fits <- all_vis_count %>%
+  mutate(linear = predict(fit1,newdata = .)) %>%
+  mutate(exponential = predict(fit2,newdata = .)) %>%
+  mutate(quadratic = predict(fit3,newdata = .)) %>%
+  mutate(cubic = predict(fit4,newdata = .)) %>%
+  gather(key = model, value = value, -period, -n) %>% 
+  mutate(num_miss = n-value) %>% 
+  mutate(num_miss = ifelse(num_miss<0,0,num_miss))
+
+# pick the selected model: Note: currently omitting exponential
+selected_model <- mse_res %>%
+  filter(model!="exponential") %>%
+  filter(rmse ==min(rmse))
+
+p1 <- predicted_fits %>%
+  inner_join(mse_res) %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = value), color = "red") +
+  facet_wrap(~model) +
+  geom_vline(aes(xintercept = delay_params$cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res,
+            mapping = aes(x = x_pos, y = y_pos, label = label))
+
+p2 <- predicted_fits %>% 
+  filter(period<delay_params$cp) %>% 
+  ggplot(aes(period,num_miss)) +
+  geom_histogram(stat = "identity") +
+  scale_x_reverse() +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Diagnosis") +
+  theme_bw() +
+  facet_wrap(~model) 
+
+p1
+
+```
+
+
+The following summarises the observed and expected number of visits and the estimated number of missed opportunities:
+
+```{r, echo = FALSE}
+pred_table <- predicted_fits %>% 
+  filter(period<delay_params$cp) %>% 
+  group_by(model) %>% 
+  summarise(`Total Visits` = round(sum(n)),
+            `Expected Visits` = round(sum(value)),
+            `Number Missed` = round(sum(num_miss))) 
+
+selected_model_missed_opp <- as.integer(filter(pred_table,model==selected_model$model)$`Number Missed`)
+
+pred_table %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a plot of the estimated number of missed oppportunities each day for each method:
+
+```{r, echo=FALSE}
+p2
+```
+
+The final selected model was ``r selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
+
+### Simulation Results
+
+```{r, echo=FALSE}
+# load ssd miss results
+load(paste0(delay_base_path,"/ssd_visit/optimal_model_res.RData"))
+```
+
+The following is an overall summary of the frequency and duration of missed opportunities
+```{r, echo = FALSE}
+optimal_model_res$sim_res_stats %>% 
+  select(key,out) %>% 
+  inner_join(tribble(~key,~Measure,
+                     "n_pat","Number of Patients Missed",
+                     "pct_miss","Percent of Patients Missed",
+                     "mean_dur","Mean Duration of Delays",
+                     "median_dur","Median Duration of Delays",
+                     "mean_n_miss","Mean Number of Misses per patient delayed",
+                     "median_n_miss","Median Number of Misses per patient delayed"),.) %>% 
+  select(Measure,Value = out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a summary of the distribution of delay durations:
+```{r, echo = FALSE}
+optimal_model_res$sim_res_dur_tab %>% 
+  mutate(Duration = ifelse(duration_bin==1,
+                           paste0(">= ",duration_bin, "Day"),
+                           paste0(">= ",duration_bin, "Days"))) %>% 
+  select(Duration,`Number of Patients`=n,
+         `Percent of All Patients` = pct_all,
+         `Percent of Patients with Miss` = pct_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a summary of distribution of the number of missed opportunities that each patient experienced
+``` {r, echo = FALSE}
+optimal_model_res$sim_res_miss_tab %>% 
+  mutate(miss_bin = paste0(">=",miss_bin)) %>% 
+  rename(`Number of misses` = miss_bin,
+         `Number of Patients`=n,
+         `Percent of All Patients` = pct_all,
+         `Percent of Patients with Miss` = pct_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following is a summary of the basic setting types where missed opportunities occured
+``` {r, echo = FALSE}
+optimal_model_res$setting_type_res %>% 
+  select(`Setting Type` = setting_type,
+         `Number of Missed Opportunities` = n,
+         `Percent of Missed opportunities` = pct) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+The following is a summary of all the locations of care where missed opportunities occurred
+```{r, echo = FALSE}
+
+optimal_model_res$stdplac_res %>% 
+  inner_join(smallDB::stdplac_labels, by = "stdplac") %>% 
+  select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+
+```
+
+### Results by patient location
+
+The following is a breakdown of results by patient location
+
+```{r}
+load(paste0(delay_base_path,"demo_data.RData"))
+load(paste0(delay_base_path,"/ssd_visit/sim_res.RData"))
+
+rural_ids <- distinct(rural_visits,enrolid)
+
+msa_ids <- demo2 %>% 
+  filter(index_date>=dtstart & index_date<=dtend) %>% 
+  filter(!is.na(msa) & msa!="0" & msa != "") %>% 
+  distinct(enrolid)
+
+no_msa_ids <- demo2 %>% 
+  filter(index_date>=dtstart & index_date<=dtend) %>% 
+  filter(msa=="0" | msa=="") %>%
+  distinct(enrolid)
+
+rural_no_msa_ids <- rural_ids %>% anti_join(msa_ids)
+
+get_id_res <- function(id_set){
+  sim_obs %>% 
+    inner_join(id_set) %>% 
+    inner_join(sim_res) %>% 
+    group_by(trial,enrolid) %>% 
+    summarise(duration = -min(days_since_index),
+              n_miss = n()) %>% 
+    group_by(trial) %>% 
+    summarise(n_pat = n(),
+              n_miss = mean(n_miss),
+              duration = mean(duration)) %>% 
+    summarise(n_pat_mean = mean(n_pat),
+              n_pat_low = quantile(n_pat,probs = c(0.025)),
+              n_pat_high = quantile(n_pat,probs = c(0.975)),
+              n_miss_mean = mean(n_miss),
+              n_miss_low = quantile(n_miss,probs = c(0.025)),
+              n_miss_high = quantile(n_miss,probs = c(0.975)),
+              duration_mean = mean(duration),
+              duration_low = quantile(duration,probs = c(0.025)),
+              duration_high = quantile(duration,probs = c(0.975))) %>% 
+    mutate(pct_miss_mean = 100*n_pat_mean/nrow(id_set),
+           pct_miss_low = 100*n_pat_low/nrow(id_set),
+           pct_miss_high = 100*n_pat_high/nrow(id_set)) %>% 
+    mutate_all(~round(.,2)) %>% 
+    mutate(n_pat = paste0(n_pat_mean," (",n_pat_low,"-",n_pat_high,")"),
+           pct_miss = paste0(pct_miss_mean," (",pct_miss_low,"-",pct_miss_high,")"),
+           duration = paste0(duration_mean," (",duration_low,"-",duration_high,")"),
+           n_miss = paste0(n_miss_mean," (",n_miss_low,"-",n_miss_high,")")) %>% 
+    mutate(total_patients = nrow(id_set)) %>%
+    select(total_patients,n_pat:n_miss) %>% 
+    gather(key = key, value = value)
+}
+
+rural_res <- get_id_res(rural_ids) %>% 
+  rename(Rural = value)
+
+msa_res <- get_id_res(msa_ids) %>% 
+  rename(`In MSA` = value)
+
+rural_no_msa_res <- get_id_res(rural_no_msa_ids) %>% 
+  rename(`Rural No MSA` = value)
+
+no_msa_res <-  get_id_res(no_msa_ids) %>% 
+  rename(`No MSA` = value)
+
+msa_res %>% 
+  inner_join(no_msa_res) %>% 
+  inner_join(rural_res) %>% 
+  inner_join(rural_no_msa_res) %>% 
+  rename(Measure = key) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+## Any Visit Results
+
+
+
+### Expected Visit Trends
+
+The following figure depicts the estimated trends in expected visit counts for SSD  
+```{r, echo = FALSE}
+sim_tm <- all_dx_visits %>%
+  mutate(period = -days_since_index) %>%
+  #inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
+  distinct(enrolid,period,days_since_index) %>%
+  rename(patient_id=enrolid) %>%
+  mutate(obs=row_number())
+
+all_vis_count <- sim_tm %>%
+  count(period) %>%
+  filter(period>0)
+
+#### fit models ----------------------------------------------------------------
+fit1 <- lm(n ~ period, filter(all_vis_count, period>delay_params$cp))
+fit2 <- lm(n ~ log(period), filter(all_vis_count, period>delay_params$cp))
+fit3 <- lm(n ~ poly(period,degree = 2), filter(all_vis_count, period>delay_params$cp))
+fit4 <- lm(n ~ poly(period,degree = 3), filter(all_vis_count, period>delay_params$cp))
+
+mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
+                  model = c("linear","exponential","quadratic","cubic"),
+                  rmse = c(sqrt(sum(fit1$residuals^2)),
+                           sqrt(sum(fit2$residuals^2)),
+                           sqrt(sum(fit3$residuals^2)),
+                           sqrt(sum(fit4$residuals^2)))) %>%
+  mutate(label = paste("RMSE: ", round(rmse,2)))
+
+y_pos <- .9*max(all_vis_count$n)
+x_pos <- .8*delay_params$upper_bound
+
+predicted_fits <- all_vis_count %>%
+  mutate(linear = predict(fit1,newdata = .)) %>%
+  mutate(exponential = predict(fit2,newdata = .)) %>%
+  mutate(quadratic = predict(fit3,newdata = .)) %>%
+  mutate(cubic = predict(fit4,newdata = .)) %>%
+  gather(key = model, value = value, -period, -n) %>% 
+  mutate(num_miss = n-value) %>% 
+  mutate(num_miss = ifelse(num_miss<0,0,num_miss))
+
+# pick the selected model: Note: currently omitting exponential
+selected_model <- mse_res %>%
+  filter(model!="exponential") %>%
+  filter(rmse ==min(rmse))
+
+p1 <- predicted_fits %>%
+  inner_join(mse_res) %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = value), color = "red") +
+  facet_wrap(~model) +
+  geom_vline(aes(xintercept = delay_params$cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res,
+            mapping = aes(x = x_pos, y = y_pos, label = label))
+
+p2 <- predicted_fits %>% 
+  filter(period<delay_params$cp) %>% 
+  ggplot(aes(period,num_miss)) +
+  geom_histogram(stat = "identity") +
+  scale_x_reverse() +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Diagnosis") +
+  theme_bw() +
+  facet_wrap(~model) 
+
+p1
+
+```
+
+
+The following summarises the observed and expected number of visits and the estimated number of missed opportunities:
+
+```{r, echo = FALSE}
+pred_table <- predicted_fits %>% 
+  filter(period<delay_params$cp) %>% 
+  group_by(model) %>% 
+  summarise(`Total Visits` = round(sum(n)),
+            `Expected Visits` = round(sum(value)),
+            `Number Missed` = round(sum(num_miss))) 
+
+selected_model_missed_opp <- as.integer(filter(pred_table,model==selected_model$model)$`Number Missed`)
+
+pred_table %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a plot of the estimated number of missed oppportunities each day for each method:
+
+```{r, echo=FALSE}
+p2
+```
+
+The final selected model was ``r selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
+
+### Simulation Results
+
+```{r, echo=FALSE}
+# load ssd miss results
+load(paste0(delay_base_path,"/any_visit/optimal_model_res.RData"))
+```
+
+The following is an overall summary of the frequency and duration of missed opportunities
+```{r, echo = FALSE}
+optimal_model_res$sim_res_stats %>% 
+  select(key,out) %>% 
+  inner_join(tribble(~key,~Measure,
+                     "n_pat","Number of Patients Missed",
+                     "pct_miss","Percent of Patients Missed",
+                     "mean_dur","Mean Duration of Delays",
+                     "median_dur","Median Duration of Delays",
+                     "mean_n_miss","Mean Number of Misses per patient delayed",
+                     "median_n_miss","Median Number of Misses per patient delayed"),.) %>% 
+  select(Measure,Value = out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a summary of the distribution of delay durations:
+```{r, echo = FALSE}
+optimal_model_res$sim_res_dur_tab %>% 
+  mutate(Duration = ifelse(duration_bin==1,
+                           paste0(">= ",duration_bin, "Day"),
+                           paste0(">= ",duration_bin, "Days"))) %>% 
+  select(Duration,`Number of Patients`=n,
+         `Percent of All Patients` = pct_all,
+         `Percent of Patients with Miss` = pct_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a summary of distribution of the number of missed opportunities that each patient experienced
+``` {r, echo = FALSE}
+optimal_model_res$sim_res_miss_tab %>% 
+  mutate(miss_bin = paste0(">=",miss_bin)) %>% 
+  rename(`Number of misses` = miss_bin,
+         `Number of Patients`=n,
+         `Percent of All Patients` = pct_all,
+         `Percent of Patients with Miss` = pct_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following is a summary of the basic setting types where missed opportunities occured
+``` {r, echo = FALSE}
+optimal_model_res$setting_type_res %>% 
+  select(`Setting Type` = setting_type,
+         `Number of Missed Opportunities` = n,
+         `Percent of Missed opportunities` = pct) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+The following is a summary of all the locations of care where missed opportunities occurred
+```{r, echo = FALSE}
+
+optimal_model_res$stdplac_res %>% 
+  inner_join(smallDB::stdplac_labels, by = "stdplac") %>% 
+  select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+
+```
+
+
