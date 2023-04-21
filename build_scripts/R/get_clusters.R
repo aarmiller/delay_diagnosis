@@ -23,7 +23,9 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
-cluster_out_path <- paste0(delay_params$path,"cluster_results")
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
+
+cluster_out_path <- paste0(out_path,"/cluster_results")
 
 
 # load cluster data
