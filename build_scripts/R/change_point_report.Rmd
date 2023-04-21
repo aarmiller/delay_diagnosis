@@ -538,6 +538,102 @@ tmp4 <- all_res2 %>%
 
 ## Results
 
+The following summarizes the results across the various change-point
+approaches applied to trends in SSD-related visits.
+
+#### Optimal Change-point(s)
+
+```{r}
+opt_mods <- get_rankings(all_res_out) %>% 
+  filter(avg_rank == min(avg_rank))
+
+opt_mods_text <- ifelse(nrow(opt_mods)>1,
+                            paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
+                            paste0("The optimal model was ",opt_mods$label))
+```
+
+`r opt_mods_text`
+
+The following is a summary of the *estimated* (from given method) and
+*implied* (from prediction-bound) change-points for the optimal model,
+along with the corresponding number of missed opportunities:
+
+```{r}
+opt_mods %>% 
+  select(label) %>% 
+  inner_join(all_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>%
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
+```{r}
+tmp <- bind_rows(mutate(all_res1,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("Piecewise ", model, tmp)),
+                 mutate(all_res2,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("CUSUM ", model, tmp))) %>% 
+  inner_join(select(opt_mods,label)) %>% 
+  select(label,cp,pred_bound_cp,pred)
+
+tmp %>% 
+  unnest(pred) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+#### Change-point summary
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+```{r}
+all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Performance Summary
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+```{r}
+all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Change-point rankings
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+```{r}
+get_rankings(all_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
 ## Plots
 
 ### Piecewise model with periodicity

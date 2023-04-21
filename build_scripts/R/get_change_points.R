@@ -3,7 +3,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # devtools::install_github("aarmiller/smallDB", dependencies = FALSE, force = TRUE)
 # devtools::install_github("aarmiller/codeBuildr", dependencies = FALSE, force = TRUE)
-codeBuildr::avail_ssd_codes()
+# codeBuildr::avail_ssd_codes()
 
 # name of condition
 cond_name <- args[1]
