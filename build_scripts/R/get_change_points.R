@@ -13,7 +13,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
-out_path <- paste0(delay_params$path,"change_point_results/")
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/change_point_results/")
 
 if (!dir.exists(out_path)){
   dir.create(out_path)
