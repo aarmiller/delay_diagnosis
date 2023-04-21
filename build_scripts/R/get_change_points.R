@@ -19,7 +19,7 @@ if (!dir.exists(out_path)){
   dir.create(out_path)
 }
 
-rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/change_point_report.Rmd",
+rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/change_point_report.Rmd",
                   params = list(cond = cond_name),
                   output_dir = out_path)
 
