@@ -15,5 +15,5 @@ delay_params <- delay_any_params[[cond_name]]
 
 rmarkdown::render(input = "github/truven_db_extracts/R/delay_scripts/delay_report.Rmd",
                   params = list(cond = cond_name),
-                  output_dir = paste0(delay_params$path,"delay_results/"))
+                  output_dir = paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/"))
 
