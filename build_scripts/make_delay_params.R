@@ -11,7 +11,7 @@
 #      cp_lower = NA,                  # OPTIONAL: Specify the lowest change-point to evaluate
 #      cp_upper = NA,                  # OPTIONAL: Specify the highest change-point to evaluate
 #      upper_bound = 365,
-#      final_model = NA,               # options include c("lm", "quad", "cubic", "exp")
+#      final_model = NA,               # options include c("linear", "quadratic", "cubic", "exponential")
 #      periodicity = TRUE,
 #      miss_bins = c(1,2,3,4,5),
 #      duration_bins = c(1,2,3,4,5,6,7,10,14,17))
@@ -312,7 +312,7 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/small_dbs/ami/truven/enr
                                    cp_lower = 50,
                                    cp_upper = 150,
                                    upper_bound = 365,
-                                   final_model = "quad",
+                                   final_model = "quadratic",
                                    periodicity = TRUE,
                                    add_validity_constraint = TRUE,
                                    miss_bins = c(1,2,3,4,5),

@@ -13,6 +13,7 @@ cond_name <- args[1]
 # cond_name <- "tb"
 
 load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
@@ -20,6 +21,7 @@ delay_params <- delay_any_params[[cond_name]]
 # con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 
 sim_in_path <- paste0(delay_params$path,"delay_results/")
+# sim_in_path <- paste0("/Volumes/AML/small_dbs/",cond_name,"/truven/enroll_restrict_365/","delay_results/")
 sim_out_path <- paste0(delay_params$path,"delay_results/ssd_visit/")
 
 
@@ -32,232 +34,7 @@ n_trials <- 1000
 ##############################
 #### Simulation Functions ####
 ##############################
-
-run_sim_draw_visits <- function(sim_data,overall_tm){
-  tmp <- run_sim_draw_simple(sim_data)
-
-
-  res1 <- distinct(tmp,obs)
-
-  tmp2 <- tmp %>%
-    group_by(patient_id) %>%
-    summarise(duration=max(period),
-              n_miss=n())
-
-  count_duration <- function(val){
-    tmp2 %>%
-      summarise(n=sum(duration>=val))
-  }
-
-  res2 <- tmp2  %>%
-    summarise(n_pat = n(),
-              mean_dur = mean(duration),
-              median_dur = median(duration),
-              mean_n_miss = mean(n_miss),
-              median_n_miss = median(n_miss))
-
-  res3 <- tibble(duration_bin = sim_data$duration_bins) %>%
-    mutate(res = map(duration_bin,count_duration)) %>%
-    unnest(res) %>%
-    mutate(pct_miss = 100*n/nrow(tmp2),
-           pct_all = 100*n/sim_data$total_patients)
-
-
-  count_miss <- function(val){
-    tmp2 %>%
-      summarise(n = sum(n_miss>=val))
-  }
-
-  res4 <- tibble(miss_bin = sim_data$miss_bins) %>%
-    mutate(res = map(miss_bin,count_miss)) %>%
-    unnest(res) %>%
-    mutate(pct_miss = 100*n/nrow(tmp2),
-           pct_all = 100*n/sim_data$total_patients)
-
-  return(list(obs = res1,
-              stats = res2,
-              dur_tab = res3,
-              miss_tab = res4))
-}
-
-compute_export_stats <- function(sim_res,n_patients){
-  ## Overall Stats ---------------------------------------------------------------
-
-  sim_res_stats_means <- sim_res$sim_res_stats %>%
-    summarise_all(funs(mean))
-
-  sim_res_stats_upper <- sim_res$sim_res_stats %>%
-    summarise_all(~quantile(.,probs = 0.975))
-
-  sim_res_stats_lower <- sim_res$sim_res_stats %>%
-    summarise_all(~quantile(.,probs = 0.025))
-
-  sim_res_stats_means <- sim_res_stats_means %>%
-    gather(key = key, value = mean) %>%
-    inner_join(sim_res_stats_lower %>%
-                 gather(key = key, value = low)) %>%
-    inner_join(sim_res_stats_upper %>%
-                 gather(key = key, value = high)) %>%
-    filter(key != "trial") %>%
-    mutate(out = paste0(round(mean,3)," (",round(low,3),"-",round(high,3),")"))
-
-  # add in percent missed
-  tmp <- sim_res_stats_means %>%
-    filter(key == "n_pat") %>%
-    mutate_at(vars(mean:high), ~100*./n_patients) %>%
-    mutate(out = paste0(round(mean,2)," (",round(low,2),"-",round(high,2),")")) %>%
-    mutate(key = "pct_miss")
-
-  sim_res_stats_means <- bind_rows(tmp,sim_res_stats_means)
-
-  rm(sim_res_stats_lower,sim_res_stats_upper,tmp)
-
-
-  ## Duration stats --------------------------------------------------------------
-  sim_res_dur_tab_means <- sim_res$sim_res_dur_tab %>%
-    group_by(duration_bin) %>%
-    summarise_at(vars(n:pct_all),funs(mean))
-
-
-  sim_res_dur_tab_upper <- sim_res$sim_res_dur_tab %>%
-    group_by(duration_bin) %>%
-    summarise_at(vars(n:pct_all),~quantile(.,probs = 0.975))
-
-  sim_res_dur_tab_lower <- sim_res$sim_res_dur_tab %>%
-    group_by(duration_bin) %>%
-    summarise_at(vars(n:pct_all),~quantile(.,probs = 0.025))
-
-
-  sim_res_dur_tab_means <- sim_res_dur_tab_means %>%
-    gather(key = key,value = mean, -duration_bin) %>%
-    inner_join(sim_res_dur_tab_lower %>%
-                 gather(key = key,value = low, -duration_bin)) %>%
-    inner_join(sim_res_dur_tab_upper %>%
-                 gather(key = key,value = high, -duration_bin)) %>%
-    mutate(out = paste0(round(mean,3)," (",round(low,3),"-",round(high,3),")")) %>%
-    select(duration_bin,key,out) %>%
-    spread(key = key, value = out)
-
-  rm(sim_res_dur_tab_lower,sim_res_dur_tab_upper)
-
-
-  ## Miss stats ------------------------------------------------------------------
-  sim_res_miss_tab_means <- sim_res$sim_res_miss_tab %>%
-    group_by(miss_bin) %>%
-    summarise_at(vars(n:pct_all),funs(mean))
-
-  sim_res_miss_tab_upper <- sim_res$sim_res_miss_tab %>%
-    group_by(miss_bin) %>%
-    summarise_at(vars(n:pct_all),~quantile(.,probs = 0.975))
-
-  sim_res_miss_tab_lower <- sim_res$sim_res_miss_tab %>%
-    group_by(miss_bin) %>%
-    summarise_at(vars(n:pct_all),~quantile(.,probs = 0.025))
-
-  sim_res_miss_tab_means <- sim_res_miss_tab_means %>%
-    gather(key = key,value = mean, -miss_bin) %>%
-    inner_join(sim_res_miss_tab_lower %>%
-                 gather(key = key,value = low, -miss_bin)) %>%
-    inner_join(sim_res_miss_tab_upper %>%
-                 gather(key = key,value = high, -miss_bin)) %>%
-    mutate(out = paste0(round(mean,3)," (",round(low,3),"-",round(high,3),")")) %>%
-    select(miss_bin,key,out) %>%
-    spread(key = key, value = out)
-
-  rm(sim_res_miss_tab_lower,sim_res_miss_tab_upper)
-
-  return(list(sim_res_stats = sim_res_stats_means,
-              sim_res_dur_tab = sim_res_dur_tab_means,
-              sim_res_miss_tab = sim_res_miss_tab_means))
-}
-
-
-generate_setting_counts <- function(obs_tm,sim_res){
-
-  tmp <- obs_tm %>%
-    inner_join(sim_res$sim_res_obs, by = "obs")
-
-  tmp2 <- tmp %>%
-    group_by(trial) %>%
-    count(stdplac) %>%
-    ungroup()
-
-  tmp_fill <- tmp2 %>%
-    distinct(stdplac) %>%
-    mutate(trial = map(stdplac,~1:max(sim_res$sim_res_miss_tab$trial))) %>%
-    unnest(trial)
-
-  stdplac_res <- tmp2 %>%
-    left_join(tmp_fill,.,by = c("stdplac", "trial")) %>%
-    mutate(n=replace_na(n,0)) %>%
-    group_by(trial) %>%
-    mutate(pct = 100*n/sum(n)) %>%
-    group_by(stdplac) %>%
-    summarise(n_mean = mean(n),
-              n_low = quantile(n,probs = 0.025),
-              n_high = quantile(n,probs = 0.975),
-              pct_mean = mean(pct),
-              pct_low = quantile(pct,probs = 0.025),
-              pct_high = quantile(pct,probs = 0.975)) %>%
-    mutate(n = paste0(round(n_mean,2)," (",round(n_low,2),"-",round(n_high,2),")"),
-           pct = paste0(round(pct_mean,2)," (",round(pct_low,2),"-",round(pct_high,2),")")) %>%
-    select(stdplac,n,pct,everything())
-
-
-  tmp2 <- tmp %>%
-    group_by(trial) %>%
-    count(setting_type) %>%
-    ungroup()
-
-  setting_type_res <- tmp2 %>%
-    group_by(trial) %>%
-    mutate(pct = 100*n/sum(n)) %>%
-    group_by(setting_type) %>%
-    summarise(n_mean = mean(n),
-              n_low = quantile(n,probs = 0.025),
-              n_high = quantile(n,probs = 0.975),
-              pct_mean = mean(pct),
-              pct_low = quantile(pct,probs = 0.025),
-              pct_high = quantile(pct,probs = 0.975)) %>%
-    mutate(setting_type = setting_type_labels(setting_type)) %>%
-    mutate(n = paste0(round(n_mean,2)," (",round(n_low,2),"-",round(n_high,2),")"),
-           pct = paste0(round(pct_mean,2)," (",round(pct_low,2),"-",round(pct_high,2),")")) %>%
-    select(setting_type,n,pct,everything())
-
-
-  return(list(stdplac_res = stdplac_res,
-              setting_type_res = setting_type_res))
-}
-
-
-run_sim <- function(sim_data,n_trials=1000, n){
-
-  cluster <- parallel::makeCluster(35)
-
-  parallel::clusterCall(cluster, function() library(tidyverse))
-  parallel::clusterCall(cluster, function() library(delaySim))
-  parallel::clusterExport(cluster,c("run_sim_draw_visits","sim_data"),
-                          envir=environment())
-
-
-  sim_res <- parallel::parLapply(cl = cluster,
-                                 1:n_trials,
-                                 function(x){run_sim_draw_visits(sim_data)})
-
-  parallel::stopCluster(cluster)
-
-
-  ## Aggregate sim results
-  sim_res_obs <- map2(1:n_trials,sim_res,~mutate(.y$obs,trial=.x)) %>% bind_rows()
-  sim_res_stats <- map2(1:n_trials,sim_res,~mutate(.y$stats,trial=.x)) %>% bind_rows()
-  sim_res_dur_tab <- map2(1:n_trials,sim_res,~mutate(.y$dur_tab,trial=.x)) %>% bind_rows()
-  sim_res_miss_tab <- map2(1:n_trials,sim_res,~mutate(.y$miss_tab,trial=.x)) %>% bind_rows()
-
-  return(list(sim_res_obs = sim_res_obs,
-              sim_res_stats = sim_res_stats,
-              sim_res_dur_tab = sim_res_dur_tab,
-              sim_res_miss_tab = sim_res_miss_tab))
-}
+source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
 
 
 ######################
@@ -287,7 +64,8 @@ sim_tm <- all_dx_visits %>%
 
 all_vis_count <- sim_tm %>%
   count(period) %>%
-  filter(period>0)
+  filter(period>0) %>% 
+  mutate(dow = as.factor(period %% 7))
 
 
 # # merge observations into time map to extract visit types
@@ -298,11 +76,20 @@ obs_tm <- sim_tm %>%
   filter(setting_type!=4)
 
 #### fit models ----------------------------------------------------------------
-fit1 <- lm(n ~ period, filter(all_vis_count, period>delay_params$cp))
-fit2 <- lm(n ~ log(period), filter(all_vis_count, period>delay_params$cp))
-fit3 <- lm(n ~ poly(period,degree = 2), filter(all_vis_count, period>delay_params$cp))
-fit4 <- lm(n ~ poly(period,degree = 3), filter(all_vis_count, period>delay_params$cp))
+if (delay_params$periodicity){
+  # if periodicity = TRUE add day of week term
+  fit1 <- lm(n ~ period + dow, filter(all_vis_count, period>delay_params$cp))
+  fit2 <- lm(n ~ log(period) + dow, filter(all_vis_count, period>delay_params$cp))
+  fit3 <- lm(n ~ poly(period,degree = 2) + dow, filter(all_vis_count, period>delay_params$cp))
+  fit4 <- lm(n ~ poly(period,degree = 3) + dow, filter(all_vis_count, period>delay_params$cp))
+} else {
+  fit1 <- lm(n ~ period, filter(all_vis_count, period>delay_params$cp))
+  fit2 <- lm(n ~ log(period), filter(all_vis_count, period>delay_params$cp))
+  fit3 <- lm(n ~ poly(period,degree = 2), filter(all_vis_count, period>delay_params$cp))
+  fit4 <- lm(n ~ poly(period,degree = 3), filter(all_vis_count, period>delay_params$cp))
+}
 
+# compute rmse values
 mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
                   model = c("linear","exponential","quadratic","cubic"),
                   rmse = c(sqrt(sum(fit1$residuals^2)),
@@ -311,6 +98,7 @@ mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
                            sqrt(sum(fit4$residuals^2)))) %>%
   mutate(label = paste("RMSE: ", round(rmse,2)))
 
+# location to place RMSE values on plot
 y_pos <- .9*max(all_vis_count$n)
 x_pos <- .8*delay_params$upper_bound
 
@@ -319,8 +107,8 @@ p1 <- all_vis_count %>%
   mutate(exponential = predict(fit2,newdata = .)) %>%
   mutate(quadratic = predict(fit3,newdata = .)) %>%
   mutate(cubic = predict(fit4,newdata = .)) %>%
-  gather(key = model, value = value, -period, -n) %>%
-  inner_join(mse_res) %>%
+  gather(key = model, value = value, -period, -n,-dow) %>%
+  inner_join(mse_res, by = "model") %>%
   ggplot(aes(period,n)) +
   geom_line() +
   scale_x_reverse() +
@@ -344,7 +132,7 @@ p2 <- all_vis_count %>%
   mutate(quadratic = predict(fit3,newdata = .)) %>%
   mutate(cubic = predict(fit4,newdata = .)) %>%
   filter(period<=delay_params$cp) %>%
-  gather(key = key,value = value, -period, -n) %>%
+  gather(key = key,value = value, -period, -n, -dow) %>%
   mutate(num_miss = n-value) %>%
   mutate(num_miss = ifelse(num_miss<0,0,num_miss)) %>%
   ggplot(aes(period,num_miss)) +
@@ -364,11 +152,20 @@ ggsave(filename = paste0(sim_out_path,"/number_of_missed_opportunities.pdf"),
 ##### Evaluate Primary Model ####
 #################################
 
-# choose model
-selected_model <- mse_res %>%
-  filter(model!="exponential") %>%
-  filter(rmse ==min(rmse))
+# If model is not specified then choose it based on RMSE above
+# NOTE: right now we are excluding exponential from selection
 
+if (is.na(delay_params$final_model)) {
+  selected_model <- mse_res %>%
+    filter(model!="exponential") %>%
+    filter(rmse ==min(rmse))
+} else {
+  selected_model <- mse_res %>%
+    filter(model==delay_params$final_model) %>% 
+    filter(rmse ==min(rmse))
+}
+
+# select the fit for the final model
 fit <- eval(as.name(selected_model$model_name))
 
 
