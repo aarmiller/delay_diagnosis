@@ -25,8 +25,8 @@
 desc="Get delay results using any visit for $1"
 
 #Script Paths
-script_path="github/truven_db_extracts/R/delay_scripts/get_delay_res_any.R"
-r_out="/Shared/AML/job_out/R_out/db_extracts/get_delay_res_any_$JOB_ID.txt"
+script_path="github/delay_diagnosis/build_scripts/R/get_delay_res_any.R"
+r_out="/Shared/AML/job_out/R_out/delay_jobs/get_delay_res_any_$JOB_ID.txt"
 
 # Print job info to job_history file
 echo Job: $JOB_NAME "/" ID: $JOB_ID  "/" Date: `date` "/" Desc: $desc "/" Path: $script_path >> /Shared/AML/job_out/job_history/job_history.txt
@@ -43,5 +43,5 @@ module load R
 Rscript $script_path > $r_out $1
 
 # Move the error and output files
-mv $SGE_STDOUT_PATH /Shared/AML/job_out/SGE_out/db_extracts
-mv $SGE_STDERR_PATH /Shared/AML/job_out/SGE_out/db_extracts
+mv $SGE_STDOUT_PATH /Shared/AML/job_out/SGE_out/delay_jobs
+mv $SGE_STDERR_PATH /Shared/AML/job_out/SGE_out/delay_jobs
