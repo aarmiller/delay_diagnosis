@@ -5,7 +5,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "lung_cancer"
+# cond_name <- "tb"
 
 ### Load delay params ----------------------------------------------------------
 
@@ -15,10 +15,12 @@ delay_params <- delay_any_params[[cond_name]]
 
 base_path <- delay_params$path
 
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
+
 
 ### Paths for plot output ------------------------------------------------------
 
-plot_path <- paste0(base_path,"/potential_ssd_plots/")
+plot_path <- paste0(out_path,"/potential_ssd_plots/")
 
 if (!dir.exists(plot_path)){
   dir.create(plot_path)
@@ -69,6 +71,10 @@ dx9_counts <- tmp_dx_visits9 %>%
               mutate(dx = as.character(dx))) %>%
   mutate(desc = paste0(dx," - ",str_sub(desc,start = 0,end = 40)))
 
+dx9_counts %>% 
+  slice(1:1000) %>% 
+  write_csv(paste0(plot_path,"icd9_top1000.csv"))
+
 
 dx10_counts <- tmp_dx_visits10 %>%
   distinct(enrolid,dx,days_since_index) %>%
@@ -79,6 +85,10 @@ dx10_counts <- tmp_dx_visits10 %>%
               select(dx=code,desc=long_desc) %>%
               mutate(dx = as.character(dx))) %>%
   mutate(desc = paste0(dx," - ",str_sub(desc,start = 0,end = 40)))
+
+dx9_counts %>% 
+  slice(1:1000) %>% 
+  write_csv(paste0(plot_path,"icd10_top1000.csv"))
 
 ### Plot dx 9  before ----------------------------------------------------------
 
