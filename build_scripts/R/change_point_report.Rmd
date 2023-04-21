@@ -33,6 +33,8 @@ in_path <- paste0(delay_params$path,"delay_results")
 
 load(paste0(in_path,"/all_dx_visits.RData"))
 
+cond_name <- filter(codeBuildr::avail_disease_codes(),name==params$cond)$description
+
 ```
 
 ```{r functions, include=FALSE}
@@ -210,8 +212,11 @@ count_data_ssd <- all_dx_visits %>%
   mutate(period = -days_since_index) %>% 
   mutate(dow = as.factor(period %% 7))
 ```
+This document provides a summary of the change-point analysis for `r cond_name` (`r params$cond`).
 
 # SSD Visits
+The following section summarizes change-point analysis for trends in the number 
+of SSD-related visits prior to the index diagnosis
 
 ```{r, include=FALSE}
 
@@ -459,6 +464,8 @@ tmp4 %>%
 ```
 
 # All Visits
+The following section summarizes change-point analysis for trends in the number 
+of all visits (regardless of the presence of an SSD) prior to the index diagnosis
 
 ```{r, include=FALSE}
 # Piecewise Results
@@ -539,14 +546,16 @@ tmp4 <- all_res2 %>%
 ## Results
 
 The following summarizes the results across the various change-point
-approaches applied to trends in SSD-related visits.
+approaches applied to trends in all visits.
 
 #### Optimal Change-point(s)
 
 ```{r}
+# get the rankings across models
 opt_mods <- get_rankings(all_res_out) %>% 
   filter(avg_rank == min(avg_rank))
 
+# Extract the optimal model(s)
 opt_mods_text <- ifelse(nrow(opt_mods)>1,
                             paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
                             paste0("The optimal model was ",opt_mods$label))
@@ -559,6 +568,7 @@ The following is a summary of the *estimated* (from given method) and
 along with the corresponding number of missed opportunities:
 
 ```{r}
+# Extract values from optimal models
 opt_mods %>% 
   select(label) %>% 
   inner_join(all_res_out) %>% 
