@@ -20,9 +20,9 @@ delay_params <- delay_any_params[[cond_name]]
 # connect to database
 # con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 
-sim_in_path <- paste0(delay_params$path,"delay_results/")
+sim_in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/")
 # sim_in_path <- paste0("/Volumes/AML/small_dbs/",cond_name,"/truven/enroll_restrict_365/","delay_results/")
-sim_out_path <- paste0(delay_params$path,"delay_results/ssd_visit/")
+sim_out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/ssd_visit/")
 
 
 if (!dir.exists(sim_out_path)) {
