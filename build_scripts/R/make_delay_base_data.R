@@ -22,19 +22,20 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
 
 # connect to database
 con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 
 #### Add output folders ---------------------------------------------------------
 
-sim_out_path <- paste0(delay_params$path,"delay_results")
+sim_out_path <- paste0(out_path,"/delay_results")
 
 if (!dir.exists(sim_out_path)){
   dir.create(sim_out_path)
 }
 
-cluster_out_path <- paste0(delay_params$path,"cluster_results")
+cluster_out_path <- paste0(out_path,"/cluster_results")
 
 if (!dir.exists(cluster_out_path)){
   dir.create(cluster_out_path)
