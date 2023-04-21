@@ -29,7 +29,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[params$cond]]
 
-in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"delay_results")
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results")
 
 load(paste0(in_path,"/all_dx_visits.RData"))
 
