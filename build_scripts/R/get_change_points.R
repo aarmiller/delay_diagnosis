@@ -23,3 +23,4 @@ rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/change_point_r
                   params = list(cond = cond_name),
                   output_dir = out_path)
 
+
