@@ -251,6 +251,17 @@ optimal_model_res$setting_type_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
+The following is a summary of...
+```{r, echo = FALSE}
+# Load simulation results
+load(paste0(sim_in_path,"ssd_visit/sim_res.RData"))
+# sim_res
+# sim_res_sim_obs
+
+# Load timemap
+load(paste0(sim_in_path,"delay_tm.RData"))
+# tm
+```
 
 The following is a summary of all the locations of care where missed opportunities occurred
 ```{r, echo = FALSE}
