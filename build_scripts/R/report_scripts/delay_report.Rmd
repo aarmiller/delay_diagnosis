@@ -22,20 +22,25 @@ library(lubridate)
 # params <- list()
 # params$cond <- "tb"
 
+# source additional functions
+source("github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R")
+
 # load delay_parms
 load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[params$cond]]
-
-delay_base_path <- paste0(delay_params$path,"delay_results/")
 
 ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
   filter(type %in% c("icd9","icd10")) %>% 
   mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
   select(dx = code,dx_ver)
 
+delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/")
 ## Pull in the data
 load(paste0(delay_base_path,"all_dx_visits.RData"))
+load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
+load(paste0(delay_base_path,"delay_tm.RData"))
+
 
 total_patients <- nrow(index_dx_dates)
 
@@ -241,7 +246,7 @@ optimal_model_res$sim_res_miss_tab %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a summary of the basic setting types where missed opportunities occured
+The following is a summary of the basic setting types where missed opportunities occurred
 ``` {r, echo = FALSE}
 optimal_model_res$setting_type_res %>% 
   select(`Setting Type` = setting_type,
@@ -251,19 +256,7 @@ optimal_model_res$setting_type_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a summary of...
-```{r, echo = FALSE}
-# Load simulation results
-load(paste0(sim_in_path,"ssd_visit/sim_res.RData"))
-# sim_res
-# sim_res_sim_obs
-
-# Load timemap
-load(paste0(sim_in_path,"delay_tm.RData"))
-# tm
-```
-
-The following is a summary of all the locations of care where missed opportunities occurred
+The following is a detailed summary of all the locations of care where missed opportunities occurred
 ```{r, echo = FALSE}
 
 optimal_model_res$stdplac_res %>% 
@@ -273,6 +266,34 @@ optimal_model_res$stdplac_res %>%
   kableExtra::kable_styling(full_width = F)
 
 
+```
+
+The following is a summary of setting where index diagnoses occured
+```{r, echo = FALSE}
+# Generate the index counts
+tmp <- generate_setting_counts(tm_data = tm,
+                        sim_res_data = sim_res,
+                        sim_res_sim_obs_data = sim_res_sim_obs)
+
+
+tmp %>% 
+  select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+         `% of all Patients`=index_pct2) %>%
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following is a summary of where missed opportunities occured relative to the 
+index diagnosis:
+```{r, echo = FALSE}
+tmp %>% 
+  select(setting = stdplac_group, `Missed Opportunities`=n,
+         `% Missed Opp. In Setting`=pct_opp,
+         `% of Opportunities Missed`=pct_opp_missed,
+         `Mean time before for Misses`=dur) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
 ```
 
 ### Results by patient location
