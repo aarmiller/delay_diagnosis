@@ -1,0 +1,71 @@
+---
+title: "Delay Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "tb"
+
+# source additional functions
+source("github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R")
+
+# load delay_parms
+load("/Shared/AML/params/delay_any_params.RData")
+
+delay_params <- delay_any_params[[params$cond]]
+
+ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
+
+# delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
+## Pull in the data
+# load(paste0(delay_base_path,"all_dx_visits.RData"))
+# load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
+# load(paste0(delay_base_path,"delay_tm.RData"))
+
+
+# total_patients <- nrow(index_dx_dates)
+
+# total_visit_days_in_window <- all_dx_visits %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  # distinct(enrolid,days_since_index) %>% 
+  # nrow()
+
+# total_ssd_visit_days_in_window <- all_dx_visits %>% 
+#   inner_join(ssd_codes) %>% 
+#   filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+#   distinct(enrolid,days_since_index) %>% 
+#   nrow()
+
+
+```
+
+
+# Delay Report for `r params$cond`
+
+<!-- There were ``r total_patients`` enrollees diagnosed with `r params$cond`.  -->
+
+<!-- The diagnostic opportunity window was set between 1 and `r delay_params$cp` days before diagnosis. -->
+
+<!-- ### Visit Trends -->
+
+<!-- During the diagnostic opportunity window there were ``r total_visit_days_in_window`` total patient visit days, -->
+<!-- and ``r total_ssd_visit_days_in_window`` total SSD visit days. -->
