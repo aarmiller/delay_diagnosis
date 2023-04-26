@@ -101,50 +101,15 @@ bind_rows(all_dx_visits %>%
 
 The following figure depicts the estimated trends in expected visit counts for SSD  
 ```{r, echo = FALSE}
-sim_tm <- all_dx_visits %>%
-  mutate(period = -days_since_index) %>%
-  inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
-  distinct(enrolid,period,days_since_index) %>%
-  rename(patient_id=enrolid) %>%
-  mutate(obs=row_number())
+load(paste0(delay_base_path,"ssd_visit/ssd_fit_res.RData"))
 
-all_vis_count <- sim_tm %>%
-  count(period) %>%
-  filter(period>0)
-
-#### fit models ----------------------------------------------------------------
-fit1 <- lm(n ~ period, filter(all_vis_count, period>delay_params$cp))
-fit2 <- lm(n ~ log(period), filter(all_vis_count, period>delay_params$cp))
-fit3 <- lm(n ~ poly(period,degree = 2), filter(all_vis_count, period>delay_params$cp))
-fit4 <- lm(n ~ poly(period,degree = 3), filter(all_vis_count, period>delay_params$cp))
-
-mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
-                  model = c("linear","exponential","quadratic","cubic"),
-                  rmse = c(sqrt(sum(fit1$residuals^2)),
-                           sqrt(sum(fit2$residuals^2)),
-                           sqrt(sum(fit3$residuals^2)),
-                           sqrt(sum(fit4$residuals^2)))) %>%
-  mutate(label = paste("RMSE: ", round(rmse,2)))
-
-y_pos <- .9*max(all_vis_count$n)
+y_pos <- .9*max(ssd_fit_res$model_fits$n)
 x_pos <- .8*delay_params$upper_bound
 
-predicted_fits <- all_vis_count %>%
-  mutate(linear = predict(fit1,newdata = .)) %>%
-  mutate(exponential = predict(fit2,newdata = .)) %>%
-  mutate(quadratic = predict(fit3,newdata = .)) %>%
-  mutate(cubic = predict(fit4,newdata = .)) %>%
-  gather(key = model, value = value, -period, -n) %>% 
-  mutate(num_miss = n-value) %>% 
-  mutate(num_miss = ifelse(num_miss<0,0,num_miss))
-
 # pick the selected model: Note: currently omitting exponential
-selected_model <- mse_res %>%
-  filter(model!="exponential") %>%
-  filter(rmse ==min(rmse))
 
-p1 <- predicted_fits %>%
-  inner_join(mse_res) %>%
+
+p1 <- ssd_fit_res$model_fits %>%
   ggplot(aes(period,n)) +
   geom_line() +
   scale_x_reverse() +
@@ -152,11 +117,11 @@ p1 <- predicted_fits %>%
   facet_wrap(~model) +
   geom_vline(aes(xintercept = delay_params$cp), linetype =2) +
   theme_bw() +
-  geom_text(data = mse_res,
+  geom_text(data = ssd_fit_res$mse_res,
             mapping = aes(x = x_pos, y = y_pos, label = label))
 
-p2 <- predicted_fits %>% 
-  filter(period<delay_params$cp) %>% 
+p2 <- ssd_fit_res$model_fits %>% 
+  filter(period<cp) %>% 
   ggplot(aes(period,num_miss)) +
   geom_histogram(stat = "identity") +
   scale_x_reverse() +
@@ -173,14 +138,14 @@ p1
 The following summarises the observed and expected number of visits and the estimated number of missed opportunities:
 
 ```{r, echo = FALSE}
-pred_table <- predicted_fits %>% 
-  filter(period<delay_params$cp) %>% 
+pred_table <- ssd_fit_res$model_fits %>% 
+  filter(period<cp) %>% 
   group_by(model) %>% 
   summarise(`Total Visits` = round(sum(n)),
             `Expected Visits` = round(sum(value)),
             `Number Missed` = round(sum(num_miss))) 
 
-selected_model_missed_opp <- as.integer(filter(pred_table,model==selected_model$model)$`Number Missed`)
+selected_model_missed_opp <- as.integer(filter(pred_table,model==ssd_fit_res$selected_model$model)$`Number Missed`)
 
 pred_table %>% 
   kableExtra::kable() %>% 
@@ -194,7 +159,7 @@ The following is a plot of the estimated number of missed oppportunities each da
 p2
 ```
 
-The final selected model was ``r selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
+The final selected model was ``r ssd_fit_res$selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
 
 ### Simulation Results
 

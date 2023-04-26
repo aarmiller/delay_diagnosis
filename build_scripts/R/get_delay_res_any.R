@@ -91,13 +91,19 @@ mse_res <- tibble(model_name = c("fit1","fit2","fit3","fit4"),
 y_pos <- .9*max(all_vis_count$n)
 x_pos <- .8*delay_params$upper_bound
 
-p1 <- all_vis_count %>%
+model_fits <- all_vis_count %>%
   mutate(linear = predict(fit1,newdata = .)) %>%
   mutate(exponential = predict(fit2,newdata = .)) %>%
   mutate(quadratic = predict(fit3,newdata = .)) %>%
   mutate(cubic = predict(fit4,newdata = .)) %>%
-  gather(key = model, value = value, -period, -n, -dow) %>%
-  inner_join(mse_res) %>%
+  gather(key = model, value = value, -period, -n,-dow) %>%
+  inner_join(mse_res, by = "model") %>% 
+  mutate(cp = delay_params$cp) %>% 
+  mutate(num_miss = n-value) %>%
+  mutate(num_miss = ifelse(num_miss<0,0,num_miss)) %>%
+  mutate(num_miss = ifelse(period>cp,NA,num_miss)) 
+
+p1 <- model_fits %>%
   ggplot(aes(period,n)) +
   geom_line() +
   scale_x_reverse() +
@@ -115,22 +121,15 @@ ggsave(filename = paste0(sim_out_path,"/expected_trends.pdf"),
 
 #### Compute number of missed opportunities ------------------------------------
 
-p2 <- all_vis_count %>%
-  mutate(linear = predict(fit1,newdata = .)) %>%
-  mutate(exponential = predict(fit2,newdata = .)) %>%
-  mutate(quadratic = predict(fit3,newdata = .)) %>%
-  mutate(cubic = predict(fit4,newdata = .)) %>%
-  filter(period<=delay_params$cp) %>%
-  gather(key = key,value = value, -period, -n, -dow) %>%
-  mutate(num_miss = n-value) %>%
-  mutate(num_miss = ifelse(num_miss<0,0,num_miss)) %>%
+p2 <- model_fits %>%
+  filter(period<=cp) %>%
   ggplot(aes(period,num_miss)) +
   geom_histogram(stat = "identity") +
   scale_x_reverse() +
   ylab("Number of Missed Opportunities") +
   xlab("Days Before Index Diagnosis") +
   theme_bw() +
-  facet_wrap(~key) +
+  facet_wrap(~model) +
   ggtitle(paste0("Estimated Number of Missed Opportunities for ",cond_name))
 
 ggsave(filename = paste0(sim_out_path,"/number_of_missed_opportunities.pdf"),
@@ -154,14 +153,20 @@ if (is.na(delay_params$final_model)) {
     filter(rmse ==min(rmse))
 }
 
-fit <- eval(as.name(selected_model$model_name))
+# fit <- eval(as.name(selected_model$model_name))
+
+# save model fits and selected model
+any_fit_res <- list(model_fits = model_fits,
+                    selected_model = selected_model,
+                    mse_res = mse_res)
+
+save(any_fit_res,file = paste0(sim_out_path,"/any_fit_res.RData"))
 
 
 #### Compute number of missed opportunities ------------------------------------
-sim_miss_bins <- all_vis_count %>%
-  mutate(pred = predict(fit,newdata=.)) %>%
-  mutate(num_miss = ifelse(n-pred>0,round(n-pred,0),0L)) %>%
-  filter(period<=delay_params$cp) %>%
+sim_miss_bins <- model_fits %>% 
+  filter(model==selected_model$model) %>% 
+  filter(period<=cp) %>% 
   select(period,num_miss)
 
 
