@@ -11,7 +11,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
-delay_base_path <- paste0(delay_params$path,"delay_results/")
+delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/")
 # delay_base_path <- "/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/"
 
 out_path <- paste0(delay_base_path,"risk_models/")
@@ -523,6 +523,6 @@ save(ssd_miss_risk_models,file = paste0(out_path,"ssd_miss_risk_models.RData"))
 # load(paste0(out_path,"ssd_miss_risk_models.RData"))
 
 
-rmarkdown::render(input = "github/truven_db_extracts/R/delay_scripts/risk_model_report.Rmd",
+rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/risk_model_report.Rmd",
                   params = list(cond = cond_name),
                   output_dir = out_path)
