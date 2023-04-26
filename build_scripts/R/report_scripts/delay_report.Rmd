@@ -35,7 +35,7 @@ ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>%
   mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
   select(dx = code,dx_ver)
 
-delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/")
+delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
 ## Pull in the data
 load(paste0(delay_base_path,"all_dx_visits.RData"))
 load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
