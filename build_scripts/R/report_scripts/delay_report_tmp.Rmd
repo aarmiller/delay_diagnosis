@@ -23,7 +23,7 @@ library(lubridate)
 # params$cond <- "tb"
 
 # source additional functions
-# source("github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R")
+source("~/github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R")
 
 # load delay_parms
 load("/Shared/AML/params/delay_any_params.RData")
