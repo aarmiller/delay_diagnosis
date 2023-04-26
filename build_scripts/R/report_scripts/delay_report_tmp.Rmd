@@ -61,11 +61,3 @@ ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>%
 
 # Delay Report for `r params$cond`
 
-<!-- There were ``r total_patients`` enrollees diagnosed with `r params$cond`.  -->
-
-<!-- The diagnostic opportunity window was set between 1 and `r delay_params$cp` days before diagnosis. -->
-
-<!-- ### Visit Trends -->
-
-<!-- During the diagnostic opportunity window there were ``r total_visit_days_in_window`` total patient visit days, -->
-<!-- and ``r total_ssd_visit_days_in_window`` total SSD visit days. -->
