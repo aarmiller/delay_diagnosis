@@ -1,7 +1,8 @@
 
 #### tb ####
 
-### main extracts
+### main extracts (Note, these are run before the delay diagnosis scripts, this generates the database on the AML drive)
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh tb
 # qsub github/truven_db_extracts/jobs/main_scripts/build_index_db_enroll_restrict_valid.sh tb 365
 # qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_enroll_restrict_valid.sh tb 365
 
