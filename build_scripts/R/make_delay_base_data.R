@@ -15,7 +15,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "tb"
+# cond_name <- "histo"
 
 # Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
@@ -47,7 +47,7 @@ if (!dir.exists(cluster_out_path)){
 
 #### Index DX dates ------------------------------------------------------------
 
-# Filter to enrolids that can be observed 
+# Filter to patient_ids that can be observed 
 index_dx_dates <- tbl(con,"index_dx_dates") %>% collect()
 
 index_dx_dates <- index_dx_dates %>%
@@ -55,44 +55,46 @@ index_dx_dates <- index_dx_dates %>%
 
 #### Build timemap -------------------------------------------------------------
 
-# find available years and medicaid years
-avail_data <- tibble(table = DBI::dbListTables(con)) %>%
-  filter(str_detect(table,"inpatient_core")) %>%
-  mutate(tmp = str_remove(table,"inpatient_core_")) %>%
-  mutate(year = as.integer(str_sub(tmp,start = -2, end = -1))) %>%
-  mutate(source = str_remove(tmp,"_[0-9]*")) %>%
-  select(year,source)
+# # find available years and medicaid years
+# avail_data <- tibble(table = DBI::dbListTables(con)) %>%
+#   filter(str_detect(table,"inpatient_core")) %>%
+#   mutate(tmp = str_remove(table,"inpatient_core_")) %>%
+#   mutate(year = as.integer(str_sub(tmp,start = -2, end = -1))) %>%
+#   mutate(source = str_remove(tmp,"_[0-9]*")) %>%
+#   select(year,source)
+# 
+# medicaid_years <- filter(avail_data,source == "medicaid") %>%
+#   distinct(year) %>%
+#   arrange(year) %>%
+#   .$year
+# 
+# years <- filter(avail_data,source == "ccae") %>%
+#   distinct(year) %>%
+#   arrange(year) %>%
+#   .$year
+# 
+# collect_tab <- collect_table(years = years,medicaid_years = medicaid_years)
 
-medicaid_years <- filter(avail_data,source == "medicaid") %>%
-  distinct(year) %>%
-  arrange(year) %>%
-  .$year
-
-years <- filter(avail_data,source == "ccae") %>%
-  distinct(year) %>%
-  arrange(year) %>%
-  .$year
-
-collect_tab <- collect_table(years = years,medicaid_years = medicaid_years)
+# add timemap keys to the database
+add_tm_keys(db_con = con, overwrite = TRUE, temporary = FALSE)
 
 # pull timemap
-tm <- build_time_map(db_con = con,
-                     collect_tab = collect_tab)
+tm <- build_tm(db_con = con)
 
 
 # restrict time_map to distinct visit types & period before
 tm <- tm %>%
-  inner_join(select(index_dx_dates,enrolid,index_date),by = "enrolid") %>%    # filter to enrolled ids
+  inner_join(select(index_dx_dates,patient_id,index_date),by = "patient_id") %>%    # filter to enrolled ids
   mutate(days_since_index = admdate-index_date) %>%
   filter(between(days_since_index,-delay_params$upper_bound,0)) %>%
-  distinct(enrolid,admdate,disdate,days_since_index,stdplac,setting_type)
+  distinct(patient_id,admdate,disdate,days_since_index,stdplac,setting_type)
 
 save(tm, file = paste0(sim_out_path,"/delay_tm.RData"))
 # load(paste0(sim_out_path,"/delay_tm.RData"))
 
 #### Generate obs values for simulation ----------------------------------------
 sim_obs <- tm %>% 
-  distinct(enrolid,days_since_index) %>% 
+  distinct(patient_id,days_since_index) %>% 
   filter(between(days_since_index,-delay_params$upper_bound,-1)) %>% 
   mutate(obs=row_number())
 
@@ -106,16 +108,16 @@ all_dx_visits <- con %>%
 
 # make sure to only count cases with continuous enrollment (i.e., join with filtered index dates)
 all_dx_visits <- all_dx_visits %>%
-  inner_join(distinct(index_dx_dates,enrolid), by = "enrolid")
+  inner_join(distinct(index_dx_dates,patient_id), by = "patient_id")
 
 # dx counts
 dx_counts <- all_dx_visits %>%
-  distinct(enrolid,dx,dx_ver,days_since_index) %>%
+  distinct(patient_id,dx,dx_ver,days_since_index) %>%
   count(dx,dx_ver,days_since_index)
 
 # visit counts
 visit_counts <- all_dx_visits %>%
-  distinct(enrolid,dx_ver,days_since_index) %>%
+  distinct(patient_id,dx_ver,days_since_index) %>%
   count(dx_ver,days_since_index)
 
 # populate missing valules in visit counts (i.e., assign 0 to days missing)
@@ -139,10 +141,10 @@ save(dx_counts,visit_counts,file = paste0(cluster_out_path,"/dx_counts.RData"))
 #### Save all dx visits for simulation -----------------------------------------
 all_dx_visits <- all_dx_visits %>%
   filter(days_since_index<=0) %>%
-  distinct(enrolid,dx,dx_ver,days_since_index)
+  distinct(patient_id,dx,dx_ver,days_since_index)
 
 tmp <- all_dx_visits %>%
-  distinct(enrolid,days_since_index) %>%
+  distinct(patient_id,days_since_index) %>%
   count(days_since_index)
 
 visit_counts <- bind_rows(tmp,visit_counts %>%
@@ -159,35 +161,35 @@ save(all_dx_visits,visit_counts,index_dx_dates,sim_obs,file = paste0(sim_out_pat
 
 ### Get Basic Demographics -----------------------------------------------------
 
-med_collect <- collect_tab %>% filter(source=="medicaid") %>% 
+med_collect <- collect_plan(con) %>% filter(source=="medicaid") %>% 
   distinct(source,year)
 
-ccae_mdcr_collect <- collect_tab %>% filter(source!="medicaid") %>% 
+ccae_mdcr_collect <- collect_plan(con) %>% filter(source!="medicaid") %>% 
   distinct(source,year)
 
 # collect medicaid
 tmp_med <- smallDB::gether_table_data(collect_tab = med_collect,
                           table = "enrollees",
-                          vars = c("enrolid","sex","dobyr","stdrace"),
+                          vars = c("patient_id","sex","dobyr","stdrace"),
                           db_con = con,
                           collect_n = Inf) %>% 
   select(year,table_data) %>% 
   mutate(year = as.integer(year)+2000L) %>% 
   unnest(table_data) %>% 
-  inner_join(select(index_dx_dates,enrolid,index_date)) %>% 
+  inner_join(select(index_dx_dates,patient_id,index_date)) %>% 
   mutate(index_year = year(as_date(index_date))) %>% 
   filter(index_year==year) 
 
 # collect ccae medicare
 tmp_ccae_mdcr <- smallDB::gether_table_data(collect_tab = ccae_mdcr_collect,
                                             table = "enrollees",
-                                            vars = c("enrolid","sex","dobyr"),
+                                            vars = c("patient_id","sex","dobyr"),
                                             db_con = con,
                                             collect_n = Inf) %>% 
   select(year,table_data) %>% 
   mutate(year = as.integer(year)+2000L) %>% 
   unnest(table_data) %>% 
-  inner_join(select(index_dx_dates,enrolid,index_date)) %>% 
+  inner_join(select(index_dx_dates,patient_id,index_date)) %>% 
   mutate(index_year = year(as_date(index_date))) %>% 
   filter(index_year==year) %>% 
   distinct()
@@ -196,36 +198,36 @@ demo1 <- bind_rows(tmp_ccae_mdcr,tmp_med)
 rm(tmp_ccae_mdcr,tmp_med)
 
 # collect state, msa and egeoloc by enroll_period
-tmp <- smallDB::gether_table_data(collect_tab = collect_tab,
-                                    table = "enrollment_detail",
-                                    vars = c("enrolid","dtend","dtstart","msa","egeoloc"),
-                                    db_con = con,collect_n = Inf)
+tmp <- smallDB::gether_table_data(collect_tab = collect_plan(con),
+                                  table = "enrollment_detail",
+                                  vars = c("patient_id","dtend","dtstart","msa","egeoloc"),
+                                  db_con = con,collect_n = Inf)
 
 tmp <- tmp %>% 
   select(source,year,table_data) %>% 
   mutate(table_data = map(table_data,~mutate_all(.,as.character))) %>% 
   unnest(table_data) %>% 
-  mutate_at(vars(enrolid,dtend,dtstart,egeoloc),as.integer)
+  mutate_at(vars(patient_id,dtend,dtstart,egeoloc),as.integer)
 
 # filter to delay observation window
 demo2 <- tmp %>% 
-  inner_join(select(index_dx_dates,enrolid,index_date),by = "enrolid") %>% 
+  inner_join(select(index_dx_dates,patient_id,index_date),by = "patient_id") %>% 
   filter(dtstart<=index_date & dtend>=(index_date-delay_params$upper_bound)) %>%
   select(-year)
 
 
 ## Load in rurality info -------------------------------------------------------
 
-rural_visits <- collect_tab %>% 
+rural_visits <- collect_plan(con) %>% 
   distinct(source,year) %>% 
   mutate(data = map2(source,year,~tbl(con,paste0("outpatient_core_",.x,"_",.y)) %>% 
                        filter(stdplac==72) %>% 
-                       distinct(enrolid,svcdate) %>% 
+                       distinct(patient_id,svcdate) %>% 
                        collect()))
 
 rural_visits <- rural_visits %>% 
   unnest(data) %>% 
-  distinct(enrolid,svcdate)
+  distinct(patient_id,svcdate)
 
 
 ## Save demographic info

@@ -15,3 +15,6 @@
 # qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh tb
 # qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh tb
 # qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh tb
+
+#### cvid ####
+

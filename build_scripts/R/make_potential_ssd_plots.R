@@ -5,7 +5,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "tb"
+# cond_name <- "histo"
 
 ### Load delay params ----------------------------------------------------------
 
@@ -40,14 +40,14 @@ index_dx_dates <- index_dx_dates %>%
 
 tmp_dx_visits <- all_dx_visits %>%
   filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound)) %>%
-  inner_join(distinct(index_dx_dates, enrolid))
+  inner_join(distinct(index_dx_dates, patient_id))
 
 tmp_dx_visits9 <- tmp_dx_visits %>% filter(dx_ver==9)
 tmp_dx_visits10 <- tmp_dx_visits %>% filter(dx_ver==10)
 
 ### Make All visits plot -------------------------------------------------------
 tmp_dx_visits %>%
-  distinct(enrolid,days_since_index) %>%
+  distinct(patient_id,days_since_index) %>%
   count(days_since_index) %>%
   filter(between(days_since_index,-delay_params$upper_bound,-1)) %>%
   ggplot(aes(days_since_index,n)) +
@@ -62,7 +62,7 @@ ggsave(paste0(plot_path,"all_visits_before.pdf"),width = 6, height = 5)
 
 
 dx9_counts <- tmp_dx_visits9 %>%
-  distinct(enrolid,dx,days_since_index) %>%
+  distinct(patient_id,dx,days_since_index) %>%
   filter(between(days_since_index,-delay_params$upper_bound,-1)) %>%
   count(dx) %>%
   arrange(desc(n)) %>%
@@ -77,7 +77,7 @@ dx9_counts %>%
 
 
 dx10_counts <- tmp_dx_visits10 %>%
-  distinct(enrolid,dx,days_since_index) %>%
+  distinct(patient_id,dx,days_since_index) %>%
   filter(between(days_since_index,-delay_params$upper_bound,-1)) %>%
   count(dx) %>%
   arrange(desc(n)) %>%
@@ -100,7 +100,7 @@ for (i in 1:125){
   p <- tmp_conds %>%
     select(dx,desc) %>%
     inner_join(tmp_dx_visits9, by ="dx") %>%
-    distinct(enrolid,dx,desc,days_since_index) %>%
+    distinct(patient_id,dx,desc,days_since_index) %>%
     count(dx,desc,days_since_index) %>%
     filter(between(days_since_index,-delay_params$upper_bound,-1)) %>%
     ggplot(aes(days_since_index,n)) +
@@ -124,7 +124,7 @@ for (i in 1:125){
   p <- tmp_conds %>%
     select(dx,desc) %>%
     inner_join(tmp_dx_visits10, by ="dx") %>%
-    distinct(enrolid,dx,desc,days_since_index) %>%
+    distinct(patient_id,dx,desc,days_since_index) %>%
     count(dx,desc,days_since_index) %>%
     filter(between(days_since_index,-delay_params$upper_bound,-1)) %>%
     ggplot(aes(days_since_index,n)) +
@@ -148,7 +148,7 @@ for (i in 1:125){
   p <- tmp_conds %>%
     select(dx,desc) %>%
     inner_join(tmp_dx_visits9, by ="dx") %>%
-    distinct(enrolid,dx,desc,days_since_index) %>%
+    distinct(patient_id,dx,desc,days_since_index) %>%
     count(dx,desc,days_since_index) %>%
     filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound)) %>%
     filter(days_since_index!=0) %>%
@@ -176,7 +176,7 @@ for (i in 1:125){
   p <- tmp_conds %>%
     select(dx,desc) %>%
     inner_join(tmp_dx_visits10, by ="dx") %>%
-    distinct(enrolid,dx,desc,days_since_index) %>%
+    distinct(patient_id,dx,desc,days_since_index) %>%
     count(dx,desc,days_since_index) %>%
     filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound)) %>%
     filter(days_since_index!=0) %>%
