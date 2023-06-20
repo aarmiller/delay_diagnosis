@@ -30,6 +30,10 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[params$cond]]
 
+cond_label <- codeBuildr::avail_ssd_codes() %>% 
+  filter(name == params$cond) %>% 
+  .$description
+
 ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
   filter(type %in% c("icd9","icd10")) %>% 
   mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
@@ -58,19 +62,18 @@ total_ssd_visit_days_in_window <- all_dx_visits %>%
 
 ```
 
+# Delay Report for `r cond_label`
 
-# Delay Report for `r params$cond`
+There were `r total_patients` enrollees diagnosed with `r cond_label`.
 
-There were ``r total_patients`` enrollees diagnosed with `r params$cond`. 
-
-The diagnostic opportunity window was set between 1 and `r delay_params$cp` days before diagnosis.
+The diagnostic opportunity window (i.e., time period before diagnosis where diagnostic opportunities may occur) was set between 1 and `r delay_params$cp` days before diagnosis.
 
 ### Visit Trends
 
-During the diagnostic opportunity window there were ``r total_visit_days_in_window`` total patient visit days,
-and ``r total_ssd_visit_days_in_window`` total SSD visit days.
+*Potential diagnostic opportunities:* During the diagnostic opportunity window there were `r total_visit_days_in_window` total patient visit days (i.e., days when a patient encountered the healthcare system), and of these visit days `r total_ssd_visit_days_in_window` represented SSD-visit days (i.e., days where a patient presented with signs, symptoms or symptomatically similar diseases to `r cond_label`).
 
-The following is a plot of all patient visits and SSD visits that occurred in the `r delay_params$upper_bound` days prior to the index diagnosis
+The following is a plot of all patient visits and SSD-related visits that occurred in the `r delay_params$upper_bound` days prior to the index `r cond_label`diagnosis.
+
 ```{r, echo = FALSE}
 bind_rows(all_dx_visits %>% 
             inner_join(ssd_codes) %>%
@@ -89,17 +92,17 @@ bind_rows(all_dx_visits %>%
   scale_x_reverse() +
   ylab("Number of Visits") +
   xlab("Days Before Diagnosis") +
-  geom_vline(aes(xintercept = 100), linetype = 2) +
+  geom_vline(aes(xintercept = delay_params$cp), linetype = 2) +
   facet_wrap(~group, scales = "free_y")
 
 ```
 
 ## SSD Visit Results
 
-
 ### Expected Visit Trends
 
-The following figure depicts the estimated trends in expected visit counts for SSD  
+The following figure depicts the estimated trends in the number of expected visit counts (red line) for SSD-related visits compared to the observed number (black line). The dashed line represents the start of the diagnostic opportunity window. Plots are presented using linear, quadratic, cubic and exponential models to fit the expected number of SSD-related visits each day before the diagnostic opportunity window.
+
 ```{r, echo = FALSE}
 load(paste0(delay_base_path,"ssd_visit/ssd_fit_res.RData"))
 
@@ -134,8 +137,7 @@ p1
 
 ```
 
-
-The following summarises the observed and expected number of visits and the estimated number of missed opportunities:
+The following table summarizes the observed and expected number of visits and the estimated number of missed opportunities using each of the four different models plotted above:
 
 ```{r, echo = FALSE}
 pred_table <- ssd_fit_res$model_fits %>% 
@@ -153,30 +155,33 @@ pred_table %>%
 
 ```
 
-The following is a plot of the estimated number of missed oppportunities each day for each method:
+The following plot describes the estimated number of missed opportunities each day before the index diagnosis using each of the four models described above:
 
 ```{r, echo=FALSE}
 p2
 ```
 
-The final selected model was ``r ssd_fit_res$selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
+The final selected model (based on model fit prior to the diagnostic opportunity window) was the `r ssd_fit_res$selected_model$model` model with an estimated number of missed opportunities of `r selected_model_missed_opp`
 
-### Simulation Results
+### Simulation (Bootstrapping) Results
+
+The following section summarizes results of the bootstrapping/simulation analysis where the individual specific visits representing a diagnostic delay were repeatedly sampled. A total of 1,000 trials were used for this analysis.
 
 ```{r, echo=FALSE}
 # load ssd miss results
 load(paste0(delay_base_path,"/ssd_visit/optimal_model_res.RData"))
 ```
 
-The following is an overall summary of the frequency and duration of missed opportunities
+The following table is an overall summary of the frequency and duration of missed opportunities:
+
 ```{r, echo = FALSE}
 optimal_model_res$sim_res_stats %>% 
   select(key,out) %>% 
   inner_join(tribble(~key,~Measure,
                      "n_pat","Number of Patients Missed",
                      "pct_miss","Percent of Patients Missed",
-                     "mean_dur","Mean Duration of Delays",
-                     "median_dur","Median Duration of Delays",
+                     "mean_dur","Mean Duration of Delays (Days)",
+                     "median_dur","Median Duration of Delays (Days)",
                      "mean_n_miss","Mean Number of Misses per patient delayed",
                      "median_n_miss","Median Number of Misses per patient delayed"),.) %>% 
   select(Measure,Value = out) %>% 
@@ -185,7 +190,8 @@ optimal_model_res$sim_res_stats %>%
 
 ```
 
-The following is a summary of the distribution of delay durations:
+The following table is a summary of the distribution of delay duration (i.e., number of days between initial symptom presentation and diagnosis):
+
 ```{r, echo = FALSE}
 optimal_model_res$sim_res_dur_tab %>% 
   mutate(Duration = ifelse(duration_bin==1,
@@ -199,8 +205,9 @@ optimal_model_res$sim_res_dur_tab %>%
 
 ```
 
-The following is a summary of distribution of the number of missed opportunities that each patient experienced
-``` {r, echo = FALSE}
+The following table is a summary of the distribution of the number of missed opportunities (i.e., number of times a patient presented with symptoms but was not diagnosed) that each patient experienced:
+
+```{r, echo = FALSE}
 optimal_model_res$sim_res_miss_tab %>% 
   mutate(miss_bin = paste0(">=",miss_bin)) %>% 
   rename(`Number of misses` = miss_bin,
@@ -211,8 +218,9 @@ optimal_model_res$sim_res_miss_tab %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a summary of the basic setting types where missed opportunities occurred
-``` {r, echo = FALSE}
+The following table summarizes the basic types of settings where missed opportunities occurred:
+
+```{r, echo = FALSE}
 optimal_model_res$setting_type_res %>% 
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
@@ -221,7 +229,8 @@ optimal_model_res$setting_type_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a detailed summary of all the locations of care where missed opportunities occurred
+The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
+
 ```{r, echo = FALSE}
 
 optimal_model_res$stdplac_res %>% 
@@ -233,7 +242,8 @@ optimal_model_res$stdplac_res %>%
 
 ```
 
-The following is a summary of setting where index diagnoses occured
+The following table summarizes the types of settings where the index diagnoses occurred:
+
 ```{r, echo = FALSE}
 # Generate the index counts
 tmp <- generate_setting_counts(tm_data = tm,
@@ -249,8 +259,8 @@ tmp %>%
 
 ```
 
-The following is a summary of where missed opportunities occured relative to the 
-index diagnosis:
+The following table summarizes the types of settings where missed opportunities occurred relative to the index diagnosis. Specifically, this table provides a rough sense of the likelihood that a diagnosis would occur in a given setting when a patient presented with symptoms.
+
 ```{r, echo = FALSE}
 tmp %>% 
   select(setting = stdplac_group, `Missed Opportunities`=n,
@@ -261,9 +271,9 @@ tmp %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-### Results by patient location
+### Results by patient location (plurality)
 
-The following is a breakdown of results by patient location
+The following table provides a breakdown of results by patient location, particularly whether the patient was located in a rural versus an urban or non-rural setting.
 
 ```{r}
 load(paste0(delay_base_path,"demo_data.RData"))
@@ -338,14 +348,14 @@ msa_res %>%
 
 ```
 
-
 ## Any Visit Results
 
-
+The following sections provide the same types of results presented above but uses any visit, regardless of whether an SSD was present or not. These results represent a type of "upper bound" on the estimated number of missed opportunities by accounting for cases in which a symptom may not have been recorded during a visit.
 
 ### Expected Visit Trends
 
-The following figure depicts the estimated trends in expected visit counts for SSD  
+The following figure depicts the estimated trends in expected visit counts for all visits
+
 ```{r, echo = FALSE}
 sim_tm <- all_dx_visits %>%
   mutate(period = -days_since_index) %>%
@@ -414,8 +424,7 @@ p1
 
 ```
 
-
-The following summarises the observed and expected number of visits and the estimated number of missed opportunities:
+The following summarizes the observed and expected number of visits and the estimated number of missed opportunities using all visit counts:
 
 ```{r, echo = FALSE}
 pred_table <- predicted_fits %>% 
@@ -433,13 +442,13 @@ pred_table %>%
 
 ```
 
-The following is a plot of the estimated number of missed oppportunities each day for each method:
+The following is a plot of the estimated number of missed opportunities each day for each of the four methods used to estimate visit trends:
 
 ```{r, echo=FALSE}
 p2
 ```
 
-The final selected model was ``r selected_model$model`` with an estimated number of missed opportunities of ``r selected_model_missed_opp``
+The final selected model was `r selected_model$model` with an estimated number of missed opportunities of `r selected_model_missed_opp`
 
 ### Simulation Results
 
@@ -448,7 +457,8 @@ The final selected model was ``r selected_model$model`` with an estimated number
 load(paste0(delay_base_path,"/any_visit/optimal_model_res.RData"))
 ```
 
-The following is an overall summary of the frequency and duration of missed opportunities
+The following is an overall summary of the frequency and duration of missed opportunities using all visits:
+
 ```{r, echo = FALSE}
 optimal_model_res$sim_res_stats %>% 
   select(key,out) %>% 
@@ -465,7 +475,8 @@ optimal_model_res$sim_res_stats %>%
 
 ```
 
-The following is a summary of the distribution of delay durations:
+The following is a summary of the distribution of delay duration using all visits:
+
 ```{r, echo = FALSE}
 optimal_model_res$sim_res_dur_tab %>% 
   mutate(Duration = ifelse(duration_bin==1,
@@ -479,8 +490,9 @@ optimal_model_res$sim_res_dur_tab %>%
 
 ```
 
-The following is a summary of distribution of the number of missed opportunities that each patient experienced
-``` {r, echo = FALSE}
+The following is a summary of distribution of the number of missed opportunities that each patient experienced using all visits:
+
+```{r, echo = FALSE}
 optimal_model_res$sim_res_miss_tab %>% 
   mutate(miss_bin = paste0(">=",miss_bin)) %>% 
   rename(`Number of misses` = miss_bin,
@@ -491,8 +503,9 @@ optimal_model_res$sim_res_miss_tab %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a summary of the basic setting types where missed opportunities occured
-``` {r, echo = FALSE}
+The following is a summary of the basic setting types where missed opportunities occurred using all visits:
+
+```{r, echo = FALSE}
 optimal_model_res$setting_type_res %>% 
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
@@ -501,8 +514,8 @@ optimal_model_res$setting_type_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
+The following is a summary of all the locations of care where missed opportunities occurred:
 
-The following is a summary of all the locations of care where missed opportunities occurred
 ```{r, echo = FALSE}
 
 optimal_model_res$stdplac_res %>% 
@@ -513,5 +526,3 @@ optimal_model_res$stdplac_res %>%
 
 
 ```
-
-

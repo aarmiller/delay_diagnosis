@@ -7,7 +7,7 @@ codeBuildr::avail_ssd_codes()
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "tb"
+# cond_name <- "histo"
 
 
 rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/delay_report.Rmd",
