@@ -28,7 +28,7 @@ delay_any_params <- list(histo = list(path = "/Shared/AML/truven_extracts/small_
                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
                          
                          sepsis_revised10 = list(path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
-                                      cp = 21,
+                                      cp = 14,
                                       cp_lower = NA,
                                       cp_upper = NA,
                                       upper_bound = 180,
