@@ -10,7 +10,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "histo"
+# cond_name <- "sepsis_revised10"
 
 load("/Shared/AML/params/delay_any_params.RData")
 # load("/Volumes/AML/params/delay_any_params.RData")
@@ -51,7 +51,8 @@ ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>%
   filter(type %in% c("icd9","icd10")) %>%
   mutate(dx=code,
          dx_ver = ifelse(type=="icd9",9L,10L)) %>%
-  select(dx,dx_ver)
+  select(dx,dx_ver) %>% 
+  distinct()
 
 # index_dx_dates <- tbl(con,"index_dx_dates") %>% collect()
 
@@ -70,7 +71,7 @@ all_vis_count <- sim_tm %>%
 # # merge observations into time map to extract visit types
 obs_tm <- sim_tm %>%
   distinct(obs,days_since_index,patient_id) %>%
-  inner_join(tm,by = c("days_since_index", "")) %>%
+  inner_join(tm,by = c("days_since_index", "patient_id")) %>%
   distinct(obs,stdplac,setting_type) %>%
   filter(setting_type!=4)
 
