@@ -35,9 +35,9 @@
 
 #### Sepsis ####
 # qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sepsis_revised10
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sepsis_revised10
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sepsis_revised10
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sepsis_revised10

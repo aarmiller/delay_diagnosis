@@ -10,7 +10,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "tb"
+# cond_name <- "histo"
 
 load("/Shared/AML/params/delay_any_params.RData")
 # load("/Volumes/AML/params/delay_any_params.RData")
@@ -58,9 +58,8 @@ ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>%
 sim_tm <- all_dx_visits %>%
   mutate(period = -days_since_index) %>%
   inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
-  distinct(enrolid,period,days_since_index) %>%
-  inner_join(sim_obs,by = c("enrolid", "days_since_index")) %>% 
-  rename(patient_id=enrolid) 
+  distinct(patient_id,period,days_since_index) %>%
+  inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
 
 all_vis_count <- sim_tm %>%
   count(period) %>%
@@ -70,8 +69,8 @@ all_vis_count <- sim_tm %>%
 
 # # merge observations into time map to extract visit types
 obs_tm <- sim_tm %>%
-  distinct(obs,days_since_index,enrolid=patient_id) %>%
-  inner_join(tm,by = c("days_since_index", "enrolid")) %>%
+  distinct(obs,days_since_index,patient_id) %>%
+  inner_join(tm,by = c("days_since_index", "")) %>%
   distinct(obs,stdplac,setting_type) %>%
   filter(setting_type!=4)
 

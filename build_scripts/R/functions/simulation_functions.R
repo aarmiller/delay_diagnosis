@@ -238,7 +238,7 @@ generate_setting_counts <- function(obs_tm,sim_res){
 run_boot_trials <- function(boot_ids,tm_data,miss_bins,trials,delay_params,n_patients){
   
   tmp_sim_data <- list(time_map = boot_ids %>% 
-                         inner_join(tm_data, by = "enrolid") %>% 
+                         inner_join(tm_data, by = "patient_id") %>% 
                          mutate(miss_ind=1L),
                        miss_bins_visits = miss_bins %>% 
                          mutate(num_miss = round(num_miss,0)),

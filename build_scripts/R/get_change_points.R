@@ -7,7 +7,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "tb"
+# cond_name <- "sepsis_revised10"
 
 load("/Shared/AML/params/delay_any_params.RData")
 

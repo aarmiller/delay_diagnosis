@@ -14,7 +14,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "ami"
+# cond_name <- "histo"
 
 # set number of dx codes to consider
 dx_cluter_lim <- 1000
