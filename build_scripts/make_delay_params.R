@@ -42,17 +42,15 @@ save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")
 
 # update master list
 library(tidyverse)
-load("/Shared/AML/params/delay_any_params.RData")
-tmp <- codeBuildr::avail_disease_codes() %>% 
-  inner_join(tibble(name = names(delay_any_params))) %>% 
-  mutate(cp = map_dbl(name,~delay_any_params[[.]]$cp)) %>% 
-  mutate(upper_bound = map_dbl(name,~delay_any_params[[.]]$upper_bound)) %>% 
-  mutate(final_model = map_chr(name,~delay_any_params[[.]]$final_model)) 
+load("/Volumes/AML/params/delay_any_params.RData")
+
+length(delay_any_params)
+tmp <- names(delay_any_params)
 
 # create folders for holding output
-for (i in 1:nrow(tmp)){
-  if(!dir.exists(paste0("/Shared/Statepi_Diagnosis/prelim_results/",tmp$name[i]))){
-    dir.create(paste0("/Shared/Statepi_Diagnosis/prelim_results/",tmp$name[i]))
+for (i in 1:length(delay_any_params)){
+  if(!dir.exists(paste0("/Volumes/Statepi_Diagnosis/prelim_results/",tmp[i]))){
+    dir.create(paste0("/Volumes/Statepi_Diagnosis/prelim_results/",tmp[i]))
   }
 }
 

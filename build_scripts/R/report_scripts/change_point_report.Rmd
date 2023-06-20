@@ -202,7 +202,7 @@ ssd_codes <- bind_rows(codeBuildr::load_ssd_codes(params$cond) %>%
 #Change this to read from wherever the data is stored for you
 count_data_ssd <- all_dx_visits %>%
   inner_join(ssd_codes, by = "dx") %>%
-  distinct(enrolid,days_since_index) %>%
+  distinct(patient_id,days_since_index) %>%
   count(days_since_index) %>%
   left_join(tibble(days_since_index=min(visit_counts$days_since_index):-1),., by = "days_since_index") %>% # in case there are 0 days
   mutate(n = replace_na(n,0L)) %>% 
