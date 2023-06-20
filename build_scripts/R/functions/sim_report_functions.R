@@ -20,7 +20,7 @@ generate_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
   
   # count patients
   total_patients <- filter(tm_data,days_since_index==0) %>% 
-    distinct(enrolid) %>% 
+    distinct(patient_id) %>% 
     nrow()
   
   index_stdplac_counts <- tm_data %>% 
@@ -31,28 +31,28 @@ generate_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
     mutate(stdplac_group = ifelse(setting_type==2,"ED",
                                   ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
     mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
-    distinct(enrolid,stdplac_group) %>% 
+    distinct(patient_id,stdplac_group) %>% 
     count(stdplac_group,name = "index_count") %>% 
     mutate(index_pct1 = 100*index_count/sum(index_count),   # percent of total index locations
            index_pct2 = 100*index_count/total_patients)     # percent of total patients %>% # percent of total index locations w/o Other
   
   ## get observation timemap -----------------------------------------------------
   obs_tm <- tm_data %>%
-    inner_join(sim_res_sim_obs_data, by = c("enrolid", "days_since_index")) %>% 
+    inner_join(sim_res_sim_obs_data, by = c("patient_id", "days_since_index")) %>% 
     filter(setting_type!=4) %>% 
     filter(!(stdplac %in% c(81,41,42))) %>% 
     left_join(new_stdplac_group, by = "stdplac") %>% 
     mutate(stdplac_group = ifelse(setting_type==2,"ED",
                                   ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
     mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
-    distinct(obs,days_since_index,enrolid,stdplac_group) 
+    distinct(obs,days_since_index,patient_id,stdplac_group) 
   
   # join obs time map into simulation results
   tmp <- sim_res_data %>% 
     inner_join(obs_tm, by = "obs")
   
   sim_res_setting_counts <- tmp %>% 
-    distinct(trial,enrolid,days_since_index,stdplac_group) %>% 
+    distinct(trial,patient_id,days_since_index,stdplac_group) %>% 
     group_by(trial,stdplac_group) %>% 
     summarise(n=n(),
               duration = mean(-days_since_index)) %>%  

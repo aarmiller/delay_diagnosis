@@ -46,13 +46,13 @@ total_patients <- nrow(index_dx_dates)
 
 total_visit_days_in_window <- all_dx_visits %>% 
   filter(between(days_since_index,-delay_params$cp,-1)) %>% 
-  distinct(enrolid,days_since_index) %>% 
+  distinct(patient_id,days_since_index) %>% 
   nrow()
 
 total_ssd_visit_days_in_window <- all_dx_visits %>% 
   inner_join(ssd_codes) %>% 
   filter(between(days_since_index,-delay_params$cp,-1)) %>% 
-  distinct(enrolid,days_since_index) %>% 
+  distinct(patient_id,days_since_index) %>% 
   nrow()
 
 
@@ -74,7 +74,7 @@ The following is a plot of all patient visits and SSD visits that occurred in th
 ```{r, echo = FALSE}
 bind_rows(all_dx_visits %>% 
             inner_join(ssd_codes) %>%
-            distinct(enrolid,days_since_index) %>% 
+            distinct(patient_id,days_since_index) %>% 
             count(days_since_index) %>% 
             mutate(group = "SSD Visits"),
           visit_counts %>% 
@@ -269,17 +269,17 @@ The following is a breakdown of results by patient location
 load(paste0(delay_base_path,"demo_data.RData"))
 load(paste0(delay_base_path,"/ssd_visit/sim_res.RData"))
 
-rural_ids <- distinct(rural_visits,enrolid)
+rural_ids <- distinct(rural_visits,patient_id)
 
 msa_ids <- demo2 %>% 
   filter(index_date>=dtstart & index_date<=dtend) %>% 
   filter(!is.na(msa) & msa!="0" & msa != "") %>% 
-  distinct(enrolid)
+  distinct(patient_id)
 
 no_msa_ids <- demo2 %>% 
   filter(index_date>=dtstart & index_date<=dtend) %>% 
   filter(msa=="0" | msa=="") %>%
-  distinct(enrolid)
+  distinct(patient_id)
 
 rural_no_msa_ids <- rural_ids %>% anti_join(msa_ids)
 
@@ -287,7 +287,7 @@ get_id_res <- function(id_set){
   sim_obs %>% 
     inner_join(id_set) %>% 
     inner_join(sim_res) %>% 
-    group_by(trial,enrolid) %>% 
+    group_by(trial,patient_id) %>% 
     summarise(duration = -min(days_since_index),
               n_miss = n()) %>% 
     group_by(trial) %>% 
@@ -350,8 +350,7 @@ The following figure depicts the estimated trends in expected visit counts for S
 sim_tm <- all_dx_visits %>%
   mutate(period = -days_since_index) %>%
   #inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
-  distinct(enrolid,period,days_since_index) %>%
-  rename(patient_id=enrolid) %>%
+  distinct(patient_id,period,days_since_index) %>%
   mutate(obs=row_number())
 
 all_vis_count <- sim_tm %>%
