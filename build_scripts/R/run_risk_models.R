@@ -5,7 +5,7 @@ library(lubridate)
 args = commandArgs(trailingOnly=TRUE)
 # name of condition
 cond_name <- args[1]
-# cond_name <- "lung_cancer"
+# cond_name <- "histo"
 
 load("/Shared/AML/params/delay_any_params.RData")
 
@@ -48,11 +48,11 @@ n_trials <- max(sim_res$trial)
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
   filter(setting_type !=4) %>%
-  distinct(enrolid,setting_type,admdate) %>% 
+  distinct(patient_id,setting_type,admdate) %>% 
   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
   mutate(dow=weekdays(as_date(admdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-  select(enrolid,setting,weekend,dow) %>%
+  select(patient_id,setting,weekend,dow) %>%
   mutate(value = TRUE) %>% 
   spread(key= setting, value = value,fill = FALSE) %>% 
   inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
@@ -75,12 +75,12 @@ index_locations <- tm %>%
                                      "none")) 
 
 obs_locations <- tm %>% 
-  left_join(sim_res_sim_obs,by = c("enrolid", "days_since_index")) %>% 
+  left_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
   filter(!is.na(obs)) %>% 
   filter(setting_type !=4) %>%
-  distinct(enrolid,obs,setting_type) %>% 
+  distinct(patient_id,obs,setting_type) %>% 
   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
-  select(enrolid,obs,setting) %>%
+  select(patient_id,obs,setting) %>%
   mutate(value = TRUE) %>% 
   spread(key= setting, value = value,fill = FALSE) %>% 
   inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
@@ -117,8 +117,8 @@ reg_demo <- reg_demo %>%
               mutate(msa_new = msa %in% c("0","")) %>% 
               mutate(msa_new = ifelse(is.na(msa),NA,msa_new)) %>% 
               mutate(source = as.factor(source)) %>% 
-              distinct(enrolid,source,msa=msa_new),
-            by = "enrolid")
+              distinct(patient_id,source,msa=msa_new),
+            by = "patient_id")
 
 age_cats <- c(-1,17,34,44,54,64,130)
 
@@ -126,9 +126,9 @@ reg_demo <- reg_demo %>%
   mutate(age_cat = cut(age,age_cats)) %>% 
   mutate(month = as.character(month(as_date(index_date))),
          year = as.character(year(as_date(index_date)))) %>% 
-  select(enrolid,female,age_cat,msa,source,year,month,msa,race) %>% 
-  left_join(distinct(rural_visits,enrolid) %>% 
-              mutate(rural = 1L), by = "enrolid") %>% 
+  select(patient_id,female,age_cat,msa,source,year,month,msa,race) %>% 
+  left_join(distinct(rural_visits,patient_id) %>% 
+              mutate(rural = 1L), by = "patient_id") %>% 
   mutate(rural = replace_na(rural,0L))
 
 
@@ -139,7 +139,7 @@ sim_res <- sim_res %>%
   select(obs,trial) %>% 
   inner_join(obs_locations) %>% 
   inner_join(sim_res_sim_obs %>% 
-               inner_join(select(index_dx_dates,enrolid,index_date), by = "enrolid") %>% 
+               inner_join(select(index_dx_dates,patient_id,index_date), by = "patient_id") %>% 
                mutate(vis_date = index_date+days_since_index) %>% 
                mutate(dow=weekdays(as_date(vis_date))) %>% 
                select(obs,dow) %>% 
@@ -164,7 +164,7 @@ get_miss_res <- function(trial_val){
                           mutate(miss=TRUE),
                         index_locations %>% 
                           mutate(miss=FALSE)) %>% 
-    inner_join(reg_demo, by = "enrolid")
+    inner_join(reg_demo, by = "patient_id")
   
   
   fit <- glm(miss~setting_label+obs_stay + age_cat + female + rural + source + weekend, family = "binomial", data=reg_data)
@@ -211,7 +211,7 @@ get_miss_res_med <- function(trial_val){
                           mutate(miss=TRUE),
                         index_locations %>% 
                           mutate(miss=FALSE)) %>% 
-    inner_join(reg_demo, by = "enrolid") %>% 
+    inner_join(reg_demo, by = "patient_id") %>% 
     filter(source == "medicaid")
   
   
@@ -254,7 +254,7 @@ gc()
 sim_res_dur <- sim_res %>% 
   select(obs,trial) %>% 
   inner_join(sim_res_sim_obs,by = "obs") %>% 
-  group_by(trial,enrolid) %>% 
+  group_by(trial,patient_id) %>% 
   summarise(duration = -min(days_since_index)) %>% 
   ungroup()
 
@@ -437,23 +437,23 @@ miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>%
 ### Alternative missed visits --------------------------------------------------
 # 
 # obs_locations2 <- tm %>% 
-#   left_join(sim_res_sim_obs,by = c("enrolid", "days_since_index")) %>% 
+#   left_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
 #   filter(!is.na(obs)) %>% 
 #   filter(setting_type !=4) %>%
-#   distinct(enrolid,obs,setting_type,admdate) %>% 
+#   distinct(patient_id,obs,setting_type,admdate) %>% 
 #   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
 #   mutate(dow=weekdays(as_date(admdate))) %>% 
 #   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-#   select(enrolid,obs,setting,dow,weekend) 
+#   select(patient_id,obs,setting,dow,weekend) 
 # 
 # index_locations2 <- tm %>% 
 #   filter(days_since_index==0) %>% 
 #   filter(setting_type !=4) %>%
-#   distinct(enrolid,setting_type,admdate) %>% 
+#   distinct(patient_id,setting_type,admdate) %>% 
 #   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
 #   mutate(dow=weekdays(as_date(admdate))) %>% 
 #   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-#   select(enrolid,setting,weekend,dow) 
+#   select(patient_id,setting,weekend,dow) 
 # 
 # sim_res <- sim_res %>% 
 #   select(obs,trial) %>% 
@@ -470,7 +470,7 @@ miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>%
 #                           mutate(miss=TRUE),
 #                         index_locations2 %>% 
 #                           mutate(miss=FALSE)) %>% 
-#     inner_join(reg_demo, by = "enrolid")
+#     inner_join(reg_demo, by = "patient_id")
 #   
 #   
 #   fit <- glm(miss~setting + age_cat + female + rural + source + weekend, family = "binomial", data=reg_data)

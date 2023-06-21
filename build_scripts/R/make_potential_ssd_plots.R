@@ -86,7 +86,7 @@ dx10_counts <- tmp_dx_visits10 %>%
               mutate(dx = as.character(dx))) %>%
   mutate(desc = paste0(dx," - ",str_sub(desc,start = 0,end = 40)))
 
-dx9_counts %>% 
+dx10_counts %>% 
   slice(1:1000) %>% 
   write_csv(paste0(plot_path,"icd10_top1000.csv"))
 
