@@ -1,6 +1,6 @@
 ---
 title: "Change-point report"
-output: html_document
+output: pdf_document
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
 params:
   cond:
