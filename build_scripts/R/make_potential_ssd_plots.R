@@ -5,7 +5,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "histo"
+# cond_name <- "cvst"
 
 ### Load delay params ----------------------------------------------------------
 
@@ -16,6 +16,12 @@ delay_params <- delay_any_params[[cond_name]]
 base_path <- delay_params$path
 
 out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
+
+if (!dir.exists(out_path)){
+  dir.create(out_path)
+}else{
+  print("dir exists")
+}
 
 
 ### Paths for plot output ------------------------------------------------------
