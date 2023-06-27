@@ -39,6 +39,38 @@
 # qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh sepsis_revised10
 # qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sepsis_revised10
 # qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sepsis_revised10
-qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sepsis_revised10
+# qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh sepsis_revised10
+
+#### cvst ####
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh cvst
+# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh cvst
+# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh cvst
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh cvst
+# qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh cvst
+
+
+#### Sarcoid ####
+
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh sarcoid
+# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh sarcoid
+# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh sarcoid
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sarcoid
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh sarcoid
+
+

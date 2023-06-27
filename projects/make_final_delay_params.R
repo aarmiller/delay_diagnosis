@@ -11,17 +11,9 @@
 # preliminary simulations. The script to generate these recreated object should 
 # be stored in delay_diagnosis/projects/<disease>
   
-final_delay_params <- list(tb = list(base_path = "/Shared/Statepi_Diagnosis/projects/tb/",
-                                     cp = 106,
-                                     upper_bound = 365*2,
-                                     final_model = "quadratic",
-                                     periodicity = TRUE,
-                                     boot_trials = 100,
-                                     sim_trials = 100,
-                                     miss_bins = c(1,2,3,4,5,7,10),
-                                     duration_bins = c(3,7,14,21,30,60,90,120,150)),
-                           
-                           tb_resp = list(base_path = "/Shared/Statepi_Diagnosis/projects/tb/tb_resp",
+final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
+                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
+                                          out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/",   # path to output delay new results
                                           cp = 150,
                                           upper_bound = 365*2,
                                           final_model = NA,
@@ -31,30 +23,24 @@ final_delay_params <- list(tb = list(base_path = "/Shared/Statepi_Diagnosis/proj
                                           miss_bins = c(1,2,3,4,5,7,10),
                                           duration_bins = c(3,7,14,21,30,60,90,120,150)),
                            
-                           sarcoid = list(base_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/",
-                                          cp = 150,
-                                          upper_bound = 365*2,
-                                          final_model = NA,
-                                          periodicity = TRUE,
-                                          boot_trials = 100,
-                                          sim_trials = 100,
-                                          miss_bins = c(1,2,3,4,5,7,10),
-                                          duration_bins = c(3,7,14,21,30,60,90,120,150)),
-                           
-                           sarcoid_lung = list(base_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/",
-                                               cp = 150,
+                           sarcoid_lung = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
+                                               base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
+                                               out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/",   # path to output delay new results
+                                               cp = 180,
                                                upper_bound = 365*2,
-                                               final_model = NA,
+                                               final_model = "cubic",
                                                periodicity = TRUE,
                                                boot_trials = 100,
                                                sim_trials = 100,
                                                miss_bins = c(1,2,3,4,5,7,10),
                                                duration_bins = c(3,7,14,21,30,60,90,120,150)),
                            
-                           sarcoid_skin = list(base_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/",
-                                               cp = 150,
+                           sarcoid_skin = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
+                                               base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
+                                               out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/",   # path to output delay new results
+                                               cp = 180,
                                                upper_bound = 365*2,
-                                               final_model = NA,
+                                               final_model = "cubic",
                                                periodicity = TRUE,
                                                boot_trials = 100,
                                                sim_trials = 100,

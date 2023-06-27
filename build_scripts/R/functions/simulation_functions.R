@@ -235,7 +235,7 @@ generate_setting_counts <- function(obs_tm,sim_res){
 
 
 # run interior simulation of bootstrap trial
-run_boot_trials <- function(boot_ids,tm_data,miss_bins,trials,delay_params,n_patients){
+run_boot_trials <- function(boot_ids,tm_data,miss_bins,trials,delay_params,n_patients,n_trials){
   
   tmp_sim_data <- list(time_map = boot_ids %>% 
                          inner_join(tm_data, by = "patient_id") %>% 
@@ -247,7 +247,7 @@ run_boot_trials <- function(boot_ids,tm_data,miss_bins,trials,delay_params,n_pat
                        miss_bins = delay_params$miss_bins,
                        duration_bins = delay_params$duration_bins)
   
-  tibble(sim_trial = 1:delay_params$sim_trials) %>% 
+  tibble(sim_trial = 1:n_trials) %>% 
     mutate(res = map(sim_trial,~run_sim_draw_simple(tmp_sim_data) %>% 
                        distinct(obs,boot_id)))
   

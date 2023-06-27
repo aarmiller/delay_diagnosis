@@ -21,7 +21,7 @@
 #      duration_bins = c(1,2,3,4,5,6,7,10,14,17))
 
 
-delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_dbs/histo/",
+delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_dbs/cvst/",
                                       cp = 21,
                                       cp_lower = NA,
                                       cp_upper = NA,
@@ -49,7 +49,17 @@ delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_d
                                                  final_model = NA,
                                                  periodicity = TRUE,
                                                  miss_bins = c(1,2,3,4,5),
-                                                 duration_bins = c(1,2,3,4,5,6,7,10,14,17,21)))
+                                                 duration_bins = c(1,2,3,4,5,6,7,10,14,17,21)),
+                         
+                         sarcoid = list(path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
+                                      cp = 180,
+                                      cp_lower = NA,
+                                      cp_upper = NA,
+                                      upper_bound = 365,
+                                      final_model = NA,
+                                      periodicity = TRUE,
+                                      miss_bins = c(1,2,3,4,5),
+                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)))
 
 # save parameters
 save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")
