@@ -64,12 +64,13 @@
 # qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh sarcoid
 # qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh sarcoid
 
+
 # qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh sarcoid
 # qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sarcoid
 # qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh sarcoid
 # qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sarcoid
-# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sarcoid
 # qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sarcoid
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sarcoid
 # qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sarcoid
 qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh sarcoid
 

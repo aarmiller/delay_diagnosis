@@ -34,7 +34,7 @@ load(paste0(data_in_path,"all_dx_visits.RData"))
 load(paste0(data_in_path,"delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-# load ssds
+# load alls
 ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>%
   filter(type %in% c("icd9","icd10")) %>%
   mutate(dx=code,
@@ -112,7 +112,6 @@ bind_rows(mutate(ssd_vis_count,group = "SSD Visits"),
   theme_bw()
 ggsave(paste0(sim_out_path,"visit_trends.pdf"), width = 10, height = 6)
 
-sim_out_path
 
 
 ################################
@@ -121,14 +120,15 @@ sim_out_path
 
 #### Setup outer bootstrap data ------------------------------------------------
 
-# sample overall set of patients
+# sample overall set of patients for each bootstrap
 tmp <- tibble(boot_trial=1:delay_params$boot_trials) %>% 
   mutate(boot_sample = map(boot_trial,~tibble(patient_id = sample(patient_ids$patient_id, replace = TRUE)))) %>% 
   mutate(boot_sample = map(boot_sample, ~mutate(.,boot_id = row_number())))
 
-tmp$boot_sample[[1]]
+# tmp$boot_sample[[1]]
 
 #### compute counts for all visits ---------------------------------------------
+# For each set of patients selected pull the time map visit counts
 tmp <- tmp %>% 
   mutate(sim_tm = map(boot_sample,
                       ~inner_join(.,all_dx_visits, by = "patient_id") %>%
@@ -143,6 +143,7 @@ tmp <- tmp %>%
                                mutate(dow = as.factor(period %% 7))))
 
 #### compute counts for ssd visits ---------------------------------------------
+# for each set of patients pull the ssd counts
 tmp <- tmp %>% 
   mutate(sim_tm = map(boot_sample,
                       ~inner_join(.,all_dx_visits, by = "patient_id") %>%
@@ -157,13 +158,14 @@ tmp <- tmp %>%
                                filter(period>0) %>% 
                                mutate(dow = as.factor(period %% 7))))
 
-# remove the sim_tm data
+# remove the sim_tm data (no longer needed)
 tmp <- tmp %>% 
   select(boot_trial,boot_sample,all_vis_count,ssd_vis_count)
 
 
 ### fit models -----------------------------------------------------------------
 
+# fit trends for both all visits and ssd visits
 tmp <- tmp %>% 
   mutate(all_vis_count = map(all_vis_count,~return_fits(.,
                                                         model = delay_params$final_model,
@@ -182,26 +184,25 @@ tmp <- tmp %>%
                           ~summarise(.,n_miss_ssd = sum(round(num_miss,0),na.rm = T)))) %>% 
   unnest(n_miss_ssd)
 
-
+#### finalize and save data for bootstrapping ----------------------------------
 boot_data <- tmp
 rm(tmp)
 
 # save bootstrap data
 save(boot_data,file = paste0(sim_out_path,"boot_data.RData"))
 
-#### Compute number missed -----------------------------------------------------
-boot_data %>% 
-  summarise(mean_n_miss_all = mean(n_miss_all),
-            median_n_miss_all = median(n_miss_all),
-            mean_n_miss_ssd = mean(n_miss_ssd),
-            median_n_miss_ssd = median(n_miss_ssd))
+# Compute number missed (note: need to export info in a report in future)
+# boot_data %>% 
+#   summarise(mean_n_miss_all = mean(n_miss_all),
+#             median_n_miss_all = median(n_miss_all),
+#             mean_n_miss_ssd = mean(n_miss_ssd),
+#             median_n_miss_ssd = median(n_miss_ssd))
 
 
 
-################################
-#### Run bootstrap analysis ####
-################################
-
+###########################################
+#### Run bootstrap simulation analysis ####
+###########################################
 
 cluster <- parallel::makeCluster(30)
 
@@ -210,7 +211,7 @@ parallel::clusterCall(cluster, function() library(delaySim))
 parallel::clusterExport(cluster,c("run_boot_trials","boot_data","sim_tm_all","sim_tm_ssd","delay_params","n_patients"),
                         envir=environment())
 
-
+set.seed(5678)
 sim_res_all <- parallel::parLapply(cl = cluster,
                                    1:delay_params$boot_trials,
                                    function(x){run_boot_trials(boot_ids = boot_data$boot_sample[[x]],
@@ -223,6 +224,7 @@ sim_res_all <- parallel::parLapply(cl = cluster,
 sim_res_all <- map2(sim_res_all,1:delay_params$boot_trials,~mutate(.x,boot_trial=.y)) %>% 
   bind_rows()
 
+set.seed(5678)
 sim_res_ssd <- parallel::parLapply(cl = cluster,
                                    1:delay_params$boot_trials,
                                    function(x){run_boot_trials(boot_ids = boot_data$boot_sample[[x]],
@@ -242,19 +244,21 @@ rm(cluster)
 save(sim_res_all,file = paste0(sim_out_path,"sim_res_all.RData"))
 save(sim_res_ssd,file = paste0(sim_out_path,"sim_res_ssd.RData"))
 
+#### Extract sim result observations -------------------------------------------
+
 # now extract the specific sim obs values for future steps
 tmp1 <- sim_res_ssd %>% unnest(res) %>% distinct(obs)
 tmp2 <- sim_res_all %>% unnest(res) %>% distinct(obs)
 
 sim_obs_reduced <- sim_obs %>% 
-  inner_join(distinct(bind_rows(tmp1,tmp2))) %>% 
+  inner_join(distinct(bind_rows(tmp1,tmp2)), by = "obs") %>% 
   mutate(period = -days_since_index) %>% 
   select(obs,patient_id,period)
 
 save(sim_obs_reduced, file = paste0(sim_out_path,"sim_obs_reduced.RData"))
 
 # cleanup
-rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name"))])
+rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name","n_patients"))])
 gc()
 
 ###################################
@@ -265,14 +269,6 @@ gc()
 load(paste0(sim_out_path,"sim_res_ssd.RData"))
 load(paste0(sim_out_path,"sim_res_all.RData"))
 load(paste0(sim_out_path,"sim_obs_reduced.RData"))
-
-sim_res_ssd$res[[1]] %>% 
-  inner_join(sim_obs_reduced) %>% 
-  group_by(patient_id,boot_id) %>% 
-  summarise(duration=max(period),
-            n_miss=n())
-
-options(dplyr.summarise.inform = FALSE)
 
 compute_boot_stats <- function(sim_data,sim_obs_data,delay_params,n_patients){
   
@@ -320,10 +316,7 @@ compute_boot_stats <- function(sim_data,sim_obs_data,delay_params,n_patients){
   
 }
 
-compute_boot_stats(sim_res_ssd$res[[1]], sim_obs_reduced, delay_params = delay_params, n_patients = n_patients)
-
-
-
+# setup cluster 
 plan(multisession, workers = 30)
 
 tmp1 <- sim_res_ssd %>% 
@@ -341,7 +334,6 @@ tmp1 <- tmp1 %>%
 
 sim_stats_ssd <- tmp1 %>% 
   select(-sim_stats)
-
 
 tmp2 <- sim_res_all %>% 
   # slice(1:30) %>% 
@@ -362,9 +354,13 @@ sim_stats_all <- tmp2 %>%
 save(sim_stats_ssd,sim_stats_all,file = paste0(sim_out_path,"sim_stats.RData"))
 
 
-########################
-#### Export Results ####
-########################
+###################################
+#### Export Simulation Results ####
+###################################
+
+# Note: We may want to move parts of this section to a separate markdown report script
+
+### Generate aggregate statistics ----------------------------------------------
 
 aggregate_sim_stats <- function(sim_stats_data){
   tmp1 <- sim_stats_data %>% 
@@ -391,25 +387,147 @@ aggregate_sim_stats <- function(sim_stats_data){
   return(list(main_stats = res1))
 }
 
-aggregate_sim_stats(sim_stats_ssd)
-aggregate_sim_stats(sim_stats_all)
+# generate aggregated results of:
+#   n_pat - number of patient missed
+#   mean_dur - mean duration of misses
+#   median_dur - median duration of misses
+#   mean_n_miss - mean number of misses per patient
+#   median_n_miss - median number of misses per patient
+agg_stats_ssd <- aggregate_sim_stats(sim_stats_ssd) 
+agg_stats_all <- aggregate_sim_stats(sim_stats_all)
 
+### Generate bins for number of misses per patient -----------------------------
 
-sim_stats_ssd %>% 
+# SSD Visits
+tmp1 <- sim_stats_ssd %>% 
   select(sim_trial,boot_trial,miss_tab) %>% 
   unnest(miss_tab) %>% 
   group_by(miss_bin) %>% 
-  summarise_at(vars(n:pct_all),~round(mean(.),2))
+  summarise_at(vars(n:pct_all),~round(mean(.),2)) %>% 
+  gather(key = key, value = mean, -miss_bin) %>% 
+  mutate(mean = round(mean,2))
 
-
-sim_stats_ssd %>% 
+tmp2 <- sim_stats_ssd %>% 
   select(sim_trial,boot_trial,miss_tab) %>% 
   unnest(miss_tab) %>% 
   group_by(miss_bin) %>% 
-  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2))
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2)) %>% 
+  gather(key = key, value = low, -miss_bin) %>% 
+  mutate(low = round(low,2))
 
-sim_stats_ssd %>% 
+tmp3 <- sim_stats_ssd %>% 
   select(sim_trial,boot_trial,miss_tab) %>% 
   unnest(miss_tab) %>% 
   group_by(miss_bin) %>% 
-  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2))
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2)) %>% 
+  gather(key = key, value = high, -miss_bin) %>% 
+  mutate(high = round(high,2))
+
+miss_bins_ssd <- inner_join(tmp1,tmp2) %>% 
+  inner_join(tmp3) %>% 
+  mutate(out = paste0(mean," (",low,"-",high,")")) %>% 
+  select(miss_bin,key,out) %>% 
+  spread(key = key, value = out)
+
+# All visits
+tmp1 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,miss_tab) %>% 
+  unnest(miss_tab) %>% 
+  group_by(miss_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(mean(.),2)) %>% 
+  gather(key = key, value = mean, -miss_bin) %>% 
+  mutate(mean = round(mean,2))
+
+tmp2 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,miss_tab) %>% 
+  unnest(miss_tab) %>% 
+  group_by(miss_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2)) %>% 
+  gather(key = key, value = low, -miss_bin) %>% 
+  mutate(low = round(low,2))
+
+tmp3 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,miss_tab) %>% 
+  unnest(miss_tab) %>% 
+  group_by(miss_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2)) %>% 
+  gather(key = key, value = high, -miss_bin) %>% 
+  mutate(high = round(high,2))
+
+miss_bins_all <- inner_join(tmp1,tmp2) %>% 
+  inner_join(tmp3) %>% 
+  mutate(out = paste0(mean," (",low,"-",high,")")) %>% 
+  select(miss_bin,key,out) %>% 
+  spread(key = key, value = out)
+
+
+### Generate bins for duration of misses ---------------------------------------
+
+# SSD Visits
+tmp1 <- sim_stats_ssd %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(mean(.),2)) %>% 
+  gather(key = key, value = mean, -duration_bin) %>% 
+  mutate(mean = round(mean,2))
+
+tmp2 <- sim_stats_ssd %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2)) %>% 
+  gather(key = key, value = low, -duration_bin) %>% 
+  mutate(low = round(low,2))
+
+tmp3 <- sim_stats_ssd %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2)) %>% 
+  gather(key = key, value = high, -duration_bin) %>% 
+  mutate(high = round(high,2))
+
+dur_bins_ssd <- inner_join(tmp1,tmp2) %>% 
+  inner_join(tmp3) %>% 
+  mutate(out = paste0(mean," (",low,"-",high,")")) %>% 
+  select(duration_bin,key,out) %>% 
+  spread(key = key, value = out)
+
+# ALL Visits
+tmp1 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(mean(.),2)) %>% 
+  gather(key = key, value = mean, -duration_bin) %>% 
+  mutate(mean = round(mean,2))
+
+tmp2 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2)) %>% 
+  gather(key = key, value = low, -duration_bin) %>% 
+  mutate(low = round(low,2))
+
+tmp3 <- sim_stats_all %>% 
+  select(sim_trial,boot_trial,dur_tab) %>% 
+  unnest(dur_tab) %>% 
+  group_by(duration_bin) %>% 
+  summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2)) %>% 
+  gather(key = key, value = high, -duration_bin) %>% 
+  mutate(high = round(high,2))
+
+dur_bins_all <- inner_join(tmp1,tmp2) %>% 
+  inner_join(tmp3) %>% 
+  mutate(out = paste0(mean," (",low,"-",high,")")) %>% 
+  select(duration_bin,key,out) %>% 
+  spread(key = key, value = out)
+
+### Save Output ----------------------------------------------------------------
+
+save(agg_stats_all, agg_stats_ssd,
+     miss_bins_all, miss_bins_ssd,
+     dur_bins_all, dur_bins_ssd, 
+     file = paste0(sim_out_path,"aggregated_sim_results.RData"))

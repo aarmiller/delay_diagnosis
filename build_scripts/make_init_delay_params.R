@@ -55,7 +55,7 @@ delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_d
                                       cp = 180,
                                       cp_lower = NA,
                                       cp_upper = NA,
-                                      upper_bound = 365,
+                                      upper_bound = 365*2,
                                       final_model = NA,
                                       periodicity = TRUE,
                                       miss_bins = c(1,2,3,4,5),
