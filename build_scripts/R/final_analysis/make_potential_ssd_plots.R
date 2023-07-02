@@ -4,21 +4,17 @@ library(tidyverse)
 args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-cond_name <- args[1]
-project_name <-  args[2]
-cond_name <- "sarcoid"
-project_name <-  "sarcoid_skin"
-params = list(cond = cond_name,
-              proj = project_name)
+proj_name <- args[1]
+# proj_name <-  "sarcoid_lung"
+cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 ### Load delay params ----------------------------------------------------------
 
 load("/Shared/AML/params/final_delay_params.RData")
 
-delay_params <- final_delay_params[[params$proj]]
+delay_params <- final_delay_params[[proj_name]]
 
 out_path <- delay_params$out_path
-base_path <- delay_params$base_path
 
 if (!dir.exists(out_path)){
   dir.create(out_path)
@@ -26,10 +22,9 @@ if (!dir.exists(out_path)){
   print("dir exists")
 }
 
-
 ### Paths for plot output ------------------------------------------------------
 
-plot_path <- paste0(out_path,"/potential_ssd_plots/")
+plot_path <- paste0(out_path,"potential_ssd_plots/")
 
 if (!dir.exists(plot_path)){
   dir.create(plot_path)
@@ -42,9 +37,9 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 tmp_delay_params <- delay_any_params[[cond_name]]
 
-base_path <- tmp_delay_params$path
+db_path <- tmp_delay_params$path
 
-db <- src_sqlite(paste0(base_path,"/",cond_name,".db"))
+db <- src_sqlite(paste0(db_path,"/",cond_name,".db"))
 
 load(paste0(delay_params$out_path,"index_cases.RData"))
 patient_ids <- index_cases %>% distinct(patient_id)
@@ -68,6 +63,7 @@ tmp_dx_visits9 <- tmp_dx_visits %>% filter(dx_ver==9)
 tmp_dx_visits10 <- tmp_dx_visits %>% filter(dx_ver==10)
 
 ### Make All visits plot -------------------------------------------------------
+
 tmp_dx_visits %>%
   distinct(patient_id,days_since_index) %>%
   count(days_since_index) %>%
@@ -81,7 +77,6 @@ ggsave(paste0(plot_path,"all_visits_before.pdf"),width = 6, height = 5)
 
 
 ### Get counts of top codes ----------------------------------------------------
-
 
 dx9_counts <- tmp_dx_visits9 %>%
   distinct(patient_id,dx,days_since_index) %>%

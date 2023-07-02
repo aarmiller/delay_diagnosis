@@ -4,13 +4,11 @@
 args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-cond_name <- args[1]
-project_name <-  args[2]
-cond_name <- "sarcoid"
-project_name <-  "sarcoid_skin"
-params = list(cond = cond_name,
-              proj = project_name)
+project_name <- args[1]
+# project_name <-  "sarcoid_lung"
 
 rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/final_analysis/final_change_point_report.Rmd",
-                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/", cond_name, "/",
+                  params = list(proj = project_name),
+                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/", 
+                                      stringr::str_split(project_name, "_")[[1]][1], "/",
                                       project_name, "/"))

@@ -6,6 +6,7 @@ library(parallel)
 library(smallDB)
 library(delaySim)
 library(furrr)
+library(codeBuildr)
 
 setwd("/Shared/Statepi_Diagnosis/atlan")
 
@@ -16,14 +17,13 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 proj_name <- args[1]
-# proj_name <- "sarcoid_lung"
+# proj_name <- "sarcoid_lung" 
 
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
 
 data_in_path <- paste0(delay_params$base_path,"delay_results/")
-# sim_in_path <- paste0("/Volumes/AML/small_dbs/",proj_name,"/truven/enroll_restrict_365/","delay_results/")
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
 
 if (!dir.exists(sim_out_path)) {
@@ -47,7 +47,7 @@ load(paste0(delay_params$out_path,"index_cases.RData"))
 index_dx_dates <- index_dx_dates %>% inner_join(index_cases)
 patient_ids <- index_cases %>% distinct(patient_id)
 all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
-total_patients <- nrow(patient_ids)
+n_patients <- nrow(patient_ids)
 tm <- tm %>% inner_join(patient_ids)
 
 sim_tm <- all_dx_visits %>%
@@ -358,7 +358,7 @@ setting_counts_index <- generate_setting_counts(tm_data = tm,
 
 ### Rurality -------------------------------------------------------------------
 
-load(paste0(delay_base_path,"demo_data.RData"))
+load(paste0(delay_params$base_path,"/delay_results/demo_data.RData"))
 demo1 <- demo1 %>% inner_join(patient_ids)
 demo2 <- demo2 %>% inner_join(patient_ids)
 

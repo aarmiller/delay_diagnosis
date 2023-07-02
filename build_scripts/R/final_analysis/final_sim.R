@@ -6,19 +6,26 @@ library(parallel)
 library(smallDB)
 library(delaySim)
 library(furrr)
+library(codeBuildr)
+
+setwd("/Shared/Statepi_Diagnosis/atlan")
 
 source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
 source("github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 
+# source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
+# source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
+
 args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-cond_name <- args[1]
-# cond_name <- "sarcoid_lung"
+proj_name <- args[1]
+# proj_name <- "sarcoid_skin"
+cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
 
-delay_params <- final_delay_params[[cond_name]]
+delay_params <- final_delay_params[[proj_name]]
 
 data_in_path <- paste0(delay_params$base_path,"delay_results/")
 # sim_in_path <- paste0("/Volumes/AML/small_dbs/",cond_name,"/truven/enroll_restrict_365/","delay_results/")
@@ -35,11 +42,23 @@ load(paste0(data_in_path,"delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
 # load alls
-ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>%
-  filter(type %in% c("icd9","icd10")) %>%
-  mutate(dx=code,
-         dx_ver = ifelse(type=="icd9",9L,10L)) %>%
-  select(dx,dx_ver)
+project_test <- codeBuildr::avail_ssd_codes() %>% 
+  filter(name == proj_name) %>% nrow()
+
+if(project_test>0){
+
+  ssd_codes <- codeBuildr::load_ssd_codes(proj_name) %>% 
+    filter(type %in% c("icd9","icd10")) %>% 
+    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+    select(dx = code,dx_ver)
+  
+} else {
+
+  ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>% 
+    filter(type %in% c("icd9","icd10")) %>% 
+    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+    select(dx = code,dx_ver)
+}
 
 # extract patient ids and number of patients
 patient_ids <- index_cases %>% distinct(patient_id)

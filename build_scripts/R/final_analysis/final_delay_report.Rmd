@@ -1,6 +1,9 @@
 ---
 title: "Delay Report"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+params:
+  proj:
+    value: x
 output: html_document
 ---
 
@@ -41,7 +44,7 @@ if(project_test>0){
 } else {
   cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
   
-  ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
+  ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
     filter(type %in% c("icd9","icd10")) %>% 
     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
     select(dx = code,dx_ver)
@@ -140,56 +143,56 @@ The `r delay_params$final_model` model with periodicity = `r delay_params$period
 The following figure depicts the estimated trends in the number of expected visit counts (red line) for SSD-related visits compared to the observed number (black line). The dashed line represents the start of the diagnostic opportunity window. Plots are presented using a `r delay_params$final_model` model with periodicity = `r delay_params$periodicity` to fit the expected number of visits each day before the diagnostic opportunity window for SSD-related and ALL visits, respectively. 
 
 ```{r, echo = FALSE,fig.align="center", out.width = "85%"}
-knitr::include_graphics(paste0(sim_in_path, "visit_trends.pdf"))
+knitr::include_graphics(paste0(sim_in_path, "visit_trends.jpeg"))
 ```
 
 The following table summarizes the observed and expected number of visits and the estimated number of missed opportunities using the final model plotted above:
 
 ```{r, echo = FALSE}
-# load(paste0(sim_out_path,"fit_trends.RData"))
+load(paste0(sim_in_path,"fit_trends.RData"))
 
 # Remove below once we can save fit_trends
-
-### Compute visit counts -------------------------------------------------------
-
-# all visits
-sim_tm_all <- all_dx_visits %>%
-  inner_join(patient_ids, by = "patient_id") %>% 
-  mutate(period = -days_since_index) %>%
-  distinct(patient_id,period,days_since_index) %>%
-  inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
-
-all_vis_count <- sim_tm_all %>% 
-  count(period) %>%
-  filter(period>0) %>% 
-  mutate(dow = as.factor(period %% 7))
-
-# ssd visits
-sim_tm_ssd <- all_dx_visits %>%
-  inner_join(patient_ids, by = "patient_id") %>% 
-  mutate(period = -days_since_index) %>%
-  inner_join(ssd_codes,by = c("dx", "dx_ver")) %>% 
-  distinct(patient_id,period,days_since_index) %>%
-  inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
-
-ssd_vis_count <- sim_tm_ssd %>% 
-  count(.,period) %>%
-  filter(period>0) %>% 
-  mutate(dow = as.factor(period %% 7))
-
-#### fit trends ----------------------------------------------------------------
-source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
-# all visits
-all_vis_count <- return_fits(data = all_vis_count,
-                             model = delay_params$final_model,
-                             cp = delay_params$cp,
-                             periodicity = delay_params$periodicity)
-
-# ssd visits
-ssd_vis_count <- return_fits(ssd_vis_count,
-                             model = delay_params$final_model,
-                             cp = delay_params$cp,
-                             periodicity = delay_params$periodicity)
+# 
+# ### Compute visit counts -------------------------------------------------------
+# 
+# # all visits
+# sim_tm_all <- all_dx_visits %>%
+#   inner_join(patient_ids, by = "patient_id") %>% 
+#   mutate(period = -days_since_index) %>%
+#   distinct(patient_id,period,days_since_index) %>%
+#   inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
+# 
+# all_vis_count <- sim_tm_all %>% 
+#   count(period) %>%
+#   filter(period>0) %>% 
+#   mutate(dow = as.factor(period %% 7))
+# 
+# # ssd visits
+# sim_tm_ssd <- all_dx_visits %>%
+#   inner_join(patient_ids, by = "patient_id") %>% 
+#   mutate(period = -days_since_index) %>%
+#   inner_join(ssd_codes,by = c("dx", "dx_ver")) %>% 
+#   distinct(patient_id,period,days_since_index) %>%
+#   inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
+# 
+# ssd_vis_count <- sim_tm_ssd %>% 
+#   count(.,period) %>%
+#   filter(period>0) %>% 
+#   mutate(dow = as.factor(period %% 7))
+# 
+# #### fit trends ----------------------------------------------------------------
+# source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
+# # all visits
+# all_vis_count <- return_fits(data = all_vis_count,
+#                              model = delay_params$final_model,
+#                              cp = delay_params$cp,
+#                              periodicity = delay_params$periodicity)
+# 
+# # ssd visits
+# ssd_vis_count <- return_fits(ssd_vis_count,
+#                              model = delay_params$final_model,
+#                              cp = delay_params$cp,
+#                              periodicity = delay_params$periodicity)
 
 
 pred_table_ssd <- ssd_vis_count %>% 
@@ -293,60 +296,57 @@ miss_bins_ssd %>%
 
 The following table summarizes the basic types of settings where missed opportunities occurred:
 
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_ssd$setting_type_res %>%  -->
-<!--   select(`Setting Type` = setting_type, -->
-<!--          `Number of Missed Opportunities` = n, -->
-<!--          `Percent of Missed opportunities` = pct) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_ssd$setting_type_res %>%
+  select(`Setting Type` = setting_type,
+         `Number of Missed Opportunities` = n,
+         `Percent of Missed opportunities` = pct) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_ssd$stdplac_res %>%  -->
-<!--   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%  -->
-<!--   select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_ssd$stdplac_res %>%
+  inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
+  select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 The following table summarizes the types of settings where the index diagnoses occurred:
 
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_index %>%  -->
-<!--   select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1, -->
-<!--          `% of all Patients`=index_pct2) %>% -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_index %>%
+  select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+         `% of all Patients`=index_pct2) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 
 The following table summarizes the types of settings where missed opportunities occurred relative to the index diagnosis. Specifically, this table provides a rough sense of the likelihood that a diagnosis would occur in a given setting when a patient presented with symptoms.
 
-
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_index %>%  -->
-<!--   select(setting = stdplac_group, `Missed Opportunities`=n, -->
-<!--          `% Missed Opp. In Setting`=pct_opp, -->
-<!--          `% of Opportunities Missed`=pct_opp_missed, -->
-<!--          `Mean time before for Misses`=dur) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_index %>%
+  select(setting = stdplac_group, `Missed Opportunities`=n,
+         `% Missed Opp. In Setting`=pct_opp,
+         `% of Opportunities Missed`=pct_opp_missed,
+         `Mean time before for Misses`=dur) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 ### Results by patient location (Rurality)
 
 The following table provides a breakdown of results by patient location, particularly whether the patient was located in a rural versus an urban or non-rural setting.
 
-
-<!-- ```{r} -->
-<!-- location_counts %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
-
+```{r}
+location_counts %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 ## Any Visit Results
 
@@ -411,21 +411,21 @@ miss_bins_all %>%
 
 The following table summarizes the basic types of settings where missed opportunities occurred:
 
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_all$setting_type_res %>%  -->
-<!--   select(`Setting Type` = setting_type, -->
-<!--          `Number of Missed Opportunities` = n, -->
-<!--          `Percent of Missed opportunities` = pct) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_all$setting_type_res %>%
+  select(`Setting Type` = setting_type,
+         `Number of Missed Opportunities` = n,
+         `Percent of Missed opportunities` = pct) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
 
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
-<!-- ```{r, echo = FALSE} -->
-<!-- setting_counts_all$stdplac_res %>%  -->
-<!--   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%  -->
-<!--   select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
+```{r, echo = FALSE}
+setting_counts_all$stdplac_res %>%
+  inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
+  select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```

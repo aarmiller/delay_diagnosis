@@ -1,7 +1,10 @@
 ---
-title: "Change-point report"
+title: "Final Change-point report"
 output: html_document
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+params:
+  proj:
+    value: x
 editor_options: 
   markdown: 
     wrap: 72
@@ -20,6 +23,7 @@ library(ggplot2)
 library(lubridate)
 library(changepoint)
 library(trend)
+
 
 # load delay_parms
 load("/Shared/AML/params/final_delay_params.RData")
@@ -43,7 +47,7 @@ if(project_test>0){
 } else {
   cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
   
-  ssd_codes <- codeBuildr::load_ssd_codes(params$cond) %>% 
+  ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
     filter(type %in% c("icd9","icd10")) %>% 
     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
     select(dx = code,dx_ver)
@@ -51,10 +55,7 @@ if(project_test>0){
 
 cond_name <- cond_label
 
-
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
-
-in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results")
 
 load(paste0(delay_base_path,"all_dx_visits.RData"))
 rm(visit_counts)
