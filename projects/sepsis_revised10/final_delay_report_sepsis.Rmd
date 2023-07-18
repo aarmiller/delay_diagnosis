@@ -27,6 +27,8 @@ sim_out_path <- paste0(delay_params$out_path,"sim_results/")
 # Load Index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
+n_patients <- nrow(index_cases)
+
 ```
 
 # Final Diagnostic Delay Report for Sepsis
