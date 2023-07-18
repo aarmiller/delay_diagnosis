@@ -53,6 +53,7 @@ There were a total of `r n_patients` sepsis cases identified.
 ### SSD Visits
 
 ```{r}
+load(paste0(sim_out_path,"report_data/trends_output.RData"))
 load(paste0(sim_out_path,"trends/fit_trends.RData"))
 
 trends_ssd <- ssd_vis_count_fitted %>% 
@@ -122,3 +123,17 @@ trends_all %>%
   ylab("Number of visits (any reason)") +
   xlab("Days before index sepsis diagnosis")
 ```
+
+## Summary
+The following table summarize the model fit and implied number of missed opportunities
+across models, change-points, and visit types.
+
+```{r}
+trends_out$model_comparisons_table %>% 
+  kableExtra::kable(col.names = c("", names(pred_table)[-1])) %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+# Results using SSD visits
