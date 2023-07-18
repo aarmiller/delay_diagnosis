@@ -1,0 +1,88 @@
+---
+title: "Delay Report for Sepsis"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+cond_name <- "sepsis_revised10"
+
+load("/Shared/AML/params/final_delay_params.RData")
+
+delay_params <- final_delay_params[[cond_name]]
+
+sim_out_path <- paste0(delay_params$out_path,"sim_results/")
+
+# Load Index cases
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
+```
+
+# Final Diagnostic Delay Report for Sepsis
+The following report summarizes the final simulation results for diagnostic delays
+associated with hospital sepsis cases.
+
+For this analysis we used the case definition provided in [X] to identify cases 
+of sepsis. Cases were identified specifically based on diagnoses that resulted in
+a hospital admission. We focus on this index case (first diagnosis) in each individual
+and we exclude individuals with a prior sepsis diagnosis recorded in an outpatient
+setting. We include individuals who recieved a sepsis diagnosis in an outpatient 
+setting within X days of a hospital admission.
+
+
+# Summary Statistics
+
+There were a total of `r n_patients` sepsis cases identified.
+
+
+# Visit trends
+
+```{r}
+load(paste0(sim_out_path,"trends/fit_trends.RData"))
+
+trends_ssd <- ssd_vis_count_fitted %>% 
+  rename(tot_miss=num_miss) %>% 
+  unnest(counts) %>% 
+  mutate(model_label = paste0(model," (CP = ",cp," days)"))
+
+mse_res_ssd <- trends_ssd %>%
+  filter(is.na(num_miss)) %>% 
+  group_by(model_label) %>% 
+  summarise(rmse = sqrt(mean((pred-n)^2))) %>% 
+  mutate(label = paste("RMSE: ", round(rmse,2)))
+
+```
+
+The following plot depicts the number of SSD visits each day before the index
+sepsis diagnosis
+```{r}
+
+y_pos <- .9*max(trends_ssd$n)
+x_pos <- .8*180
+
+
+trends_ssd %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = pred), color = "red") +
+  facet_wrap(~model_label) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res_ssd,
+            mapping = aes(x = x_pos, y = y_pos, label = label)) +
+  ylab("Number of SSD visits") +
+  xlab("Days before index sepsis diagnosis")
+```
+
