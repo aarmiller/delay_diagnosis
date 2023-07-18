@@ -50,6 +50,8 @@ There were a total of `r n_patients` sepsis cases identified.
 
 # Visit trends
 
+### SSD Visits
+
 ```{r}
 load(paste0(sim_out_path,"trends/fit_trends.RData"))
 
@@ -59,6 +61,17 @@ trends_ssd <- ssd_vis_count_fitted %>%
   mutate(model_label = paste0(model," (CP = ",cp," days)"))
 
 mse_res_ssd <- trends_ssd %>%
+  filter(is.na(num_miss)) %>% 
+  group_by(model_label) %>% 
+  summarise(rmse = sqrt(mean((pred-n)^2))) %>% 
+  mutate(label = paste("RMSE: ", round(rmse,2)))
+
+trends_all <- all_vis_count_fitted %>% 
+  rename(tot_miss=num_miss) %>% 
+  unnest(counts) %>% 
+  mutate(model_label = paste0(model," (CP = ",cp," days)"))
+
+mse_res_all <- trends_all %>%
   filter(is.na(num_miss)) %>% 
   group_by(model_label) %>% 
   summarise(rmse = sqrt(mean((pred-n)^2))) %>% 
@@ -88,3 +101,24 @@ trends_ssd %>%
   xlab("Days before index sepsis diagnosis")
 ```
 
+### All Visits
+The following plot depicts the number of all visits each day before the index
+sepsis diagnosis
+```{r}
+
+y_pos <- .9*max(trends_all$n)
+
+
+trends_all %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = pred), color = "red") +
+  facet_wrap(~model_label) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res_all,
+            mapping = aes(x = x_pos, y = y_pos, label = label)) +
+  ylab("Number of visits (any reason)") +
+  xlab("Days before index sepsis diagnosis")
+```
