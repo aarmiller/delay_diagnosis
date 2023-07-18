@@ -130,7 +130,6 @@ across models, change-points, and visit types.
 
 ```{r}
 trends_out$model_comparisons_table %>% 
-  kableExtra::kable(col.names = c("", names(pred_table)[-1])) %>% 
   kableExtra::kable_styling(full_width = F)
 
 ```
