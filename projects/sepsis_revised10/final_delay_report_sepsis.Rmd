@@ -224,6 +224,42 @@ agg_stats$exponential_7$agg_stats_ssd$miss_bins %>%
 
 ### Sensitivity Analysis - Cubic trend w/ 7-day change-point
 
+The following table presents the aggregated summary statistics
+```{r}
+agg_stats$cubic_7$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Estimate (95% CI)`=measure_out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following table presents the distribution of delay duration:
+```{r}
+agg_stats$cubic_7$agg_stats_ssd$duration_bins %>% 
+  filter(duration_bin<=7) %>% 
+  mutate(Duration = paste0(">= ", duration_bin," days")) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-duration_bin) %>% 
+  select(Duration, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table presents the distribution of the number of missed opportunities 
+that individual patients experienced:
+```{r}
+agg_stats$cubic_7$agg_stats_ssd$miss_bins %>% 
+  mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-miss_bin) %>% 
+  select(`Number of misses`, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
 
 # Results using All visits
 
@@ -305,3 +341,38 @@ agg_stats$exponential_7$agg_stats_all$miss_bins %>%
 ### Sensitivity Analysis - Cubic trend w/ 14-day change-point
 
 ### Sensitivity Analysis - Cubic trend w/ 7-day change-point
+The following table presents the aggregated summary statistics
+```{r}
+agg_stats$cubic_7$agg_stats_all$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Estimate (95% CI)`=measure_out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following table presents the distribution of delay duration:
+```{r}
+agg_stats$cubic_7$agg_stats_all$duration_bins %>% 
+  filter(duration_bin<=7) %>% 
+  mutate(Duration = paste0(">= ", duration_bin," days")) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-duration_bin) %>% 
+  select(Duration, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table presents the distribution of the number of missed opportunities 
+that individual patients experienced:
+```{r}
+agg_stats$cubic_7$agg_stats_all$miss_bins %>% 
+  mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-miss_bin) %>% 
+  select(`Number of misses`, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
