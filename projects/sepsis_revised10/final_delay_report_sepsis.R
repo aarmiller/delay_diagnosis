@@ -236,84 +236,23 @@ for (i in folder_list){
   
 }
 
-load(paste0(sim_out_path,"exponential_cp14/sim_res_ssd.RData"))
-load(paste0(sim_out_path,"exponential_cp14/sim_res_all.RData"))
-
-## filter to sim obs used for quicker merge ------------------------------------
-
-tmp1 <- sim_res_ssd %>% 
-  mutate(obs = map(res,~distinct(.,obs))) %>% 
-  select(obs) %>% 
-  unnest(obs) %>% 
-  distinct(obs)
-
-tmp2 <- sim_res_all %>% 
-  mutate(obs = map(res,~distinct(.,obs))) %>% 
-  select(obs) %>% 
-  unnest(obs) %>% 
-  distinct(obs)
-
-tmp <- bind_rows(tmp1,tmp2) %>% distinct(obs)
-
-sim_obs_reduced <- inner_join(tmp,sim_obs) %>% 
-  mutate(period = -days_since_index) %>% 
-  select(-days_since_index)
-
-# compute_boot_stats(sim_data = sim_res_ssd$res[[1]],
-#                    sim_obs_data = sim_obs_reduced,
-#                    delay_params = delay_params,
-#                    n_patients = n_patients)
-
-# setup cluster
-plan(multisession, workers = 30)
-
-tmp1 <- sim_res_ssd %>%
-  # slice(1:30) %>%
-  mutate(sim_stats = future_map(res, ~compute_boot_stats(.,
-                                                         sim_obs_reduced,
-                                                         delay_params = delay_params,
-                                                         n_patients = n_patients)))
-
-tmp1 <- tmp1 %>%
-  select(sim_trial,boot_trial,sim_stats) %>%
-  mutate(stats = map(sim_stats,~.$stats)) %>%
-  mutate(miss_tab = map(sim_stats,~.$miss_tab)) %>%
-  mutate(dur_tab = map(sim_stats,~.$dur_tab))
-
-sim_stats_ssd <- tmp1 %>%
-  select(-sim_stats)
-
-tmp2 <- sim_res_all %>%
-  # slice(1:30) %>%
-  mutate(sim_stats = future_map(res, ~compute_boot_stats(.,
-                                                         sim_obs_reduced,
-                                                         delay_params = delay_params,
-                                                         n_patients = n_patients)))
-
-tmp2 <- tmp2 %>%
-  select(sim_trial,boot_trial,sim_stats) %>%
-  mutate(stats = map(sim_stats,~.$stats)) %>%
-  mutate(miss_tab = map(sim_stats,~.$miss_tab)) %>%
-  mutate(dur_tab = map(sim_stats,~.$dur_tab))
-
-sim_stats_all <- tmp2 %>%
-  select(-sim_stats)
-
-save(sim_stats_ssd,sim_stats_all,file = paste0(sim_out_path,"exponential_cp14/sim_stats.RData"))
-
-rm(tmp1,tmp2,sim_stats_all,sim_stats_ssd,sim_res_ssd,sim_res_all)
-gc()
-
 
 ###################################
 #### Export Simulation Results ####
 ###################################
 
-# Note: We may want to move parts of this section to a separate markdown report script
+
+
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
+n_patients <- nrow(index_cases)
 
 ### Generate aggregate statistics ----------------------------------------------
 
-aggregate_sim_stats <- function(sim_stats_data){
+aggregate_sim_stats <- function(sim_stats_data, n_patients){
+  
+  ## Aggregate summary stats ---------------------------------------------------
+  
   tmp1 <- sim_stats_data %>%
     select(sim_trial,boot_trial,stats) %>%
     unnest(stats) %>%
@@ -329,20 +268,101 @@ aggregate_sim_stats <- function(sim_stats_data){
     unnest(stats) %>%
     summarise_at(vars(n_pat:median_n_miss),~round(quantile(.,probs = c(0.975)),2))
 
-
   res1 <- inner_join(gather(tmp1, key=measure, value = mean),
-                     gather(tmp2, key=measure, value = low)) %>%
-    inner_join(gather(tmp3, key=measure, value = high)) %>%
+                     gather(tmp2, key=measure, value = low),
+                     by = join_by(measure)) %>%
+    inner_join(gather(tmp3, key=measure, value = high),
+               by = join_by(measure)) 
+  
+  
+  res2 <- res1 %>% 
+    filter(measure=="n_pat") %>% 
+    mutate_at(vars(mean:high),~round(100*./n_patients,2)) %>% 
+    mutate(measure_out=paste0(mean," (",low,"-",high,")")) %>% 
+    mutate(measure="pct_pat")
+  
+  out1 <- bind_rows(res2,res1) %>% 
     mutate(measure_out=paste0(mean," (",low,"-",high,")"))
+  
+  ## Aggregate miss bins -------------------------------------------------------
+  
+  tmp1 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,miss_tab) %>% 
+    unnest(miss_tab) %>% 
+    group_by(miss_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(mean(.),2))
+  
+  tmp2 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,miss_tab) %>% 
+    unnest(miss_tab) %>% 
+    group_by(miss_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2))
+  
+  tmp3 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,miss_tab) %>% 
+    unnest(miss_tab) %>% 
+    group_by(miss_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2))
+  
+  out2 <- tmp1 %>% 
+    gather(key = key, value = mean,-miss_bin) %>% 
+    inner_join(gather(tmp2, key = key, value = low,-miss_bin), by = join_by(miss_bin, key)) %>% 
+    inner_join(gather(tmp3, key = key, value = high,-miss_bin), by = join_by(miss_bin, key)) %>% 
+    mutate(measure_out=paste0(mean," (",low,"-",high,")")) %>% 
+    select(miss_bin,key,measure_out) %>% 
+    spread(key = key,value = measure_out)
+  
+  ## Aggregate duration bins ---------------------------------------------------
+  
+  tmp1 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,dur_tab) %>% 
+    unnest(dur_tab) %>% 
+    group_by(duration_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(mean(.),2))
+  
+  tmp2 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,dur_tab) %>% 
+    unnest(dur_tab) %>% 
+    group_by(duration_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.025)),2))
+  
+  tmp3 <- sim_stats_data %>% 
+    select(sim_trial,boot_trial,dur_tab) %>% 
+    unnest(dur_tab) %>% 
+    group_by(duration_bin) %>% 
+    summarise_at(vars(n:pct_all),~round(quantile(.,probs = c(0.975)),2))
+  
+  out3 <- tmp1 %>% 
+    gather(key = key, value = mean,-duration_bin) %>% 
+    inner_join(gather(tmp2, key = key, value = low,-duration_bin), by = join_by(duration_bin, key)) %>% 
+    inner_join(gather(tmp3, key = key, value = high,-duration_bin), by = join_by(duration_bin, key)) %>% 
+    mutate(measure_out=paste0(mean," (",low,"-",high,")")) %>% 
+    select(duration_bin,key,measure_out) %>% 
+    spread(key = key,value = measure_out)
+  
 
-  return(list(main_stats = res1))
+  return(list(main_stats = out1,
+              miss_bins = out2,
+              duration_bins = out3))
 }
 
-# generate aggregated results of:
-#   n_pat - number of patient missed
-#   mean_dur - mean duration of misses
-#   median_dur - median duration of misses
-#   mean_n_miss - mean number of misses per patient
-#   median_n_miss - median number of misses per patient
-agg_stats_ssd <- aggregate_sim_stats(sim_stats_ssd)
-agg_stats_all <- aggregate_sim_stats(sim_stats_all)
+load(paste0(sim_out_path,"exponential_cp14/sim_stats.RData"))
+agg_stats_ssd_exp14 <- aggregate_sim_stats(sim_stats_ssd,n_patients)
+agg_stats_all_exp14 <- aggregate_sim_stats(sim_stats_all,n_patients)
+
+load(paste0(sim_out_path,"exponential_cp7/sim_stats.RData"))
+agg_stats_ssd_exp7 <- aggregate_sim_stats(sim_stats_ssd,n_patients)
+agg_stats_all_exp7 <- aggregate_sim_stats(sim_stats_all,n_patients)
+
+load(paste0(sim_out_path,"cubic_cp7/sim_stats.RData"))
+agg_stats_ssd_cubic7 <- aggregate_sim_stats(sim_stats_ssd,n_patients)
+agg_stats_all_cubic7 <- aggregate_sim_stats(sim_stats_all,n_patients)
+
+agg_stats <- list(exponential_7 = list(agg_stats_ssd = agg_stats_ssd_exp7,
+                                        agg_stats_all = agg_stats_all_exp7),
+                  exponential_14 = list(agg_stats_ssd = agg_stats_ssd_exp14,
+                                         agg_stats_all = agg_stats_all_exp14),
+                  cubic_7 = list(agg_stats_ssd = agg_stats_ssd_cubic7,
+                                 agg_stats_all = agg_stats_all_cubic7))
+
+save(agg_stats, file = paste0(sim_out_path, "report_data/agg_stats.RData"))

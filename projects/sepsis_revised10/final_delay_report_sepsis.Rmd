@@ -138,9 +138,11 @@ trends_out$model_comparisons_table %>%
 
 # Results using SSD visits
 
-### Primary Model - Exponential trend w/ 14-day change-point
+### Overview
 
-The following table presents the aggregated summary statistics
+The following table summarizes the overall results for the different models that
+were run in terms of the number and percent of patients that were missed, duration
+of diagnostic delays and the number of missed opportunities that patients experienced:
 ```{r}
 load(paste0(sim_out_path, "report_data/agg_stats.RData"))
 
@@ -148,6 +150,30 @@ better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","m
                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
                                     "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
 
+tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Exponential 14-day CP`=measure_out)
+
+tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Exponential 7-day CP`=measure_out)
+
+tmp3 <- agg_stats$cubic_7$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Cubic 7-day CP`=measure_out)
+
+inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
+  inner_join(tmp3,by = join_by(Measure)) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+### Primary Model - Exponential trend w/ 14-day change-point
+
+The following table presents the aggregated summary statistics
+```{r}
 agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
   select(Measure, `Estimate (95% CI)`=measure_out) %>% 
