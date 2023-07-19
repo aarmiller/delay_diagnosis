@@ -43,7 +43,7 @@ ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>%
   filter(!is.na(dx))
 
 # load index cases
-load("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/index_cases.RData")
+load(paste0(delay_params$out_path,"index_cases.RData"))
 
 # extract patient ids and number of patients
 patient_ids <- index_cases %>% 
