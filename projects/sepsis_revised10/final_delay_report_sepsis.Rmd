@@ -33,25 +33,44 @@ n_patients <- nrow(index_cases)
 
 # Final Diagnostic Delay Report for Sepsis
 The following report summarizes the final simulation results for diagnostic delays
-associated with hospital sepsis cases.
+associated with hospitalized sepsis cases.
 
-For this analysis we used the case definition provided in [X] to identify cases 
-of sepsis. Cases were identified specifically based on diagnoses that resulted in
-a hospital admission. We focus on this index case (first diagnosis) in each individual
-and we exclude individuals with a prior sepsis diagnosis recorded in an outpatient
-setting. We include individuals who recieved a sepsis diagnosis in an outpatient 
-setting within X days of a hospital admission.
+For this analysis we used the case definition provided in Jolley RJ, et al. [BMJ Open 2015;5:e009487] 
+to identify cases of sepsis. Cases were identified specifically based on index diagnoses 
+that resulted in a hospital admission. We focus on the index case (i.e., the first 
+diagnosis) in each individual and exclude individuals who had a prior sepsis diagnosis 
+recorded only in an outpatient setting. We also include individuals who received a sepsis 
+diagnosis in an outpatient setting followed by a hospital admission for sepsis
+within 7 days of the index sepsis diagnosis.
 
+Given the above case definition, we focus exclusively on sepsis events recorded 
+using ICD-10 codes from 2016-2021. We identify all inpatient, outpatient and ED 
+events recorded in the 180 days prior to the index diagnosis. We exlucded sepsis
+cases that did not have continuous enrollment for at least 180 days prior to the
+index sepsis event. Thus, we also exclude sepsis cases that occured in the first 
+180 days of 2016.
 
 # Summary Statistics
 
-There were a total of `r n_patients` sepsis cases identified.
+There were a total of `r n_patients` cases of sepsis identified from 2016-2021 that
+met the above inclusion criteria.
 
+The following plot depicts the number of index cases identified by each week over
+the study period:
+```{r}
+index_cases %>% 
+  mutate(index_week = 7*(index_date %/% 7)) %>% 
+  mutate(index_week = as_date(index_week)) %>% 
+  count(index_week) %>% 
+  ggplot(aes(index_week,n)) +
+  geom_line()
+```
 
-# Visit trends
-
-### SSD Visits
-
+We identified all visits that occurred in the 180 days prior to the index sepsis 
+diagnosis and then filtered to those visits that contained a sign, symptom or
+symptomatically similar diagnosis (SSD) to sepsis. The following plot depicts the
+trend in the number of all visits and SSD-related visits over the 180 days prior
+to the index diagnosis:
 ```{r}
 load(paste0(sim_out_path,"report_data/trends_output.RData"))
 load(paste0(sim_out_path,"trends/fit_trends.RData"))
@@ -77,6 +96,44 @@ mse_res_all <- trends_all %>%
   group_by(model_label) %>% 
   summarise(rmse = sqrt(mean((pred-n)^2))) %>% 
   mutate(label = paste("RMSE: ", round(rmse,2)))
+
+bind_rows(trends_ssd %>% 
+            filter(cp ==7, model=="exponential") %>% 
+            select(period,n) %>% 
+            mutate(group = "SSD Visits"),
+          trends_all %>% 
+            filter(cp ==7, model=="exponential") %>% 
+            select(period,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  facet_wrap(~group, scale = "free_y") +
+  ylab("Number of visits") +
+  xlab("Days before index sepsis diagnosis") +
+  theme_bw() 
+  
+
+
+```
+
+
+# Expected visit trends
+
+We compared 4 different approaches to estimate the expected number of visits prior 
+to the index diagnosis:
+
+1) Exponential Trend with a 14 day change-point
+2) Exponential Trend with a 7 day change-point
+3) Cubic Trend with a 14 day change-point
+4) Cubic Trend with a 7 day change-point
+
+Each of these models was fit to the SSD-related visits and all visits
+
+### SSD Visits
+
+```{r}
+
 
 ```
 
@@ -163,9 +220,10 @@ tmp3 <- agg_stats$cubic_7$agg_stats_ssd$main_stats %>%
   select(Measure, `Cubic 7-day CP`=measure_out)
 
 inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
-  inner_join(tmp3,by = join_by(Measure)) %>% 
+  inner_join(tmp3,by = join_by(Measure)) %>%
+  filter(Measure !="Number of patients w/ miss") %>% 
   kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
+  kableExtra::kable_styling(full_width = F) 
 
 ```
 
