@@ -142,7 +142,7 @@ trends_out$model_comparisons_table %>%
 
 The following table presents the aggregated summary statistics
 ```{r}
-paste0(sim_out_path, "report_data/agg_stats.RData")
+load(paste0(sim_out_path, "report_data/agg_stats.RData"))
 
 better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
@@ -156,8 +156,7 @@ agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
 
 ```
 
-The following table presents the distribution of delay duration
-
+The following table presents the distribution of delay duration:
 ```{r}
 agg_stats$exponential_14$agg_stats_ssd$duration_bins %>% 
   mutate(Duration = paste0(">= ", duration_bin," days")) %>% 
@@ -165,6 +164,19 @@ agg_stats$exponential_14$agg_stats_ssd$duration_bins %>%
          `Percent of patients w/ miss` = pct_miss) %>% 
   select(-duration_bin) %>% 
   select(Duration, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table presents the distribution of the number of missed opportunities 
+that individual patients experienced:
+```{r}
+agg_stats$exponential_14$agg_stats_ssd$miss_bins %>% 
+  mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-miss_bin) %>% 
+  select(`Number of misses`, everything()) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
