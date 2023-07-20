@@ -215,7 +215,6 @@ tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>%
   select(Measure, `Exponential 7-day CP`=measure_out)
 
 inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
-  inner_join(tmp3,by = join_by(Measure)) %>%
   filter(Measure !="Number of patients w/ miss") %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F) 
