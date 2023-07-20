@@ -1,0 +1,28 @@
+
+rm(list = ls())
+library(tidyverse)
+
+
+load(paste0("/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/delay_results/all_dx_visits.RData"))
+
+
+cond_name <- "sepsis_pre_covid"
+
+load("/Shared/AML/params/final_delay_params.RData")
+
+delay_params <- final_delay_params[[cond_name]]
+
+rm(final_delay_params)
+
+# filter to specific index cases
+# 1) 180 days of continuous enrollment
+# 2) all prior data in the ICD-10 era (180 days after Jan 1 2016)
+
+index_cases <- index_dx_dates %>% 
+  filter(time_before_index>=delay_params$upper_bound) %>% 
+  filter(index_date>=as.integer(ymd("2016-01-01"))) %>% 
+  filter(index_date<as.integer(ymd("2020-01-01")))
+
+save(index_cases, file = paste0(delay_params$out_path,"index_cases.RData"))
+
+

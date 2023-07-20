@@ -14,6 +14,7 @@
 final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                           base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                           out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/",   # path to output delay new results
+                                          ssd_name = "sercoid",
                                           cp = 150,
                                           upper_bound = 365*2,
                                           final_model = NA,
@@ -26,6 +27,7 @@ final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_ex
                            sarcoid_lung = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/",   # path to output delay new results
+                                               ssd_name = "sercoid_lung",
                                                cp = 180,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
@@ -38,6 +40,7 @@ final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_ex
                            sarcoid_skin = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/",   # path to output delay new results
+                                               ssd_name = "sercoid_skin",
                                                cp = 180,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
@@ -50,6 +53,7 @@ final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_ex
                            sepsis_revised10 = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
                                                    base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/",  # base path to original prelim extract results
                                                    out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/",   # path to output delay new results
+                                                   ssd_name = "sepsis_revised10",
                                                    cp = c(7,14),
                                                    upper_bound = 180,
                                                    final_model = c("exponential","cubic"),
@@ -57,7 +61,33 @@ final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_ex
                                                    boot_trials = 100,
                                                    sim_trials = 100,
                                                    miss_bins = c(1,2,3,4,5),
-                                                   duration_bins = c(1:14))
+                                                   duration_bins = c(1:14)),
+                           
+                           sepsis_pre_covid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
+                                                   base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/",  # base path to original prelim extract results
+                                                   out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/",   # path to output delay new results
+                                                   ssd_name = "sepsis_revised10",
+                                                   cp = c(7,14),
+                                                   upper_bound = 180,
+                                                   final_model = "exponential",
+                                                   periodicity = TRUE,
+                                                   boot_trials = 100,
+                                                   sim_trials = 100,
+                                                   miss_bins = c(1,2,3,4,5),
+                                                   duration_bins = c(1:14)),
+                           
+                           sepsis_early_covid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
+                                                     base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/",  # base path to original prelim extract results
+                                                     out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/early_covid/",   # path to output delay new results
+                                                     ssd_name = "sepsis_revised10",
+                                                     cp = c(7,14),
+                                                     upper_bound = 180,
+                                                     final_model = "exponential",
+                                                     periodicity = TRUE,
+                                                     boot_trials = 100,
+                                                     sim_trials = 100,
+                                                     miss_bins = c(1,2,3,4,5),
+                                                     duration_bins = c(1:14))
                            
 )
 

@@ -5,7 +5,7 @@ library(bit64)
 library(furrr)
 
 
-cond_name <- "sepsis_revised10"
+cond_name <- "sepsis_pre_covid"
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -19,6 +19,22 @@ models <- tibble(cp = delay_params$cp) %>%
   unnest(model)
 
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
+
+# load index cases
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
+# extract patient ids and number of patients
+patient_ids <- index_cases %>% 
+  distinct(patient_id)
+
+n_patients <- nrow(patient_ids)
+
+
+# Report data path
+
+report_data_path <- paste0(sim_out_path,"report_data/")
+
+dir.create(report_data_path)
 
 
 ################
@@ -34,7 +50,7 @@ rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/fina
 #### Trends Info #####
 ######################
 # 
-# load(paste0(sim_out_path,"trends/fit_trends.RData"))
+load(paste0(sim_out_path,"trends/fit_trends.RData"))
 # 
 # load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/sim_results/trends/fit_trends.RData")
 # 
@@ -98,7 +114,7 @@ model_comparisons_table <- bind_rows(trends_ssd %>%
 
 trends_out <- list(model_comparisons_table = model_comparisons_table)
 
-save(trends_out,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/sim_results/report_data/trends_output.RData")
+save(trends_out, file = paste0(report_data_path,"trends_output.RData"))
 
 ##########################################
 #### Aggregated Simulation Statistics ####
@@ -158,9 +174,7 @@ compute_boot_stats <- function(sim_data,sim_obs_data,delay_params,n_patients){
 
 load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
 
-folder_list <- c("exponential_cp7","cubic_cp7","cubic_cp14")
-
-i <- "cubic_cp14"
+folder_list <- c("exponential_cp7","exponential_cp14")
 
 for (i in folder_list){
   tmp_in_path <- paste0(sim_out_path,i,"/")
@@ -193,24 +207,24 @@ for (i in folder_list){
   
   ### Aggregate results --------------------------------------------------------
   # setup cluster
-  plan(multisession, workers = 20)
+  plan(multisession, workers = 30)
   
   # aggregate SSD results
-  # tmp1 <- sim_res_ssd %>%
-  #   # slice(1:30) %>%
-  #   mutate(sim_stats = future_map(res, 
-  #                                 ~compute_boot_stats(.,
-  #                                                     sim_obs_reduced,
-  #                                                     delay_params = delay_params,
-  #                                                     n_patients = n_patients)))
-  
   tmp1 <- sim_res_ssd %>%
     # slice(1:30) %>%
-    mutate(sim_stats = map(res, 
-                           ~compute_boot_stats(.,
-                                               sim_obs_reduced,
-                                               delay_params = delay_params,
-                                               n_patients = n_patients)))
+    mutate(sim_stats = future_map(res,
+                                  ~compute_boot_stats(.,
+                                                      sim_obs_reduced,
+                                                      delay_params = delay_params,
+                                                      n_patients = n_patients)))
+  # 
+  # tmp1 <- sim_res_ssd %>%
+  #   # slice(1:30) %>%
+  #   mutate(sim_stats = map(res, 
+  #                          ~compute_boot_stats(.,
+  #                                              sim_obs_reduced,
+  #                                              delay_params = delay_params,
+  #                                              n_patients = n_patients)))
   
   tmp1 <- tmp1 %>%
     select(sim_trial,boot_trial,sim_stats) %>%
@@ -367,18 +381,13 @@ load(paste0(sim_out_path,"exponential_cp7/sim_stats.RData"))
 agg_stats_ssd_exp7 <- aggregate_sim_stats(sim_stats_ssd,n_patients)
 agg_stats_all_exp7 <- aggregate_sim_stats(sim_stats_all,n_patients)
 
-load(paste0(sim_out_path,"cubic_cp7/sim_stats.RData"))
-agg_stats_ssd_cubic7 <- aggregate_sim_stats(sim_stats_ssd,n_patients)
-agg_stats_all_cubic7 <- aggregate_sim_stats(sim_stats_all,n_patients)
 
 agg_stats <- list(exponential_7 = list(agg_stats_ssd = agg_stats_ssd_exp7,
                                         agg_stats_all = agg_stats_all_exp7),
                   exponential_14 = list(agg_stats_ssd = agg_stats_ssd_exp14,
-                                         agg_stats_all = agg_stats_all_exp14),
-                  cubic_7 = list(agg_stats_ssd = agg_stats_ssd_cubic7,
-                                 agg_stats_all = agg_stats_all_cubic7))
+                                         agg_stats_all = agg_stats_all_exp14))
 
-save(agg_stats, file = paste0(sim_out_path, "report_data/agg_stats.RData"))
+save(agg_stats, file = paste0(report_data_path, "agg_stats.RData"))
 
 
 

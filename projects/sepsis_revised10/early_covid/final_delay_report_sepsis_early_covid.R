@@ -5,7 +5,7 @@ library(bit64)
 library(furrr)
 
 
-cond_name <- "sepsis_revised10"
+cond_name <- "sepsis_early_covid"
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -19,6 +19,15 @@ models <- tibble(cp = delay_params$cp) %>%
   unnest(model)
 
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
+
+# load index cases
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
+# extract patient ids and number of patients
+patient_ids <- index_cases %>% 
+  distinct(patient_id)
+
+n_patients <- nrow(patient_ids)
 
 
 ################
@@ -158,9 +167,7 @@ compute_boot_stats <- function(sim_data,sim_obs_data,delay_params,n_patients){
 
 load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
 
-folder_list <- c("exponential_cp7","cubic_cp7","cubic_cp14")
-
-i <- "cubic_cp14"
+folder_list <- c("exponential_cp7","exponential_cp14")
 
 for (i in folder_list){
   tmp_in_path <- paste0(sim_out_path,i,"/")
@@ -196,21 +203,21 @@ for (i in folder_list){
   plan(multisession, workers = 20)
   
   # aggregate SSD results
-  # tmp1 <- sim_res_ssd %>%
-  #   # slice(1:30) %>%
-  #   mutate(sim_stats = future_map(res, 
-  #                                 ~compute_boot_stats(.,
-  #                                                     sim_obs_reduced,
-  #                                                     delay_params = delay_params,
-  #                                                     n_patients = n_patients)))
-  
   tmp1 <- sim_res_ssd %>%
     # slice(1:30) %>%
-    mutate(sim_stats = map(res, 
-                           ~compute_boot_stats(.,
-                                               sim_obs_reduced,
-                                               delay_params = delay_params,
-                                               n_patients = n_patients)))
+    mutate(sim_stats = future_map(res,
+                                  ~compute_boot_stats(.,
+                                                      sim_obs_reduced,
+                                                      delay_params = delay_params,
+                                                      n_patients = n_patients)))
+
+  # tmp1 <- sim_res_ssd %>%
+  #   # slice(1:30) %>%
+  #   mutate(sim_stats = map(res, 
+  #                          ~compute_boot_stats(.,
+  #                                              sim_obs_reduced,
+  #                                              delay_params = delay_params,
+  #                                              n_patients = n_patients)))
   
   tmp1 <- tmp1 %>%
     select(sim_trial,boot_trial,sim_stats) %>%
