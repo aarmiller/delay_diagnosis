@@ -36,13 +36,91 @@ report_data_path <- paste0(sim_out_path,"report_data/")
 dir.create(report_data_path)
 
 
+#######################
+#### Baseline Data ####
+#######################
+
+
+load(paste0(delay_params$base_path,"delay_results/demo_data.RData"))
+
+age_cats <- c(-1,17,34,44,54,64,130)
+
+tmp1 <- demo1 %>% 
+  inner_join(index_cases) %>% 
+  count(sex) %>% 
+  mutate(pct = round(100*(n/n_patients),1)) %>% 
+  mutate(sex = ifelse(sex==1, "Male","Female")) %>% 
+  rename(variable = sex)
+
+tmp2 <- demo1 %>% 
+  inner_join(index_cases) %>% 
+  mutate(age = year(as_date(index_date))-dobyr) %>% 
+  mutate(age_cat = as.character(cut(age,age_cats))) %>% 
+  count(age_cat) %>% 
+  mutate(pct = round(100*(n/n_patients),1)) %>% 
+  inner_join(tribble(~age_cat,~variable,
+                     '(-1,17]', 'Age <18',
+                     '(17,34]', 'Age 18-34',
+                     '(34,44]', 'Age 35-44',
+                     '(44,54]', 'Age 45-54',
+                     '(54,64]', 'Age 55-64',
+                     '(64,130]', 'Age >= 65')) %>% 
+  select(variable,n,pct)
+
+tmp3 <- demo2 %>% 
+  filter(index_date<=dtend & index_date>=dtstart) %>% 
+  inner_join(distinct(index_cases,patient_id)) %>% 
+  count(source) %>% 
+  mutate(pct = round(100*(n/n_patients),1)) %>% 
+  inner_join(tribble(~source,~variable,
+                     "ccae", "Commercial Insurance",
+                     "mdcr", "Medicare",
+                     "medicaid", "Medicaid")) %>% 
+  select(variable,n,pct)
+
+tmp4 <- index_cases %>% 
+  mutate(dow=weekdays(as_date(index_date))) %>% 
+  mutate(dow = fct_relevel(dow,"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")) %>% 
+  count(dow) %>% 
+  mutate(pct = round(100*(n/n_patients),1)) %>% 
+  mutate(variable = as.character(dow)) %>% 
+  select(variable,n,pct)
+
+tmp5 <- index_cases %>% 
+  mutate(year = year(as_date(index_date))) %>% 
+  count(year) %>% 
+  mutate(pct = round(100*(n/n_patients),1)) %>% 
+  mutate(variable=paste0("Year ",year)) %>% 
+  select(variable,n,pct)
+
+
+pat_char <- bind_rows(tmp1,tmp2,tmp3)
+
+index_char <- bind_rows(tmp4,tmp5)
+
+baseline_data <- list(pat_char = pat_char,
+                      index_char = index_char)
+
+baseline_data$index_char
+
+save(baseline_data, file = paste0(report_data_path,"baseline_data.RData"))
+  
+
+# load time map
+load(paste0(delay_params$base_path,"delay_results/delay_tm.RData"))
+tm <- inner_join(tm, patient_ids, by = join_by(patient_id))
+
+tm %>% 
+  filter(days_since_index==0)
+
+
 ################
 #### Remove ####
 ################
 
 # run markdown report
-rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/final_delay_report_sepsis.Rmd",
-                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/sim_results/"))
+rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/pre_covid/final_delay_report_sepsis_pre_covid.Rmd",
+                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/"))
 
 
 ######################

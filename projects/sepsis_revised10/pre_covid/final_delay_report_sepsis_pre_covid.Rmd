@@ -135,24 +135,20 @@ bind_rows(trends_ssd %>%
 ```
 
 
-# Expected visit trends
+### Expected SSD-visit trends
 
-We compared 4 different approaches to estimate the expected number of visits prior 
-to the index diagnosis:
+We used an exponential model to estimate the expected number of visits prior each
+day prior to the index diagnosis. Our primary analysis used a 14-day diagnostic 
+opportunity window (i.e., change-point) to detect diagnostic delays; thus, the 
+expected visit trend was estimated using the visits observed from 15 to 180 days
+prior to the index diagnosis.
 
-As a sensitivity analysis we considered using a 7 day diagnostic opportunity window.
-
-Each of these models was fit to the SSD-related visits and all visits
-
-### SSD Visits
-
-```{r}
-
-
-```
+As a sensitivity analysis we considered using a 7-day diagnostic opportunity window.
 
 The following plot depicts the number of SSD visits each day before the index
-sepsis diagnosis
+sepsis diagnosis (black line), along with the estimated expected visit trend (red
+line) for both the 14-and 7-day diagnostic opportunity window. The dashed-black 
+line depicts the boundary of the diagnostic opportunity window.
 ```{r}
 
 y_pos <- .9*max(trends_ssd$n)
@@ -173,44 +169,60 @@ trends_ssd %>%
   xlab("Days before index sepsis diagnosis")
 ```
 
+The following figure depicts the estimated number of missed opportunities each
+day during the diagnostic opportunity window for both the 14- and 7- day windows.
 
-
-
-
-# Results using SSD visits
-
-### Overview
-
-The following table summarizes the overall results for the different models that
-were run in terms of the number and percent of patients that were missed, duration
-of diagnostic delays and the number of missed opportunities that patients experienced:
 ```{r}
-load(paste0(sim_out_path, "report_data/agg_stats.RData"))
 
-better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
-                        Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
-                                    "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
-
-tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
-  inner_join(better_labels) %>% 
-  select(Measure, `Exponential 14-day CP`=measure_out)
-
-tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
-  inner_join(better_labels) %>% 
-  select(Measure, `Exponential 7-day CP`=measure_out)
-
-inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
-  filter(Measure !="Number of patients w/ miss") %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F) 
 
 ```
 
 
-### Primary Model - Exponential trend w/ 14-day change-point
 
-The following table presents the aggregated summary statistics
+# Primary Bootstrapping Results
+To estimate aggregate and individual-level statistics we performed a bootstrapping
+procedure to repeatedly draw which individual visits represented a diagnostic delay.
+For this analysis we performed a 2-layer bootstrapping procedure. For the outer 
+layer we drew a bootstrapped sample of patients from the overall cohort (with replacement).
+We then re-estimated the expected visit trend, and computed the estimated number 
+of missed opportunities each day for each bootstrapped sample. Next for each bootstrapped
+sample we run an interior bootstrapping procedure were we randomly select which 
+visits represent a missed opportunity each day based on the estimated number of 
+missed opportunities. 
+
+We run 100 trials of the outer bootstrapping procedure and 100 trials of the interior
+procedure for a total of 10,000 simulations. We then aggregate results across all
+trials to compute mean estimates and 95% quantile-based confidence intervals
+
+
+### Overview
+
+The following table summarizes the overall results for the primary model (exponential
+trend and 14 day opportunity window) for the number and percent of patients that 
+were missed, duration of diagnostic delays, and the number of missed opportunities 
+that patients experienced. Note: both the duration of delays and number of missed 
+opportunities per patient are summarized across only those patients who experienced
+a diagnostic delay:
 ```{r}
+# load(paste0(sim_out_path, "report_data/agg_stats.RData"))
+# 
+# better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
+#                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
+#                                     "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
+# 
+# tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
+#   inner_join(better_labels) %>% 
+#   select(Measure, `Exponential 14-day CP`=measure_out)
+# 
+# tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
+#   inner_join(better_labels) %>% 
+#   select(Measure, `Exponential 7-day CP`=measure_out)
+# 
+# inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
+#   filter(Measure !="Number of patients w/ miss") %>% 
+#   kableExtra::kable() %>% 
+#   kableExtra::kable_styling(full_width = F) 
+
 agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
   select(Measure, `Estimate (95% CI)`=measure_out) %>% 
@@ -218,6 +230,7 @@ agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
   kableExtra::kable_styling(full_width = F)
 
 ```
+
 
 The following table presents the distribution of delay duration:
 ```{r}
@@ -245,9 +258,11 @@ agg_stats$exponential_14$agg_stats_ssd$miss_bins %>%
 ```
 
 
-### Sensitivity Analysis - Exponential trend w/ 7-day change-point
+# Sensitivity Analysis - Exponential trend w/ 7-day change-point
 
-The following table presents the aggregated summary statistics
+We also conducted a sensitivity analysis where we considered a 7-day diagnostic 
+opportunity window. The following table presents the aggregated summary statistics
+for this sensitivity analysis.
 ```{r}
 agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
