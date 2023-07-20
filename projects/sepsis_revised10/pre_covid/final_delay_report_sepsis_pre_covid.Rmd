@@ -158,38 +158,8 @@ trends_ssd %>%
   xlab("Days before index sepsis diagnosis")
 ```
 
-### All Visits
-The following plot depicts the number of all visits each day before the index
-sepsis diagnosis
-```{r}
-
-y_pos <- .9*max(trends_all$n)
 
 
-trends_all %>%
-  ggplot(aes(period,n)) +
-  geom_line() +
-  scale_x_reverse() +
-  geom_line(aes(y = pred), color = "red") +
-  facet_wrap(~model_label) +
-  geom_vline(aes(xintercept = cp), linetype =2) +
-  theme_bw() +
-  geom_text(data = mse_res_all,
-            mapping = aes(x = x_pos, y = y_pos, label = label)) +
-  ylab("Number of visits (any reason)") +
-  xlab("Days before index sepsis diagnosis")
-```
-
-## Summary
-The following table summarize the model fit and implied number of missed opportunities
-across models, change-points, and visit types.
-
-```{r}
-trends_out$model_comparisons_table %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-
-```
 
 
 # Results using SSD visits
@@ -300,6 +270,42 @@ agg_stats$exponential_7$agg_stats_ssd$miss_bins %>%
 
 
 # Appendix - Results using All visits
+
+### Expected Visits Trends
+
+As an alternative sensitivity analysis we analyzed all visits, regardless of whether
+an SSD was present. We then re-fit the expected trend curves. The following figures 
+depict the observed and expected trends in SSD visits.
+
+```{r}
+
+y_pos <- .9*max(trends_all$n)
+
+
+trends_all %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = pred), color = "red") +
+  facet_wrap(~model_label) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res_all,
+            mapping = aes(x = x_pos, y = y_pos, label = label)) +
+  ylab("Number of visits (any reason)") +
+  xlab("Days before index sepsis diagnosis")
+```
+
+The following table summarize the model fit and implied number of missed opportunities
+across models, change-points, and visit types.
+
+```{r}
+trends_out$model_comparisons_table %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
 
 ### Primary Model - Exponential trend w/ 14-day change-point
 
