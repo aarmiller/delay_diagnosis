@@ -4,7 +4,7 @@ library(tidyverse)
 library(bit64)
 
 
-cond_name <- "sepsis_pre_covid"
+cond_name <- "sepsis_covid"
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -50,7 +50,41 @@ rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/fina
 ######################
 # 
 load(paste0(sim_out_path,"trends/fit_trends.RData"))
-
+# 
+# load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/sim_results/trends/fit_trends.RData")
+# 
+# trends_ssd <- ssd_vis_count_fitted %>% 
+#   rename(tot_miss=num_miss) %>% 
+#   unnest(counts) %>% 
+#   mutate(model_label = paste0(model," (CP = ",cp," days)"))
+# 
+# mse_res_ssd <- trends_ssd %>%
+#   filter(is.na(num_miss)) %>% 
+#   group_by(model_label) %>% 
+#   summarise(rmse = sqrt(mean((pred-n)^2))) %>% 
+#   mutate(label = paste("RMSE: ", round(rmse,2)))
+# 
+# trends_all <- all_vis_count_fitted %>% 
+#   rename(tot_miss=num_miss) %>% 
+#   unnest(counts) %>% 
+#   mutate(model_label = paste0(model," (CP = ",cp," days)"))
+# 
+# y_pos <- .9*max(trends_ssd$n)
+# x_pos <- .8*180
+# 
+# 
+# trends_ssd %>%
+#   ggplot(aes(period,n)) +
+#   geom_line() +
+#   scale_x_reverse() +
+#   geom_line(aes(y = pred), color = "red") +
+#   facet_wrap(~model_label) +
+#   geom_vline(aes(xintercept = cp), linetype =2) +
+#   theme_bw() +
+#   geom_text(data = mse_res_ssd,
+#             mapping = aes(x = x_pos, y = y_pos, label = label)) +
+#   ylab("Number of SSD visits") +
+#   xlab("Days before index sepsis diagnosis")
 
 trends_ssd <- ssd_vis_count_fitted %>%
   rename(tot_miss=num_miss) %>%
@@ -174,10 +208,23 @@ for (i in folder_list){
   
   ### Aggregate results --------------------------------------------------------
   # setup cluster
+  # plan(multisession, workers = 30)
   cluster <- parallel::makeCluster(30)
+  
   parallel::clusterCall(cluster, function() library(tidyverse))
+  # parallel::clusterCall(cluster, function() library(delaySim))
   parallel::clusterExport(cluster,c("compute_boot_stats","sim_obs_reduced","delay_params","n_patients"),
                           envir=environment())
+  
+  
+  # aggregate SSD results
+  # tmp1 <- sim_res_ssd %>%
+  #   # slice(1:30) %>%
+  #   mutate(sim_stats = future_map(res,
+  #                                 ~compute_boot_stats(.,
+  #                                                     sim_obs_reduced,
+  #                                                     delay_params = delay_params,
+  #                                                     n_patients = n_patients)))
   
   tmp1 <- parallel::parLapply(cl = cluster,
                               sim_res_ssd$res,
