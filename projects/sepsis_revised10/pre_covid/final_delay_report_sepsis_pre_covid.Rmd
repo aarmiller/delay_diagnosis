@@ -1,5 +1,5 @@
 ---
-title: "Delay Report for Sepsis"
+title: "Delay Report for Sepsis (pre-COVID)"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
 output: html_document
 ---
@@ -31,7 +31,6 @@ n_patients <- nrow(index_cases)
 
 ```
 
-# Final Diagnostic Delay Report for Sepsis
 The following report summarizes the final simulation results for diagnostic delays
 associated with hospitalized sepsis cases.
 
@@ -54,6 +53,22 @@ we also exclude sepsis cases that occured in the first 180 days of 2016.
 
 There were a total of `r n_patients` cases of sepsis identified from 2016-2019 that
 met the above inclusion criteria.
+
+The following table summarizes the study population:
+```{r}
+load(paste0(sim_out_path,"report_data/baseline_data.RData"))
+baseline_data$pat_char %>%   
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) 
+```
+
+The following table summarizes the time of the index sepsis diagnoses:
+```{r}
+baseline_data$index_char %>%   
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) 
+```
+
 
 The following plot depicts the number of index cases identified by each week over
 the study period:
