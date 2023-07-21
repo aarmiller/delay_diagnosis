@@ -1,5 +1,5 @@
 ---
-title: "Delay Report for Sepsis (pre-COVID)"
+title: "Delay Report for Sepsis (Early COVID)"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
 output: html_document
 ---
@@ -16,7 +16,7 @@ library(kableExtra)
 library(ggplot2)
 library(lubridate)
 
-cond_name <- "sepsis_pre_covid"
+cond_name <- "sepsis_covid"
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -27,48 +27,25 @@ sim_out_path <- paste0(delay_params$out_path,"sim_results/")
 # Load Index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
+date_range <- index_cases %>%
+  mutate(index_date = as_date(index_date)) %>% 
+  summarise(first_date = min(index_date),
+            last_date = max(index_date))
+
 n_patients <- nrow(index_cases)
 
 ```
 
+# Final Diagnostic Delay Report for Sepsis
 The following report summarizes the final simulation results for diagnostic delays
-associated with hospitalized sepsis cases.
-
-For this analysis we used the case definition provided in Jolley RJ, et al. [BMJ Open 2015;5:e009487] 
-to identify cases of sepsis. Cases were identified specifically based on index diagnoses 
-that resulted in a hospital admission. We focus on the index case (i.e., the first 
-diagnosis) in each individual and exclude individuals who had a prior sepsis diagnosis 
-recorded only in an outpatient setting. We also include individuals who received a sepsis 
-diagnosis in an outpatient setting followed by a hospital admission for sepsis
-within 7 days of the index sepsis diagnosis.
-
-Given the above case definition, we focus exclusively on sepsis events recorded 
-using ICD-10 codes from 2016-2019 (we exclude sepsis events during the COVID-19 
-pandemic. We identify all inpatient, outpatient and ED events recorded in the 
-180 days prior to the index diagnosis. We exlucded sepsis cases that did not have 
-continuous enrollment for at least 180 days prior to the index sepsis event. Thus, 
-we also exclude sepsis cases that occured in the first 180 days of 2016.
+associated with hospitalized sepsis cases, during the first part of the COVID-19
+pandemic. The study period covers the time frame from `r date_range$first_date` 
+to `r date_range$last_date`.
 
 # Summary Statistics
 
-There were a total of `r n_patients` cases of sepsis identified from 2016-2019 that
-met the above inclusion criteria.
-
-The following table summarizes the study population:
-```{r}
-load(paste0(sim_out_path,"report_data/baseline_data.RData"))
-baseline_data$pat_char %>%   
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F) 
-```
-
-The following table summarizes the time of the index sepsis diagnoses:
-```{r}
-baseline_data$index_char %>%   
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F) 
-```
-
+There were a total of `r n_patients` cases of sepsis identified from `r date_range$first_date` 
+to `r date_range$last_date` the met inclusion criteria
 
 The following plot depicts the number of index cases identified by each week over
 the study period:
@@ -80,8 +57,6 @@ index_cases %>%
   ggplot(aes(index_week,n)) +
   geom_line()
 ```
-
-# Visit Trends
 
 We identified all visits that occurred in the 180 days prior to the index sepsis 
 diagnosis and then filtered to those visits that contained a sign, symptom or
@@ -135,21 +110,25 @@ bind_rows(trends_ssd %>%
 ```
 
 
-### Expected SSD-visit trends
+# Expected visit trends
 
-We used an exponential model to estimate the expected number of visits prior each
-day prior to the index diagnosis. Our primary analysis used a 14-day diagnostic 
-opportunity window (i.e., change-point) to detect diagnostic delays; thus, the 
-expected visit trend was estimated using the visits observed from 15 to 180 days
-prior to the index diagnosis.
+We compared 2 different approaches to estimate the expected number of visits prior 
+to the index diagnosis:
 
-As a sensitivity analysis we considered using a 7-day diagnostic opportunity window.
+1) Exponential Trend with a 14 day change-point
+2) Exponential Trend with a 7 day change-point
+
+Each of these models was fit to the SSD-related visits and all visits
+
+### SSD Visits
+
+```{r}
+
+
+```
 
 The following plot depicts the number of SSD visits each day before the index
-sepsis diagnosis (black line), along with the estimated expected visit trend (red
-line) for both the 14-and 7-day diagnostic opportunity window. The dashed-black 
-line depicts the boundary of the diagnostic opportunity window.
-
+sepsis diagnosis
 ```{r}
 
 y_pos <- .9*max(trends_ssd$n)
@@ -170,60 +149,74 @@ trends_ssd %>%
   xlab("Days before index sepsis diagnosis")
 ```
 
-The following figure depicts the estimated number of missed opportunities each
-day during the diagnostic opportunity window for both the 14- and 7- day windows.
-
+### All Visits
+The following plot depicts the number of all visits each day before the index
+sepsis diagnosis
 ```{r}
 
+y_pos <- .9*max(trends_all$n)
+
+
+trends_all %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = pred), color = "red") +
+  facet_wrap(~model_label) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res_all,
+            mapping = aes(x = x_pos, y = y_pos, label = label)) +
+  ylab("Number of visits (any reason)") +
+  xlab("Days before index sepsis diagnosis")
+```
+
+## Summary
+The following table summarize the model fit and implied number of missed opportunities
+across models, change-points, and visit types.
+
+```{r}
+trends_out$model_comparisons_table %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
 
 ```
 
 
-
-# Primary Bootstrapping Results
-To estimate aggregate and individual-level statistics we performed a bootstrapping
-procedure to repeatedly draw which individual visits represented a diagnostic delay.
-For this analysis we performed a 2-layer bootstrapping procedure. For the outer 
-layer we drew a bootstrapped sample of patients from the overall cohort (with replacement).
-We then re-estimated the expected visit trend, and computed the estimated number 
-of missed opportunities each day for each bootstrapped sample. Next for each bootstrapped
-sample we run an interior bootstrapping procedure were we randomly select which 
-visits represent a missed opportunity each day based on the estimated number of 
-missed opportunities. 
-
-We run 100 trials of the outer bootstrapping procedure and 100 trials of the interior
-procedure for a total of 10,000 simulations. We then aggregate results across all
-trials to compute mean estimates and 95% quantile-based confidence intervals
-
+# Results using SSD visits
 
 ### Overview
 
-The following table summarizes the overall results for the primary model (exponential
-trend and 14 day opportunity window) for the number and percent of patients that 
-were missed, duration of diagnostic delays, and the number of missed opportunities 
-that patients experienced. Note: both the duration of delays and number of missed 
-opportunities per patient are summarized across only those patients who experienced
-a diagnostic delay:
+The following table summarizes the overall results for the different models that
+were run in terms of the number and percent of patients that were missed, duration
+of diagnostic delays and the number of missed opportunities that patients experienced:
 ```{r}
-# load(paste0(sim_out_path, "report_data/agg_stats.RData"))
-# 
-# better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
-#                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
-#                                     "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
-# 
-# tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
-#   inner_join(better_labels) %>% 
-#   select(Measure, `Exponential 14-day CP`=measure_out)
-# 
-# tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
-#   inner_join(better_labels) %>% 
-#   select(Measure, `Exponential 7-day CP`=measure_out)
-# 
-# inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
-#   filter(Measure !="Number of patients w/ miss") %>% 
-#   kableExtra::kable() %>% 
-#   kableExtra::kable_styling(full_width = F) 
+load(paste0(sim_out_path, "report_data/agg_stats.RData"))
 
+better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
+                        Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
+                                    "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
+
+tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Exponential 14-day CP`=measure_out)
+
+tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Exponential 7-day CP`=measure_out)
+
+inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
+  filter(Measure !="Number of patients w/ miss") %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) 
+
+```
+
+
+### Primary Model - Exponential trend w/ 14-day change-point
+
+The following table presents the aggregated summary statistics
+```{r}
 agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
   select(Measure, `Estimate (95% CI)`=measure_out) %>% 
@@ -231,7 +224,6 @@ agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
   kableExtra::kable_styling(full_width = F)
 
 ```
-
 
 The following table presents the distribution of delay duration:
 ```{r}
@@ -259,11 +251,9 @@ agg_stats$exponential_14$agg_stats_ssd$miss_bins %>%
 ```
 
 
-# Sensitivity Analysis - Exponential trend w/ 7-day change-point
+### Sensitivity Analysis - Exponential trend w/ 7-day change-point
 
-We also conducted a sensitivity analysis where we considered a 7-day diagnostic 
-opportunity window. The following table presents the aggregated summary statistics
-for this sensitivity analysis.
+The following table presents the aggregated summary statistics
 ```{r}
 agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
@@ -300,43 +290,7 @@ agg_stats$exponential_7$agg_stats_ssd$miss_bins %>%
 ```
 
 
-# Appendix - Results using All visits
-
-### Expected Visits Trends
-
-As an alternative sensitivity analysis we analyzed all visits, regardless of whether
-an SSD was present. We then re-fit the expected trend curves. The following figures 
-depict the observed and expected trends in SSD visits.
-
-```{r}
-
-y_pos <- .9*max(trends_all$n)
-
-
-trends_all %>%
-  ggplot(aes(period,n)) +
-  geom_line() +
-  scale_x_reverse() +
-  geom_line(aes(y = pred), color = "red") +
-  facet_wrap(~model_label) +
-  geom_vline(aes(xintercept = cp), linetype =2) +
-  theme_bw() +
-  geom_text(data = mse_res_all,
-            mapping = aes(x = x_pos, y = y_pos, label = label)) +
-  ylab("Number of visits (any reason)") +
-  xlab("Days before index sepsis diagnosis")
-```
-
-The following table summarize the model fit and implied number of missed opportunities
-across models, change-points, and visit types.
-
-```{r}
-trends_out$model_comparisons_table %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-
-```
-
+# Results using All visits
 
 ### Primary Model - Exponential trend w/ 14-day change-point
 
