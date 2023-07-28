@@ -41,8 +41,8 @@ dir.create(report_data_path)
 ################
 
 # run markdown report
-rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/final_delay_report_sepsis.Rmd",
-                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/sim_results/"))
+rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/covid/final_delay_report_sepsis_covid.Rmd",
+                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/covid/sim_results/"))
 
 
 ######################
