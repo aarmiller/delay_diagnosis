@@ -421,3 +421,199 @@ agg_stats <- list(exponential_7 = list(agg_stats_ssd = agg_stats_ssd_exp7,
 save(agg_stats, file = paste0(report_data_path, "agg_stats.RData"))
 
 
+########################
+#### Location Stats ####
+########################
+gc()
+
+# load index cases
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
+# extract patient ids and number of patients
+patient_ids <- index_cases %>% 
+  distinct(patient_id)
+
+n_patients <- nrow(patient_ids)
+
+# Load Sim Data
+load(paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd.RData"))
+sim_res_ssd
+
+# Load Time map
+load(paste0(delay_params$base_path,"delay_results/delay_tm.RData"))
+tm <- tm %>% inner_join(patient_ids)
+
+# Load Obs
+load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
+
+tmp <- sim_res_ssd %>% 
+  mutate(obs = map(res,~distinct(.,obs))) %>% 
+  select(obs) %>% 
+  unnest(obs) %>% 
+  distinct(obs)
+
+sim_obs <- sim_obs %>% 
+  inner_join(tmp)
+
+rm(tmp)
+
+generate_setting_counts(tm_data = tm, 
+                        sim_res_data = sim_res_ssd$res[[1]],
+                        sim_res_sim_obs_data = sim_obs)
+
+new_stdplac_group <- tribble(~stdplac,~stdplac_group,
+                             2, "Telehealth",
+                             11, "Office / Clinic",
+                             17, "Office / Clinic",
+                             72, "Office / Clinic",
+                             49, "Office / Clinic",
+                             95, "Office / Clinic",
+                             19, "Outpatient Hospital (Off Campus)",
+                             20, "Urgent Care",
+                             21, "Hospital (On Campus)",
+                             22, "Hospital (On Campus)",
+                             31, "Nursing Facility",
+                             32, "Nursing Facility")
+
+#### Note - Maybe go back to the index visits to compute these
+index_stdplac_counts <- tm %>% 
+  filter(days_since_index==0) %>%
+  filter(setting_type!=4) %>% 
+  filter(!(stdplac %in% c(81,41,42))) %>% #remove lab (81), ambulance land (41), ambulance air/water (42)
+  left_join(new_stdplac_group, by = "stdplac") %>% 
+  mutate(stdplac_group = ifelse(setting_type==2,"ED",
+                                ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
+  mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
+  distinct(patient_id,stdplac_group) %>% 
+  count(stdplac_group,name = "index_count") %>% 
+  mutate(index_pct1 = 100*index_count/sum(index_count),   # percent of total index locations
+         index_pct2 = 100*index_count/n_patients)     # percent of total patients %>% # percent of total index locations w/o Other
+
+
+obs_tm <- tm %>%
+  inner_join(sim_obs, by = c("patient_id", "days_since_index")) %>% 
+  filter(setting_type!=4) %>% 
+  # filter(!(stdplac %in% c(81,41,42))) %>%  # Check on this
+  # distinct(obs)
+  left_join(new_stdplac_group, by = "stdplac") %>% 
+  mutate(stdplac_group = ifelse(setting_type==2,"ED",
+                                ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
+  mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
+  distinct(obs,days_since_index,patient_id,stdplac_group) 
+
+sim_res_ssd <- sim_res_ssd %>% 
+  mutate(res = map(res,~inner_join(.,obs_tm, by = "obs", relationship = "many-to-many") %>% 
+                     distinct(patient_id,days_since_index,stdplac_group)))
+
+get_miss_location_counts <- function(sim_data){
+  sim_data %>% 
+    inner_join(obs_tm, by = "obs", relationship = "many-to-many") %>% 
+    distinct(patient_id,days_since_index,stdplac_group) %>% 
+    group_by(stdplac_group) %>% 
+    summarise(n=n(),
+              duration = mean(-days_since_index)) 
+}
+
+
+# compute missing setting location counts
+
+tmp <- sim_res_ssd %>% 
+  mutate(res = map(res,get_miss_location_counts))
+
+sim_res_settings <- tmp
+
+# count boot id locations
+
+load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
+
+
+pat_id_index <- tm %>% 
+  filter(days_since_index==0) %>%
+  filter(setting_type!=4) %>% 
+  left_join(new_stdplac_group, by = "stdplac") %>% 
+  mutate(stdplac_group = ifelse(setting_type==2,"ED",
+                                ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
+  mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
+  distinct(patient_id,stdplac_group) 
+
+tmp <- boot_data %>% 
+  select(boot_trial,boot_sample) %>% 
+  mutate(setting_count = map(boot_sample, 
+                             ~inner_join(.,pat_id_index,by = "patient_id",relationship = "many-to-many") %>% 
+                               count(stdplac_group,name = "index_count") ))
+
+boot_index_counts <- tmp %>% select(boot_trial,setting_count)
+
+save(sim_res_settings,boot_index_counts, file = paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
+
+
+#### Check Index Cases ----------------------------
+identified_index <- tm %>%
+  filter(days_since_index==0) %>%
+  distinct(patient_id)
+
+missing_tm <- patient_ids %>% anti_join(identified_index)
+
+missing_tm %>% inner_join(tm) %>% group_by(patient_id) %>% summarise(max(days_since_index))
+
+
+load("/Shared/AML/truven_extracts/dx/sepsis_revised/sepsis_revised_dx_visits.RData")
+ls()
+
+load("/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/sepsis_revised10_enrolid_crosswalk.RData")
+ls()
+
+missing_tm <- enrolids %>% 
+  inner_join(missing_tm) %>% 
+  inner_join(index_cases)
+
+
+tmp1 <- all_inpatient_visits %>% 
+  inner_join(select(missing_tm,enrolid)) %>% 
+  distinct(enrolid,svcdate=admdate) %>% 
+  mutate(group = "in")
+
+tmp2 <- all_outpatient_visits %>% 
+  inner_join(select(missing_tm,enrolid)) %>% 
+  distinct(enrolid,svcdate)  %>% 
+  mutate(group = "out")
+
+tmp3 <- all_facility_visits %>% 
+  inner_join(select(missing_tm,enrolid)) %>% 
+  distinct(enrolid,svcdate)  %>% 
+  mutate(group = "fac")
+
+tmp4 <- inpatient_services_visits %>% 
+  inner_join(select(missing_tm,enrolid)) %>% 
+  distinct(enrolid,svcdate)  %>% 
+  mutate(group = "in_serv")
+
+tmp <- bind_rows(tmp1,tmp2,tmp3)
+
+new_index <- tmp %>% 
+  group_by(enrolid) %>% 
+  summarise(new_index = min(svcdate))
+
+missing_tm %>% 
+  left_join(new_index) %>% 
+  filter(index_date!=new_index)
+
+missing_tm %>% 
+  select(patient_id,enrolid,index_date) %>% 
+  inner_join(tmp) %>% 
+  filter(svcdate==index_date) %>% 
+  count(group)
+
+missing_fac_visits <- missing_tm %>% 
+  select(patient_id,enrolid,index_date) %>% 
+  inner_join(all_facility_visits) %>% 
+  filter(svcdate==index_date) 
+
+missing_fac_visits %>% 
+  distinct(enrolid,patient_id,index_date,caseid) %>%
+  mutate(caseid=as.integer(caseid)) %>% 
+  inner_join(all_inpatient_visits)
+
+missing_tm %>% count(medicaid)
+
+library(smallDB)

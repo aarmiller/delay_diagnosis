@@ -42,7 +42,7 @@ delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_d
                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
                          
                          meningitis = list(path = "/Shared/AML/truven_extracts/small_dbs/meningitis/",
-                                           cp = 60,
+                                           cp = 50,
                                            cp_lower = NA,
                                            cp_upper = NA,
                                            upper_bound = 365,

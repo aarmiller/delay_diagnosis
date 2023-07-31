@@ -296,32 +296,200 @@ reg_demo %>% glimpse()
 ################################
 #### Run Miss Patient Model ####
 ################################
-# load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
-# load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
-# tmp <- sim_res_ssd %>% 
-#   mutate(obs = map(res,~distinct(.,obs))) %>% 
-#   select(obs) %>% 
-#   unnest(obs) %>% 
-#   distinct(obs)
-# sim_obs <- inner_join(tmp,sim_obs) 
-# load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
+load(paste0(sim_res_path,"sim_res_ssd.RData"))
+load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
+load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
+tmp <- sim_res_ssd %>%
+  mutate(obs = map(res,~distinct(.,obs))) %>%
+  select(obs) %>%
+  unnest(obs) %>%
+  distinct(obs)
+sim_obs <- inner_join(tmp,sim_obs)
+load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
 
 rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
-                             "boot_data","sim_res_ssd","delay_params","sim_obs"))])
-gc()
+                             "boot_data","sim_res_ssd","delay_params","sim_obs",
+                             "sim_res_path"))])
 
-sim_res_ssd$res[[1]] %>% 
-  inner_join(sim_obs)
+## Run Model 1 -----------------------------------------------------------------
+gc()
 
 tmp <- sim_res_ssd %>% 
   unnest(res) %>% 
-  inner_join(sim_obs) %>% 
-  distinct(sim_trial,boot_trial,boot_id,patient_id)
+  inner_join(sim_obs) 
+
+tmp <- tmp %>% 
+  group_by(sim_trial,boot_trial) %>% 
+  nest() %>% 
+  mutate(data = map(data,~distinct(.,patient_id,boot_id)))
+
+sim_res <- tmp
+
+rm(tmp,sim_res_ssd)
+gc()
+
+boot_data <- boot_data %>% select(boot_trial,boot_sample) %>% arrange(boot_trial)
+
+run_model <- function(boot_trial,sim_data){
+  
+  reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
+    left_join(sim_data %>% 
+                mutate(miss=1L),
+              join_by(patient_id, boot_id)) %>%
+    mutate(miss = replace_na(miss,0L)) %>% 
+    left_join(reg_demo,join_by(patient_id))
+  
+  fit <- glm(miss~., 
+             data = select(reg_data,miss,female,age_cat,source,month,immunosuppressant,prednisone,Alcohol:ccs_661),
+             family = "binomial")
+  
+  bind_cols(broom::tidy(fit) %>% 
+              mutate(or = exp(estimate)) %>% 
+              select(term,or),
+            exp(broom::confint_tidy(fit,func = stats::confint.default)))
+  
+}
+
+cluster <- parallel::makeCluster(30)
+
+parallel::clusterCall(cluster, function() library(tidyverse))
+parallel::clusterExport(cluster,c("run_model","boot_data","reg_demo"),
+                        envir=environment())
+
+
+sim_res <- map(1:nrow(sim_res),~list(boot_trial = sim_res$boot_trial[[.]], data = sim_res$data[[.]]))
+
+model_res <- parallel::parLapply(cl = cluster,
+                                 sim_res,
+                                 function(x){run_model(boot_trial = x$boot_trial,
+                                                       sim_data = x$data)})
+bind_rows(model_res) %>% 
+  group_by(term) %>% 
+  summarise_at(vars(or:conf.high),mean) %>% 
+  write_csv(paste0(sim_res_path,"model1_estimate.csv"))
+
+### Run model 2 ----------------------------------------------------------------
+
+run_model2 <- function(boot_trial,sim_data){
+  
+  reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
+    left_join(sim_data %>% 
+                mutate(miss=1L),
+              join_by(patient_id, boot_id)) %>%
+    mutate(miss = replace_na(miss,0L)) %>% 
+    left_join(reg_demo,join_by(patient_id))
+  
+  fit <- glm(miss~., 
+             data = select(reg_data,miss,female,age_cat,source,month,immunosuppressant,prednisone,cm_count,ccs_651:ccs_661),
+             family = "binomial")
+  
+  bind_cols(broom::tidy(fit) %>% 
+              mutate(or = exp(estimate)) %>% 
+              select(term,or),
+            exp(broom::confint_tidy(fit,func = stats::confint.default)))
+  
+}
+
+parallel::clusterExport(cluster,c("run_model2"),envir=environment())
+
+model_res2 <- parallel::parLapply(cl = cluster,
+                                 sim_res,
+                                 function(x){run_model2(boot_trial = x$boot_trial,
+                                                       sim_data = x$data)})
+
+bind_rows(model_res2) %>% 
+  group_by(term) %>% 
+  summarise_at(vars(or:conf.high),mean) %>% 
+  write_csv(paste0(sim_res_path,"model2_estimate.csv"))
+
+
+## Export Results --------------------------------------------------------------
+
+mod1 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model1_estimate.csv")
+mod2 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model2_estimate.csv")
+
+mod1 %>% 
+  mutate_at(vars(or:conf.high),~round(.,2))
+  mutate(model1 = paste0())
+  
+  
+  
 
 
 #################################
 #### Run Miss Duration Model ####
 #################################
+rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
+                             "boot_data","sim_res_ssd","delay_params","sim_obs",
+                             "sim_res_path"))])
+
+sim_res <- sim_res_ssd %>% 
+  mutate(res = map(res,~inner_join(.,sim_obs,by = join_by(obs)) %>% 
+                     group_by(patient_id,boot_id) %>% 
+                     summarise(duration = -min(days_since_index),.groups = "drop")))
+
+
+run_model <- function(boot_trial,sim_data){
+  
+  reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
+    left_join(sim_data, join_by(patient_id, boot_id)) %>%
+    mutate(duration = replace_na(duration,0L)) %>% 
+    left_join(reg_demo,join_by(patient_id))
+  
+  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,immunosuppressant,prednisone,Alcohol:ccs_661))
+  
+  bind_cols(broom::tidy(fit) %>% 
+              select(term,estimate),
+            broom::confint_tidy(fit,func = stats::confint.default))
+  
+}
+
+sim_res <- map(1:nrow(sim_res),~list(boot_trial = sim_res$boot_trial[[.]], data = sim_res$res[[.]]))
+
+cluster <- parallel::makeCluster(30)
+
+parallel::clusterCall(cluster, function() library(tidyverse))
+parallel::clusterExport(cluster,c("run_model","boot_data","reg_demo"),
+                        envir=environment())
+
+
+model_res <- parallel::parLapply(cl = cluster,
+                                 sim_res,
+                                 function(x){run_model(boot_trial = x$boot_trial,
+                                                       sim_data = x$data)})
+bind_rows(model_res) %>% 
+  group_by(term) %>% 
+  summarise_at(vars(estimate:conf.high),mean) %>% 
+  write_csv(paste0(sim_res_path,"model1_duration_estimate.csv"))
+
+## Run second duration model ---------------------------------------------------
+
+run_model2 <- function(boot_trial,sim_data){
+  
+  reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
+    left_join(sim_data, join_by(patient_id, boot_id)) %>%
+    mutate(duration = replace_na(duration,0L)) %>% 
+    left_join(reg_demo,join_by(patient_id))
+  
+  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,immunosuppressant,prednisone,cm_count,ccs_651:ccs_661))
+  
+  bind_cols(broom::tidy(fit) %>% 
+              select(term,estimate),
+            broom::confint_tidy(fit,func = stats::confint.default))
+  
+}
+
+parallel::clusterExport(cluster,c("run_model2"),envir=environment())
+
+model_res2 <- parallel::parLapply(cl = cluster,
+                                  sim_res,
+                                  function(x){run_model2(boot_trial = x$boot_trial,
+                                                         sim_data = x$data)})
+
+bind_rows(model_res2) %>% 
+  group_by(term) %>% 
+  summarise_at(vars(estimate:conf.high),mean) %>% 
+  write_csv(paste0(sim_res_path,"model2_duration_estimate.csv"))
 
 
 
@@ -329,4 +497,12 @@ tmp <- sim_res_ssd %>%
 #### Run Miss Visit Model ####
 ##############################
 
+library(tidyverse)
+dur1 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model1_duration_estimate.csv")
+dur2 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model2_duration_estimate.csv")
+miss_pat1 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model1_estimate.csv")
+miss_pat2 <- read_csv("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/model2_estimate.csv")
 
+
+rmarkdown::render("projects/sepsis_revised10/pre_covid/risk_report.Rmd", 
+                  output_file = "/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/risk_report.html")

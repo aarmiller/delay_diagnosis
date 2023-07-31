@@ -70,7 +70,7 @@ baseline_data$index_char %>%
 ```
 
 
-The following plot depicts the number of index cases identified by each week over
+The following plot depicts the number of index cases identified each week over
 the study period:
 ```{r}
 index_cases %>% 
