@@ -175,6 +175,7 @@ day during the diagnostic opportunity window for both the 14- and 7- day windows
 
 ```{r}
 
+
 ```
 
 
@@ -259,23 +260,8 @@ agg_stats$exponential_14$agg_stats_ssd$miss_bins %>%
 
 ### Setting Types
 
-The following table summarizes the setting where index diagnoses occurred. The 
-Index Count provides the total number of cases that involved a given setting, the
-percent of all index cases provides a percentage of cases where the index diagnosis
-involved a given setting. (Note: the total index count sums to a value greater than
-the total population and the percentage sums to greater than 100% because an index
-diagnosis date can involve more than one type of setting.) 
+
 ```{r}
-
-load(paste0(sim_out_path,"report_data/setting_counts.RData"))
-
-index_stdplac_counts %>% 
-  select(-index_pct1) %>% 
-  rename(Setting = stdplac_group,
-         `Index Count` = index_count,
-         `Percent of All Index Cases` = index_pct2) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
 
 
 ```
@@ -311,6 +297,121 @@ The following table presents the distribution of the number of missed opportunit
 that individual patients experienced:
 ```{r}
 agg_stats$exponential_7$agg_stats_ssd$miss_bins %>% 
+  mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-miss_bin) %>% 
+  select(`Number of misses`, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+# Appendix - Results using All visits
+
+### Expected Visits Trends
+
+As an alternative sensitivity analysis we analyzed all visits, regardless of whether
+an SSD was present. We then re-fit the expected trend curves. The following figures 
+depict the observed and expected trends in SSD visits.
+
+```{r}
+
+y_pos <- .9*max(trends_all$n)
+
+
+trends_all %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = pred), color = "red") +
+  facet_wrap(~model_label) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = mse_res_all,
+            mapping = aes(x = x_pos, y = y_pos, label = label)) +
+  ylab("Number of visits (any reason)") +
+  xlab("Days before index sepsis diagnosis")
+```
+
+The following table summarize the model fit and implied number of missed opportunities
+across models, change-points, and visit types.
+
+```{r}
+trends_out$model_comparisons_table %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+### Primary Model - Exponential trend w/ 14-day change-point
+
+The following table presents the aggregated summary statistics
+```{r}
+agg_stats$exponential_14$agg_stats_all$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Estimate (95% CI)`=measure_out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following table presents the distribution of delay duration:
+```{r}
+agg_stats$exponential_14$agg_stats_all$duration_bins %>% 
+  mutate(Duration = paste0(">= ", duration_bin," days")) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-duration_bin) %>% 
+  select(Duration, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table presents the distribution of the number of missed opportunities 
+that individual patients experienced:
+```{r}
+agg_stats$exponential_14$agg_stats_all$miss_bins %>% 
+  mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-miss_bin) %>% 
+  select(`Number of misses`, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+### Sensitivity Analysis - Exponential trend w/ 7-day change-point
+
+The following table presents the aggregated summary statistics
+```{r}
+agg_stats$exponential_7$agg_stats_all$main_stats %>% 
+  inner_join(better_labels) %>% 
+  select(Measure, `Estimate (95% CI)`=measure_out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following table presents the distribution of delay duration:
+```{r}
+agg_stats$exponential_7$agg_stats_all$duration_bins %>% 
+  filter(duration_bin<=7) %>% 
+  mutate(Duration = paste0(">= ", duration_bin," days")) %>% 
+  rename(`Number of patients`=n, `Percent of all patients`=pct_all,
+         `Percent of patients w/ miss` = pct_miss) %>% 
+  select(-duration_bin) %>% 
+  select(Duration, everything()) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table presents the distribution of the number of missed opportunities 
+that individual patients experienced:
+```{r}
+agg_stats$exponential_7$agg_stats_all$miss_bins %>% 
   mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
   rename(`Number of patients`=n, `Percent of all patients`=pct_all,
          `Percent of patients w/ miss` = pct_miss) %>% 

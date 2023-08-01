@@ -547,6 +547,63 @@ boot_index_counts <- tmp %>% select(boot_trial,setting_count)
 save(sim_res_settings,boot_index_counts, file = paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
 
 
+### Aggregate Results ----------------------------------------------------------
+load(paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
+
+tmp <- sim_res_settings %>% 
+  unnest(res) %>% 
+  inner_join(boot_index_counts %>% 
+               unnest(setting_count),
+             by = join_by(stdplac_group, boot_trial))
+
+
+tmp1 <- tmp %>% 
+  mutate(pct_miss = 100*n/(n+index_count)) %>% 
+  group_by(stdplac_group) %>% 
+  summarise(n_miss = mean(n),
+            n_miss_low = quantile(n,probs = 0.025),
+            n_miss_high = quantile(n,probs = 0.975),
+            pct_opp_miss = mean(pct_miss),
+            pct_opp_miss_low = quantile(pct_miss,probs = 0.025),
+            pct_opp_miss_high = quantile(pct_miss,probs = 0.975))
+
+
+tmp2 <- tmp %>%
+  group_by(sim_trial, boot_trial) %>% 
+  mutate(tot_miss = sum(n)) %>% 
+  ungroup() %>% 
+  mutate(pct_setting = 100*n/(tot_miss)) %>% 
+  group_by(stdplac_group) %>% 
+  summarise(pct_miss_setting = mean(pct_setting),
+            pct_miss_setting_low = quantile(pct_setting,probs = 0.025),
+            pct_miss_setting_high = quantile(pct_setting,probs = 0.975))
+
+# Extract the number of missed opportunities in each boot trial
+boot_miss_counts <- boot_data %>% 
+  select(boot_trial,ssd_vis_count) %>% 
+  unnest(ssd_vis_count) %>% 
+  filter(cp==14,model=="exponential") %>% 
+  select(boot_trial,counts) %>% 
+  unnest(counts) %>% 
+  group_by(boot_trial) %>% 
+  summarise(total_miss = sum(num_miss,na.rm = TRUE))
+
+# compute the percent missed my setting using total miss
+tmp3 <- tmp %>% 
+  inner_join(boot_miss_counts) %>% 
+  mutate(pct_setting = 100*n/total_miss) %>% 
+  group_by(stdplac_group) %>% 
+  summarise(pct_miss_setting2 = mean(pct_setting),
+            pct_miss_setting_low2 = quantile(pct_setting,probs = 0.025),
+            pct_miss_setting_high2 = quantile(pct_setting,probs = 0.975))
+
+# Aggregate final bootstrap stats
+setting_miss_stats <- tmp1 %>% inner_join(tmp2) %>% inner_join(tmp3)
+
+
+### Save Setting Counts for report ---------------------------------------------
+save(setting_miss_stats, index_stdplac_counts, file =  paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
+
 #### Check Index Cases ----------------------------
 identified_index <- tm %>%
   filter(days_since_index==0) %>%
