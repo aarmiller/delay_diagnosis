@@ -87,6 +87,19 @@ final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_ex
                                                      boot_trials = 100,
                                                      sim_trials = 100,
                                                      miss_bins = c(1,2,3,4,5),
+                                                     duration_bins = c(1:14)),
+                           
+                           sepsis_covid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
+                                                     base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/",  # base path to original prelim extract results
+                                                     out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/covid/",   # path to output delay new results
+                                                     ssd_name = "sepsis_revised10",
+                                                     cp = c(7,14),
+                                                     upper_bound = 180,
+                                                     final_model = "exponential",
+                                                     periodicity = TRUE,
+                                                     boot_trials = 100,
+                                                     sim_trials = 100,
+                                                     miss_bins = c(1,2,3,4,5),
                                                      duration_bins = c(1:14))
                            
 )
