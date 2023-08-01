@@ -195,7 +195,7 @@ procedure for a total of 10,000 simulations. We then aggregate results across al
 trials to compute mean estimates and 95% quantile-based confidence intervals
 
 
-### Overview
+### Overview of missed opportunities
 
 The following table summarizes the overall results for the primary model (exponential
 trend and 14 day opportunity window) for the number and percent of patients that 
@@ -209,19 +209,6 @@ load(paste0(sim_out_path, "report_data/agg_stats.RData"))
 better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
                                     "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
-
-tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
-  inner_join(better_labels) %>%
-  select(Measure, `Exponential 14-day CP`=measure_out)
-
-tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>%
-  inner_join(better_labels) %>%
-  select(Measure, `Exponential 7-day CP`=measure_out)
-
-inner_join(tmp1,tmp2,by = join_by(Measure)) %>%
-  filter(Measure !="Number of patients w/ miss") %>%
-  kableExtra::kable() %>%
-  kableExtra::kable_styling(full_width = F)
 
 agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
@@ -271,6 +258,7 @@ load(paste0(sim_out_path,"report_data/setting_counts.RData"))
 
 index_stdplac_counts %>% 
   select(-index_pct1) %>% 
+  mutate(index_pct2 = round(index_pct2,2)) %>% 
   rename(Setting = stdplac_group,
          `Index Count` = index_count,
          `Percent of All Index Cases` = index_pct2) %>% 
@@ -278,23 +266,62 @@ index_stdplac_counts %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following table summarizes the settings where missed opportunities occured 
+The following table summarizes the settings where missed opportunities occurred.
+The `Number of Missed Opportunities` provides the number of missed opportunities 
+in each setting. `Percent of Opportunities Missed` provides the percent of all 
+diagnostic opportunities that occurred in a setting that were missed; this value 
+is computed as the number of missed opportunities divided by the total number of 
+missed opportunities and index visits. This value can be roughly interpreted as
+the likelihood that visit in a given setting where a disease was present would result
+in a missed diagnosis versus a correct diagnosis.`Percent of All Misses` provides the percent
+of all missed opportunities that occurred in a given setting. `Percent of All Miss Days`
+provides the percent of all visit days that involved a missed opportunity that 
+occured in a given setting (note, because patient can have multiple visits on a 
+given day these percentages sum to >100%).
 
-# Sensitivity Analysis - Exponential trend w/ 7-day change-point
-
-We also conducted a sensitivity analysis where we considered a 7-day diagnostic 
-opportunity window. The following table presents the aggregated summary statistics
-for this sensitivity analysis.
 ```{r}
-agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
-  inner_join(better_labels) %>% 
-  select(Measure, `Estimate (95% CI)`=measure_out) %>% 
+setting_miss_stats %>% 
+  mutate_at(vars(n_miss:pct_miss_setting_high2),~round(.,2)) %>% 
+  mutate(`Number of Misses`=paste0(n_miss," (",n_miss_low,"-",n_miss_high,")")) %>% 
+  mutate(`Percent of Opportunities Missed`=paste0(pct_opp_miss," (",pct_opp_miss_low,"-",pct_opp_miss_high,")")) %>% 
+  mutate(`Percent of All Misses`=paste0(pct_miss_setting," (",pct_miss_setting_low,"-",pct_miss_setting_high,")")) %>% 
+  mutate(`Percent of All Miss Days`=paste0(pct_miss_setting2," (",pct_miss_setting_low2,"-",pct_miss_setting_high2,")")) %>% 
+  select(setting = stdplac_group,
+         `Number of Misses`,
+         `Percent of Opportunities Missed`,
+         `Percent of All Misses`,
+         `Percent of All Miss Days`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 
 ```
 
-The following table presents the distribution of delay duration:
+
+
+# Sensitivity Analysis - Exponential trend w/ 7-day opportunity window
+
+We conducted a sensitivity analysis where we also considered a 7-day diagnostic 
+opportunity window. The following table presents the aggregated summary statistics
+for this sensitivity analysis using a 7-day window in comparison to the 14-day window
+used for the primary analysis.
+```{r}
+tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
+  inner_join(better_labels) %>%
+  select(Measure, `Exponential 14-day CP`=measure_out)
+
+tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>%
+  inner_join(better_labels) %>%
+  select(Measure, `Exponential 7-day CP`=measure_out)
+
+inner_join(tmp1,tmp2,by = join_by(Measure)) %>%
+  filter(Measure !="Number of patients w/ miss") %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following table presents the distribution of delay duration for the sensitivity
+analysis using a 7-day opportunity window:
 ```{r}
 agg_stats$exponential_7$agg_stats_ssd$duration_bins %>% 
   filter(duration_bin<=7) %>% 
@@ -308,7 +335,8 @@ agg_stats$exponential_7$agg_stats_ssd$duration_bins %>%
 ```
 
 The following table presents the distribution of the number of missed opportunities 
-that individual patients experienced:
+that individual patients experienced for the sensitivity analysis using a 7-day 
+opportunity window:
 ```{r}
 agg_stats$exponential_7$agg_stats_ssd$miss_bins %>% 
   mutate(`Number of misses` = paste0(">= ", miss_bin)) %>% 
