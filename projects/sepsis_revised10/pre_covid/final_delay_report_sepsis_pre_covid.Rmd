@@ -62,7 +62,7 @@ baseline_data$pat_char %>%
   kableExtra::kable_styling(full_width = F) 
 ```
 
-The following table summarizes the time of the index sepsis diagnoses:
+The following table summarizes the day of week and month of the index sepsis diagnoses:
 ```{r}
 baseline_data$index_char %>%   
   kableExtra::kable() %>% 
@@ -78,7 +78,8 @@ index_cases %>%
   mutate(index_week = as_date(index_week)) %>% 
   count(index_week) %>% 
   ggplot(aes(index_week,n)) +
-  geom_line()
+  geom_line() +
+  theme_bw() 
 ```
 
 # Visit Trends
@@ -129,26 +130,27 @@ bind_rows(trends_ssd %>%
   ylab("Number of visits") +
   xlab("Days before index sepsis diagnosis") +
   theme_bw() 
-  
-
 
 ```
 
 
 ### Expected SSD-visit trends
 
-We used an exponential model to estimate the expected number of visits prior each
+We used an exponential model to estimate the expected number of SSD-visits each
 day prior to the index diagnosis. Our primary analysis used a 14-day diagnostic 
 opportunity window (i.e., change-point) to detect diagnostic delays; thus, the 
-expected visit trend was estimated using the visits observed from 15 to 180 days
+expected visit trend was estimated using only the visits observed from 15 to 180 days
 prior to the index diagnosis.
 
 As a sensitivity analysis we considered using a 7-day diagnostic opportunity window.
 
 The following plot depicts the number of SSD visits each day before the index
-sepsis diagnosis (black line), along with the estimated expected visit trend (red
+sepsis diagnosis (black line), along with the expected visit trend that was estimated (red
 line) for both the 14-and 7-day diagnostic opportunity window. The dashed-black 
-line depicts the boundary of the diagnostic opportunity window.
+line depicts the boundary of the diagnostic opportunity window. The number
+of missed opportunities each day is estimated as the difference between the number
+of observed visit (solid-black line) and the expected number of visits (red-line)
+during the diagnostic opportunity window (to the right of the dashed black line).
 
 ```{r}
 
@@ -192,22 +194,24 @@ procedure to repeatedly draw which individual visits represented a diagnostic de
 For this analysis we performed a 2-layer bootstrapping procedure. For the outer 
 layer we drew a bootstrapped sample of patients from the overall cohort (with replacement).
 We then re-estimated the expected visit trend, and computed the estimated number 
-of missed opportunities each day for each bootstrapped sample. Next for each bootstrapped
-sample we run an interior bootstrapping procedure were we randomly select which 
+of missed opportunities each day for the bootstrapped sample. Next for each bootstrapped
+sample we run an interior bootstrapping procedure where we randomly select which 
 visits represent a missed opportunity each day based on the estimated number of 
-missed opportunities. 
+missed opportunities. Finally, using this sample we compute patient- and visit-level
+statistics regarding the frequeuncy and duration of diagnostic delays.
 
 We run 100 trials of the outer bootstrapping procedure and 100 trials of the interior
 procedure for a total of 10,000 simulations. We then aggregate results across all
-trials to compute mean estimates and 95% quantile-based confidence intervals
+trials to compute mean estimates for each statistic along with corresponding 95% 
+quantile-based confidence intervals
 
 
 ### Overview of missed opportunities
 
-The following table summarizes the overall results for the primary model (exponential
-trend and 14 day opportunity window) for the number and percent of patients that 
-were missed, duration of diagnostic delays, and the number of missed opportunities 
-that patients experienced. Note: both the duration of delays and number of missed 
+The following table summarizes the overall results for the primary model (using an exponential
+trend and 14-day opportunity window) for the number and percent of patients that 
+were missed, the duration of diagnostic delays, and the number of missed opportunities 
+that each patients experienced. Note: both the duration of delays and number of missed 
 opportunities per patient are summarized across only those patients who experienced
 a diagnostic delay:
 ```{r}
@@ -253,12 +257,12 @@ agg_stats$exponential_14$agg_stats_ssd$miss_bins %>%
 
 ### Setting Types
 
-The following table summarizes the setting where index diagnoses occurred. The 
-Index Count provides the total number of cases that involved a given setting, the
-percent of all index cases provides a percentage of cases where the index diagnosis
-involved a given setting. (Note: the total index count sums to a value greater than
-the total population and the percentage sums to greater than 100% because an index
-diagnosis date can involve more than one type of setting.) 
+The following table summarizes the settings where index diagnoses occurred. `Index Count` 
+provides the total number of index cases that involved a given setting,
+`Percent of All Index Cases` provides a percentage of cases where the index diagnosis
+involved a visit to a given setting. (Note: the total index count sums to a value greater than
+the total population and the percentage of all index cases sums to greater than 
+100% because an index diagnosis date can involve more than one type of setting.) 
 ```{r}
 
 load(paste0(sim_out_path,"report_data/setting_counts.RData"))
@@ -274,13 +278,13 @@ index_stdplac_counts %>%
 ```
 
 The following table summarizes the settings where missed opportunities occurred.
-The `Number of Missed Opportunities` provides the number of missed opportunities 
+`Number of Missed Opportunities` provides the number of missed opportunities 
 in each setting. `Percent of Opportunities Missed` provides the percent of all 
 diagnostic opportunities that occurred in a setting that were missed; this value 
 is computed as the number of missed opportunities divided by the total number of 
-missed opportunities and index visits. This value can be roughly interpreted as
-the likelihood that visit in a given setting where a disease was present would result
-in a missed diagnosis versus a correct diagnosis.`Percent of All Misses` provides the percent
+opportunities (i.e., missed opportunities plus index visits). This value can be roughly interpreted as
+the likelihood that a visit in a given setting where a disease was present would result
+in a missed diagnosis.`Percent of All Misses` provides the percent
 of all missed opportunities that occurred in a given setting. `Percent of All Miss Days`
 provides the percent of all visit days that involved a missed opportunity that 
 occured in a given setting (note, because patient can have multiple visits on a 
