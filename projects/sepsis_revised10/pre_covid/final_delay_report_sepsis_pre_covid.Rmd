@@ -204,24 +204,24 @@ that patients experienced. Note: both the duration of delays and number of misse
 opportunities per patient are summarized across only those patients who experienced
 a diagnostic delay:
 ```{r}
-# load(paste0(sim_out_path, "report_data/agg_stats.RData"))
-# 
-# better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
-#                         Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
-#                                     "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
-# 
-# tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
-#   inner_join(better_labels) %>% 
-#   select(Measure, `Exponential 14-day CP`=measure_out)
-# 
-# tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>% 
-#   inner_join(better_labels) %>% 
-#   select(Measure, `Exponential 7-day CP`=measure_out)
-# 
-# inner_join(tmp1,tmp2,by = join_by(Measure)) %>% 
-#   filter(Measure !="Number of patients w/ miss") %>% 
-#   kableExtra::kable() %>% 
-#   kableExtra::kable_styling(full_width = F) 
+load(paste0(sim_out_path, "report_data/agg_stats.RData"))
+
+better_labels <- tibble(measure = c("pct_pat","n_pat","mean_dur","median_dur","mean_n_miss","median_n_miss"),
+                        Measure = c("Percent of patients w/ miss", "Number of patients w/ miss","Mean duration of delay", "Median duration of delay",
+                                    "Mean # of misses (per patient w/ miss)", "Median # of misses (per patient w/ miss)"))
+
+tmp1 <- agg_stats$exponential_14$agg_stats_ssd$main_stats %>%
+  inner_join(better_labels) %>%
+  select(Measure, `Exponential 14-day CP`=measure_out)
+
+tmp2 <- agg_stats$exponential_7$agg_stats_ssd$main_stats %>%
+  inner_join(better_labels) %>%
+  select(Measure, `Exponential 7-day CP`=measure_out)
+
+inner_join(tmp1,tmp2,by = join_by(Measure)) %>%
+  filter(Measure !="Number of patients w/ miss") %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
 
 agg_stats$exponential_14$agg_stats_ssd$main_stats %>% 
   inner_join(better_labels) %>% 
@@ -276,9 +276,9 @@ index_stdplac_counts %>%
          `Percent of All Index Cases` = index_pct2) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
-
-
 ```
+
+The following table summarizes the settings where missed opportunities occured 
 
 # Sensitivity Analysis - Exponential trend w/ 7-day change-point
 
