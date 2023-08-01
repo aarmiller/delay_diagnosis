@@ -114,13 +114,7 @@ tm %>%
   filter(days_since_index==0)
 
 
-################
-#### Remove ####
-################
 
-# run markdown report
-rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/pre_covid/final_delay_report_sepsis_pre_covid.Rmd",
-                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/"))
 
 
 ######################
@@ -602,9 +596,18 @@ setting_miss_stats <- tmp1 %>% inner_join(tmp2) %>% inner_join(tmp3)
 
 
 ### Save Setting Counts for report ---------------------------------------------
-save(setting_miss_stats, index_stdplac_counts, file =  paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
+save(setting_miss_stats, index_stdplac_counts, file =  paste0(delay_params$out_path,"sim_results/report_data/setting_counts.RData"))
 
-#### Check Index Cases ----------------------------
+
+######################
+#### Build Report ####
+######################
+
+# run markdown report
+rmarkdown::render(input = "github/delay_diagnosis/projects/sepsis_revised10/pre_covid/final_delay_report_sepsis_pre_covid.Rmd",
+                  output_dir = paste0("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/"))
+
+#### Check Index Cases ####
 identified_index <- tm %>%
   filter(days_since_index==0) %>%
   distinct(patient_id)

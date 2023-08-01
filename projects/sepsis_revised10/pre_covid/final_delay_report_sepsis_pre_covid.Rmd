@@ -174,7 +174,14 @@ The following figure depicts the estimated number of missed opportunities each
 day during the diagnostic opportunity window for both the 14- and 7- day windows.
 
 ```{r}
-
+trends_ssd %>% 
+  ggplot(aes(period,num_miss)) +
+  geom_histogram(stat = "identity") +
+  scale_x_reverse() +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Diagnosis") +
+  theme_bw() +
+  facet_wrap(~model_label) 
 ```
 
 
