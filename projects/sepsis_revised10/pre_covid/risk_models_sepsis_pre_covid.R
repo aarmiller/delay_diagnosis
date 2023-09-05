@@ -285,20 +285,89 @@ reg_demo <- reg_demo %>%
 
 reg_demo %>% glimpse()
 
+
+## Prepare antibiotic indicators -----------------------------------------------
+
+load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
+
+load("/Shared/AML/truven_mind_projects/antibiotic_risk_categories/antibiotics_groupings_new.RData")
+
+abx_rx_ids <- rx_visits %>% 
+  filter(ndcnum %in% antibiotic_ndc_groups_new$ndcnum) %>% 
+  filter(date<index_date & (date)>=(index_date-14)) %>% 
+  distinct(patient_id) %>% 
+  mutate(abx=1L)
+
+reg_demo <- reg_demo %>% 
+  left_join(abx_rx_ids) %>% 
+  mutate_at(vars(abx),~replace_na(.,0L))
+
+## Prepare inhaler indicators --------------------------------------------------
+
+# load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
+# reg_demo <- reg_demo %>%
+#   select(-inhaler)
+
+tmp <- read_csv("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/data/all_inhaler_codes.csv")
+
+inhale_rx_ids <- rx_visits %>% 
+  filter(ndcnum %in% tmp$NDCNUM) %>% 
+  filter(date<index_date & date>=(index_date-14)) %>%
+  distinct(patient_id) %>% 
+  mutate(inhaler=1L)
+
+reg_demo <- reg_demo %>%
+  left_join(inhale_rx_ids ) %>% 
+  mutate_at(vars(inhaler),~replace_na(.,0L))
+
+
+## Prepare any indicator -------------------------------------------------------
+prior_vis_ind <- tm %>% 
+  inner_join(index_dx_dates) %>% 
+  filter(disdate<index_date & admdate>=(index_date-14)) %>% 
+  distinct(patient_id) %>% 
+  mutate(prior_vis=1L)
+
+reg_demo <- reg_demo %>% 
+  left_join(prior_vis_ind) %>% 
+  mutate_at(vars(prior_vis),~replace_na(.,0L))
+
+
+
+## Prepare opioid codes --------------------------------------------------------
+tmp <- codeBuildr::load_rx_codes("opioids")
+
+tmp <- unique(unlist(tmp,use.names = F))
+
+opioid_rx_ids <- rx_visits %>% 
+  filter(ndcnum %in% tmp) %>% 
+  filter(date<index_date & date>=(index_date-14)) %>%
+  distinct(patient_id) %>% 
+  mutate(opioid=1L)
+
+reg_demo <- reg_demo %>%
+  left_join(opioid_rx_ids) %>% 
+  mutate_at(vars(opioid),~replace_na(.,0L))
+  
+
 ##############################
 #### Save regression data ####
 ##############################
 
 save(reg_demo,obs_locations,index_locations, file = paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
 
-reg_demo %>% glimpse()
+
 
 ################################
 #### Run Miss Patient Model ####
 ################################
-load(paste0(sim_res_path,"sim_res_ssd.RData"))
+rm(list = ls()[!(ls() %in% c("delay_params","sim_res_path","cond_name"))])
+
+
 load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
+load(paste0(sim_res_path,"sim_res_ssd.RData"))
 load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
+
 tmp <- sim_res_ssd %>%
   mutate(obs = map(res,~distinct(.,obs))) %>%
   select(obs) %>%
@@ -310,9 +379,9 @@ load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
 rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
                              "boot_data","sim_res_ssd","delay_params","sim_obs",
                              "sim_res_path"))])
+gc()
 
 ## Run Model 1 -----------------------------------------------------------------
-gc()
 
 tmp <- sim_res_ssd %>% 
   unnest(res) %>% 
@@ -328,6 +397,12 @@ sim_res <- tmp
 rm(tmp,sim_res_ssd)
 gc()
 
+reg_demo <- reg_demo %>% 
+  mutate(immuno_comb = as.integer((immunosuppressant==1 | prednisone==1))) 
+
+reg_demo %>% glimpse()
+
+
 boot_data <- boot_data %>% select(boot_trial,boot_sample) %>% arrange(boot_trial)
 
 run_model <- function(boot_trial,sim_data){
@@ -340,7 +415,7 @@ run_model <- function(boot_trial,sim_data){
     left_join(reg_demo,join_by(patient_id))
   
   fit <- glm(miss~., 
-             data = select(reg_data,miss,female,age_cat,source,month,immunosuppressant,prednisone,Alcohol:ccs_661),
+             data = select(reg_data,miss,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid),
              family = "binomial")
   
   bind_cols(broom::tidy(fit) %>% 
@@ -370,37 +445,37 @@ bind_rows(model_res) %>%
 
 ### Run model 2 ----------------------------------------------------------------
 
-run_model2 <- function(boot_trial,sim_data){
-  
-  reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
-    left_join(sim_data %>% 
-                mutate(miss=1L),
-              join_by(patient_id, boot_id)) %>%
-    mutate(miss = replace_na(miss,0L)) %>% 
-    left_join(reg_demo,join_by(patient_id))
-  
-  fit <- glm(miss~., 
-             data = select(reg_data,miss,female,age_cat,source,month,immunosuppressant,prednisone,cm_count,ccs_651:ccs_661),
-             family = "binomial")
-  
-  bind_cols(broom::tidy(fit) %>% 
-              mutate(or = exp(estimate)) %>% 
-              select(term,or),
-            exp(broom::confint_tidy(fit,func = stats::confint.default)))
-  
-}
+# run_model2 <- function(boot_trial,sim_data){
+#   
+#   reg_data <- boot_data$boot_sample[[boot_trial]] %>% 
+#     left_join(sim_data %>% 
+#                 mutate(miss=1L),
+#               join_by(patient_id, boot_id)) %>%
+#     mutate(miss = replace_na(miss,0L)) %>% 
+#     left_join(reg_demo,join_by(patient_id))
+#   
+#   fit <- glm(miss~., 
+#              data = select(reg_data,miss,female,age_cat,source,month,immunosuppressant,prednisone,abx,inhaler,cm_count,ccs_651:ccs_661),
+#              family = "binomial")
+#   
+#   bind_cols(broom::tidy(fit) %>% 
+#               mutate(or = exp(estimate)) %>% 
+#               select(term,or),
+#             exp(broom::confint_tidy(fit,func = stats::confint.default)))
+#   
+# }
 
-parallel::clusterExport(cluster,c("run_model2"),envir=environment())
-
-model_res2 <- parallel::parLapply(cl = cluster,
-                                 sim_res,
-                                 function(x){run_model2(boot_trial = x$boot_trial,
-                                                       sim_data = x$data)})
-
-bind_rows(model_res2) %>% 
-  group_by(term) %>% 
-  summarise_at(vars(or:conf.high),mean) %>% 
-  write_csv(paste0(sim_res_path,"model2_estimate.csv"))
+# parallel::clusterExport(cluster,c("run_model2"),envir=environment())
+# 
+# model_res2 <- parallel::parLapply(cl = cluster,
+#                                  sim_res,
+#                                  function(x){run_model2(boot_trial = x$boot_trial,
+#                                                        sim_data = x$data)})
+# 
+# bind_rows(model_res2) %>% 
+#   group_by(term) %>% 
+#   summarise_at(vars(or:conf.high),mean) %>% 
+#   write_csv(paste0(sim_res_path,"model2_estimate.csv"))
 
 
 ## Export Results --------------------------------------------------------------
@@ -436,7 +511,7 @@ run_model <- function(boot_trial,sim_data){
     mutate(duration = replace_na(duration,0L)) %>% 
     left_join(reg_demo,join_by(patient_id))
   
-  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,immunosuppressant,prednisone,Alcohol:ccs_661))
+  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid))
   
   bind_cols(broom::tidy(fit) %>% 
               select(term,estimate),
@@ -471,7 +546,7 @@ run_model2 <- function(boot_trial,sim_data){
     mutate(duration = replace_na(duration,0L)) %>% 
     left_join(reg_demo,join_by(patient_id))
   
-  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,immunosuppressant,prednisone,cm_count,ccs_651:ccs_661))
+  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,immunosuppressant,prednisone,abx,inhaler,cm_count,ccs_651:ccs_661))
   
   bind_cols(broom::tidy(fit) %>% 
               select(term,estimate),

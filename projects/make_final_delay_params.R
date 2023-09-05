@@ -11,7 +11,20 @@
 # preliminary simulations. The script to generate these recreated object should 
 # be stored in delay_diagnosis/projects/<disease>
   
-final_delay_params <- list(sarcoid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
+final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/meningitis/",
+                                                       base_path = "/Shared/Statepi_Diagnosis/prelim_results/meningitis/",  # base path to original prelim extract results
+                                                       out_path = "/Shared/Statepi_Diagnosis/projects/meningitis_bacterial/",   # path to output delay new results
+                                                       ssd_name = "meningitis",
+                                                       cp = 50,
+                                                       upper_bound = 365,
+                                                       final_model = NA,
+                                                       periodicity = TRUE,
+                                                       boot_trials = 100,
+                                                       sim_trials = 100,
+                                                       miss_bins = c(1,2,3,4,5,7,10),
+                                                       duration_bins = c(3,7,14,21,30,40,50)),
+                           
+                           sarcoid = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                           base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                           out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/",   # path to output delay new results
                                           ssd_name = "sercoid",
