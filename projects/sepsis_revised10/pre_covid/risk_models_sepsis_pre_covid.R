@@ -333,6 +333,17 @@ reg_demo <- reg_demo %>%
   mutate_at(vars(prior_vis),~replace_na(.,0L))
 
 
+## Prepare num before indicator ------------------------------------------------
+load(paste0(delay_params$out_path,"sim_results/reg_vars.RData"))
+num_vis_before_window_ind <- tm %>% 
+  inner_join(index_dx_dates) %>% 
+  filter(disdate<(index_date-14) & admdate>=(index_date-180)) %>% 
+  distinct(patient_id,admdate,stdplac) %>% 
+  count(patient_id,name = "num_vis_before")
+
+reg_demo <- reg_demo %>% 
+  left_join(num_vis_before_window_ind) %>% 
+  mutate_at(vars(num_vis_before),~replace_na(.,0L))
 
 ## Prepare opioid codes --------------------------------------------------------
 tmp <- codeBuildr::load_rx_codes("opioids")
@@ -376,6 +387,10 @@ tmp <- sim_res_ssd %>%
 sim_obs <- inner_join(tmp,sim_obs)
 load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
 
+# combine immunosuppressant and prednisone
+reg_demo <- reg_demo %>% 
+  mutate(immuno_comb = as.integer((immunosuppressant==1 | prednisone==1))) 
+
 rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
                              "boot_data","sim_res_ssd","delay_params","sim_obs",
                              "sim_res_path"))])
@@ -397,9 +412,6 @@ sim_res <- tmp
 rm(tmp,sim_res_ssd)
 gc()
 
-reg_demo <- reg_demo %>% 
-  mutate(immuno_comb = as.integer((immunosuppressant==1 | prednisone==1))) 
-
 reg_demo %>% glimpse()
 
 
@@ -415,7 +427,7 @@ run_model <- function(boot_trial,sim_data){
     left_join(reg_demo,join_by(patient_id))
   
   fit <- glm(miss~., 
-             data = select(reg_data,miss,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid),
+             data = select(reg_data,miss,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid,num_vis_before),
              family = "binomial")
   
   bind_cols(broom::tidy(fit) %>% 
@@ -441,7 +453,7 @@ model_res <- parallel::parLapply(cl = cluster,
 bind_rows(model_res) %>% 
   group_by(term) %>% 
   summarise_at(vars(or:conf.high),mean) %>% 
-  write_csv(paste0(sim_res_path,"model1_estimate.csv"))
+  write_csv(paste0(sim_res_path,"model1_estimate_num_before.csv"))
 
 ### Run model 2 ----------------------------------------------------------------
 
@@ -497,6 +509,8 @@ mod1 %>%
 rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
                              "boot_data","sim_res_ssd","delay_params","sim_obs",
                              "sim_res_path"))])
+  
+load(paste0(sim_res_path,"sim_res_ssd.RData"))
 
 sim_res <- sim_res_ssd %>% 
   mutate(res = map(res,~inner_join(.,sim_obs,by = join_by(obs)) %>% 
@@ -511,7 +525,7 @@ run_model <- function(boot_trial,sim_data){
     mutate(duration = replace_na(duration,0L)) %>% 
     left_join(reg_demo,join_by(patient_id))
   
-  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid))
+  fit <- lm(duration~., data = select(reg_data,duration,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid,num_vis_before))
   
   bind_cols(broom::tidy(fit) %>% 
               select(term,estimate),
@@ -535,7 +549,7 @@ model_res <- parallel::parLapply(cl = cluster,
 bind_rows(model_res) %>% 
   group_by(term) %>% 
   summarise_at(vars(estimate:conf.high),mean) %>% 
-  write_csv(paste0(sim_res_path,"model1_duration_estimate.csv"))
+  write_csv(paste0(sim_res_path,"model1_duration_estimate_num_before.csv"))
 
 ## Run second duration model ---------------------------------------------------
 

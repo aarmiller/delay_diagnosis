@@ -40,3 +40,23 @@ library(tidyverse)
 tmp <- read_csv("/Volumes/Statepi_Diagnosis/projects/meningitis_bacterial/prelim_data/top_1000_labels_cleaned.csv")
 
 tmp %>% filter(is.na(code_type)) %>% write_csv("/Volumes/Statepi_Diagnosis/projects/meningitis_bacterial/prelim_data/codes_to_label.csv")
+
+new_labels <- read_csv("/Volumes/Statepi_Diagnosis/projects/meningitis_bacterial/prelim_data/codes_to_label.csv")
+
+bind_rows(tmp %>% 
+            filter(!is.na(code_type)),
+          new_labels %>% 
+            mutate(proc = as.character(proc))) %>% 
+  filter(!(proc %in% c("62270","70450","70553","70551","70470","70496","8891",
+                     "8703","70460","70552","70546","70545"))) %>% 
+  write_csv("/Volumes/Statepi_Diagnosis/projects/meningitis_bacterial/prelim_data/new_mening_codes_to_review.csv")
+
+bind_rows(tmp %>% 
+            filter(!is.na(code_type)),
+          new_labels %>% 
+            mutate(proc = as.character(proc))) %>% 
+  filter(!(proc %in% c("62270","70450","70553","70551","70470","70496","8891",
+                       "8703","70460","70552","70546","70545"))) %>% 
+  mutate(spine=ifelse(str_detect(tolower(code_type),"spinal") | str_detect(tolower(code_type),"spine"),"Y","")) %>% 
+  rename(label = code_type)
+  
