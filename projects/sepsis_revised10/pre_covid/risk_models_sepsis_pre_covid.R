@@ -389,7 +389,13 @@ load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
 
 # combine immunosuppressant and prednisone
 reg_demo <- reg_demo %>% 
+  mutate(age_cat = fct_relevel(age_cat,"(64,130]")) %>% 
   mutate(immuno_comb = as.integer((immunosuppressant==1 | prednisone==1))) 
+
+reg_demo %>% count(age_cat)
+
+reg_demo <- reg_demo %>% 
+  mutate(num_vis_before = num_vis_before/((180-14)/7)) 
 
 rm(list = ls()[!(ls() %in% c("reg_demo","obs_locations","index_locations",
                              "boot_data","sim_res_ssd","delay_params","sim_obs",
@@ -412,9 +418,6 @@ sim_res <- tmp
 rm(tmp,sim_res_ssd)
 gc()
 
-reg_demo %>% glimpse()
-
-
 boot_data <- boot_data %>% select(boot_trial,boot_sample) %>% arrange(boot_trial)
 
 run_model <- function(boot_trial,sim_data){
@@ -427,7 +430,7 @@ run_model <- function(boot_trial,sim_data){
     left_join(reg_demo,join_by(patient_id))
   
   fit <- glm(miss~., 
-             data = select(reg_data,miss,female,age_cat,source,month,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid,num_vis_before),
+             data = select(reg_data,miss,female,age_cat,source,month,year,Alcohol:WeightLoss,immuno_comb,abx,inhaler,opioid,num_vis_before),
              family = "binomial")
   
   bind_cols(broom::tidy(fit) %>% 

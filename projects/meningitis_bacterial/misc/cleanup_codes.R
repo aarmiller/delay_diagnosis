@@ -57,6 +57,6 @@ bind_rows(tmp %>%
             mutate(proc = as.character(proc))) %>% 
   filter(!(proc %in% c("62270","70450","70553","70551","70470","70496","8891",
                        "8703","70460","70552","70546","70545"))) %>% 
-  mutate(spine=ifelse(str_detect(tolower(code_type),"spinal") | str_detect(tolower(code_type),"spine"),"Y","")) %>% 
+  mutate(spine=ifelse(str_detect(tolower(code_typ e),"spinal") | str_detect(tolower(code_type),"spine"),"Y","")) %>% 
   rename(label = code_type)
   
