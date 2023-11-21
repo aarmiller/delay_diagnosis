@@ -21,7 +21,27 @@
 #      duration_bins = c(1,2,3,4,5,6,7,10,14,17))
 
 
-delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_dbs/cvst/",
+delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                     cp = 60,
+                                     cp_lower = NA,
+                                     cp_upper = NA,
+                                     upper_bound = 365,
+                                     final_model = "quadratic",
+                                     periodicity = TRUE,
+                                     miss_bins = c(1,2,3,4,5),
+                                     duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
+                         
+                         cocci = list(path = "/Shared/AML/truven_extracts/small_dbs/cocci/",
+                                       cp = 70,
+                                       cp_lower = NA,
+                                       cp_upper = NA,
+                                       upper_bound = 365,
+                                       final_model = NA,
+                                       periodicity = TRUE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
+                         
+                         cvst = list(path = "/Shared/AML/truven_extracts/small_dbs/cvst/",
                                       cp = 21,
                                       cp_lower = NA,
                                       cp_upper = NA,
@@ -50,6 +70,16 @@ delay_any_params <- list(cvst = list(path = "/Shared/AML/truven_extracts/small_d
                                            periodicity = TRUE,
                                            miss_bins = c(1,2,3,4,5),
                                            duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
+                         
+                         pcp = list(path = "/Shared/AML/truven_extracts/small_dbs/pcp/",
+                                       cp = 75,
+                                       cp_lower = NA,
+                                       cp_upper = NA,
+                                       upper_bound = 365,
+                                       final_model = NA,
+                                       periodicity = TRUE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
                          sepsis_revised10 = list(path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
                                                  cp = 14,
