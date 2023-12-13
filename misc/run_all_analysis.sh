@@ -131,16 +131,16 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh meningitis
 # qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh pcp
 
 #### Dengue ####
-qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh dengue
-# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh pcp
-# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh pcp
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh dengue
+# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh dengue
+# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh dengue
 
-# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh pcp
-# qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh pcp
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh dengue
 
 

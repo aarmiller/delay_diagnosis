@@ -1,0 +1,15 @@
+To Do List for Dengue
+
+-Update the change-point to ~16-18 days
+
+-Add antibiotics as a risk factor (see list sent to Scott)
+-Add ID consult as a risk factor (STDPROV = 285 or 448)
+-Look for travel-related codes
+-Look for ICD-9/10 code 
+
+
+-Look for CPT
+  -86790
+  -87449
+  -87798
+  

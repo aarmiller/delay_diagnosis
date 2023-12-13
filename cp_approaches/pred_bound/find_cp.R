@@ -6,7 +6,7 @@ library(lubridate)
 # library(trend)
 
 params <- list()
-params$cond <- "blasto"
+params$cond <- "dengue"
 
 # load delay_parms
 load("/Shared/AML/params/delay_any_params.RData")
@@ -243,14 +243,132 @@ ssd_boot_res <- boot_counts %>%
   mutate(cp_res = map(ssd_vis_count,~fit_range(.,cp_range)))
 
 
-# Most common implied CP
+# Save output for transfer
+save(boot_counts,count_data_all,count_data_ssd,ssd_boot_res,file = "/Shared/Statepi_Diagnosis/prelim_results/dengue/change_point_results/new_cp_res.RData")
+
+load("/Volumes/Statepi_Diagnosis/prelim_results/dengue/change_point_results/new_cp_res.RData")
+
+ssd_boot_res$cp_res
+
 ssd_boot_res %>% 
+  select(boot_trial,ssd_vis_count) %>% 
+  unnest(ssd_vis_count) %>% 
+  ggplot(aes(period,n,group = boot_trial)) +
+  geom_line(alpha = 0.2) +
+  theme_minimal() +
+  scale_x_reverse()
+
+# Most common implied CP
+tmp <- ssd_boot_res %>% 
   select(boot_trial,cp_res) %>% 
   unnest(cp_res) %>% 
   count(model,implied_cp) %>% 
   group_by(model) %>% 
   mutate(frac = 100*n/sum(n)) %>% 
-  filter(n == max(n))
+  filter(n == max(n)) %>% 
+  ungroup()
+tmp
+
+
+# Distribution of implied CPs
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>% 
+  inner_join(select(tmp,model,mc_implied_cp = implied_cp)) %>% 
+  ggplot(aes(implied_cp)) +
+  geom_histogram() +
+  facet_wrap(~model) +
+  geom_vline(aes(xintercept = mc_implied_cp), color = "red")
+
+# average deviation from lower bound for the most common implied cp
+select(tmp,model,implied_cp) %>% 
+  inner_join(ssd_boot_res %>% 
+               select(boot_trial,cp_res) %>% 
+               unnest(cp_res)) %>% 
+  mutate(dev = lb-implied_cp) %>% 
+  group_by(model) %>% 
+  summarise(mean_dev = mean(dev), median_dev = median(dev),
+            mean_abs_dev = mean(abs(dev))) %>% 
+  left_join(tmp,.) %>% 
+  select(-n)
+
+# Now restrict to change-points within some abs deviation
+
+# 5 days
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>%
+  filter(abs(lb-implied_cp)<=5) %>% 
+  count(model,implied_cp) %>% 
+  group_by(model) %>% 
+  mutate(frac = 100*n/sum(n)) %>% 
+  filter(n == max(n)) %>% 
+  ungroup()
+
+# 1 day
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>%
+  filter(abs(lb-implied_cp)<=1) %>% 
+  count(model,implied_cp) %>% 
+  group_by(model) %>% 
+  mutate(frac = 100*n/sum(n)) %>% 
+  filter(n == max(n)) %>% 
+  ungroup()
+
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>%
+  filter(abs(lb-implied_cp)<=5) %>% 
+  ggplot(aes(implied_cp)) +
+  geom_histogram() +
+  facet_wrap(~model)
+
+
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>%
+  filter(abs(lb-implied_cp)<=1) %>% 
+  ggplot(aes(implied_cp)) +
+  geom_histogram() +
+  facet_wrap(~model)
+
+# Reapply to final model
+fit_trends(count_data_ssd,30)
+fit_trends(count_data_ssd,18)
+
+fit_trends(count_data_ssd,30) %>% 
+  .$pred %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse() +
+  geom_line(aes(y=pred)) +
+  facet_wrap(~model) 
+  
+
+
+ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>%
+  filter(abs(lb-implied_cp)<=5) %>% 
+  filter(implied_cp == 30) %>% 
+  group_by(model) %>% 
+  summarise(mean_mse = mean(mse))
+
+tmp <- ssd_boot_res %>% 
+  select(boot_trial,cp_res) %>% 
+  unnest(cp_res) %>% 
+  count(model,implied_cp) %>% 
+  group_by(model) %>% 
+  mutate(frac = 100*n/sum(n))
+
+ssd_boot_res$cp_res[[1]] %>% 
+  mutate(cp_dev = abs(lb-implied_cp)) %>% 
+  filter(cp_dev<=5) %>% 
+  count(implied_cp)
+
+
+
 
 
 ssd_boot_res %>% 
@@ -282,11 +400,7 @@ ssd_boot_res %>%
 tibble(lb = 28:(round(delay_params$upper_bound*(2/3)))) %>% 
   mutate(res = map(lb,~fit_trends(count_data_ssd,.)$cp_res))
   
-  fit_trends()
 
-boot_counts %>% 
-  select(boot_trial,ssd_vis_count) %>% 
-  mutate()
 
 fit_trends(count_data_ssd,128)$cp_res
 
