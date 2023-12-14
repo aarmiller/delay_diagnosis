@@ -1,6 +1,6 @@
 To Do List for Dengue
 
--Update the change-point to ~16-18 days
+-Update the change-point to ~16-18 days (Aaron said 17 cp piecewise cubic periodicity)
 
 -Add antibiotics as a risk factor (see list sent to Scott)
 -Add ID consult as a risk factor (STDPROV = 285 or 448)

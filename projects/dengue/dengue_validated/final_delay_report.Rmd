@@ -53,17 +53,49 @@ if(project_test>0){
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
-
 ## Pull in the data
-load(paste0(delay_base_path,"all_dx_visits.RData"))
-rm(visit_counts)
-load(paste0(delay_base_path,"delay_tm.RData"))
+# identify test dates
 load(paste0(delay_params$out_path,"index_cases.RData"))
+db <- src_sqlite(paste0(delay_params$small_db_path, "dengue.db"))
+proc_codes <- c("86790", "87449", "87798")
+
+procs <- db %>% 
+  tbl("all_proc_visits") %>% 
+  filter(proc %in% proc_codes) %>% 
+  filter(between(days_since_index,-14,0)) %>% 
+  collect()
+
+procs <- procs %>% distinct() %>% 
+  group_by(patient_id) %>% 
+  summarise(days_since_index = min(days_since_index))
+
+# 342 enrolles had index date shifted back to test date.
+index_cases <- index_cases %>%  left_join(procs, by = "patient_id") %>% 
+  mutate(days_since_index = ifelse(is.na(days_since_index), 0L, days_since_index)) %>% 
+  mutate(test_date = index_date + days_since_index) %>% 
+  rowwise() %>% 
+  mutate(new_index = min(index_date, test_date)) %>% 
+  ungroup() %>% 
+  select(patient_id, old_index = index_date, index_date = new_index, time_before_index, max_time_before_index) 
+# %>% 
+#   filter(index_date<old_index)
+
+load(paste0(delay_base_path,"all_dx_visits.RData"))
+rm(visit_counts, sim_obs, index_dx_dates)
+
+# update all_dx_visits
+all_dx_visits <- all_dx_visits %>%
+  inner_join(index_cases %>% select(patient_id, old_index, index_date), by = "patient_id") %>% 
+  mutate(admdate = old_index+days_since_index) %>% 
+  select(-days_since_index) %>% 
+  mutate(days_since_index = admdate-index_date) %>% 
+  select(-admdate) %>% 
+  filter(days_since_index<=0) 
 
 # Subset to project specific patient ids
-index_dx_dates <- index_dx_dates %>% inner_join(index_cases)
+index_dx_dates <- index_cases
 patient_ids <- index_cases %>% distinct(patient_id)
-all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
+
 total_patients <- nrow(patient_ids)
 
 # visit counts
