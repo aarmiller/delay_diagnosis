@@ -4,3 +4,5 @@
 .Ruserdata
 delay_diagnosis.Rproj
 .DS_Store
+._.DS_Store
+._*
