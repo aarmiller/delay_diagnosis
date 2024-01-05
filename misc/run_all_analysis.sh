@@ -140,7 +140,21 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh meningitis
 # qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue
 # qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue
 # qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
-qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
 qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh dengue
+
+
+#### Pertussis ####
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh pertussis
+# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh pertussis
+# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh pertussis
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh pertussis
 
 

@@ -119,7 +119,8 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
                                         final_model = NA,
                                         periodicity = TRUE,
                                         miss_bins = c(1,2,3,4,5),
-                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)))
+                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180))
+                         )
 
 # save parameters
 save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")

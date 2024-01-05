@@ -5,7 +5,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "sarcoid"
+# cond_name <- "pertussis"
 
 ### Load delay params ----------------------------------------------------------
 
