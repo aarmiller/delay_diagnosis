@@ -13,6 +13,7 @@
 # dataset index_dx_visits.RData should be the only file generated.
 
 library(tidyverse)
+library(bit64)
 
 db <- src_sqlite("/Shared/AML/truven_extracts/small_dbs/pertussis/pertussis.db")
 
