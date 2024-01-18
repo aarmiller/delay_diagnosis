@@ -150,7 +150,8 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh dengue
 # qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh pertussis
 
 # qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh pertussis
-qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pertussis
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pertussis
+qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh pertussis
 qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh pertussis
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh pertussis
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh pertussis

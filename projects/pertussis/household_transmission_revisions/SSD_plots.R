@@ -13,23 +13,41 @@ tmp <- db %>%
   filter(between(days_since_index,-14,14)) %>% 
   collect()
 
-include_ids <- tmp %>% 
+# Validated ids
+validated_ids <- tmp %>% 
   distinct(patient_id)
+rm(tmp)
+
+# Exclude Medicaid
+include_ids <- db %>% 
+  tbl("enrolid_crosswalk") %>% 
+  filter(medicaid==0) %>% 
+  select(patient_id) %>% 
+  collect()
 
 dx_visits <- db %>% 
   tbl("all_dx_visits") %>% 
   inner_join(include_ids, copy = TRUE) %>% 
   collect()
 
+dx_visits <- dx_visits %>% 
+  left_join(mutate(validated_ids,validated=1L)) %>% 
+  mutate(validated = replace_na(validated,0L))
+
 save(dx_visits, file = "/Shared/AML/tmp_transfer/pertussis_dx_visits.RData")
+
+#### RUN LOCALLY ####
+rm(list = ls())
+
 
 load("/Volumes/AML/tmp_transfer/pertussis_dx_visits.RData")
 
-# Load SSD set
-ssd_codes <- read_csv("~/Documents/GitHub/delay_dx/params/ssd_codes/pertus/ssd_codes.csv")
+# Load New SSD set
+ssd_codes <- read_csv("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/revised_ssd.csv")
 
 ssd_codes <- ssd_codes %>% 
-  select(dx = icd_codes, dx_ver = icd_version)
+  filter(Include!="No") %>% 
+  select(dx,dx_ver,desc)
 
 ssd_counts <- dx_visits %>% 
   filter(between(days_since_index,-180,180)) %>% 
@@ -37,13 +55,18 @@ ssd_counts <- dx_visits %>%
   distinct(patient_id,dx,dx_ver,days_since_index) %>% 
   count(dx,dx_ver,days_since_index)
 
+ssd_counts_validated <- dx_visits %>% 
+  filter(validated==1) %>% 
+  filter(between(days_since_index,-180,180)) %>% 
+  inner_join(ssd_codes) %>% 
+  distinct(patient_id,dx,dx_ver,days_since_index) %>% 
+  count(dx,dx_ver,days_since_index)
 
-ssd_counts %>% 
-  group_by(dx,dx_ver) %>% 
-  summarise(n = sum(n)) %>% 
-  arrange(desc(n))
 
 ssd_counts <- ssd_counts %>% 
+  inner_join(codeBuildr::all_icd_labels)
+
+ssd_counts_validated <- ssd_counts_validated %>% 
   inner_join(codeBuildr::all_icd_labels)
 
 ssd_counts_totals <- ssd_counts %>% 
@@ -52,11 +75,20 @@ ssd_counts_totals <- ssd_counts %>%
   arrange(desc(n)) %>% 
   ungroup()
 
+ssd_counts_totals_validated <- ssd_counts_validated %>% 
+  group_by(dx,dx_ver) %>% 
+  summarise(n = sum(n)) %>% 
+  arrange(desc(n)) %>% 
+  ungroup()
+
 ssd_counts <- ssd_counts %>% 
+  mutate(label = paste0("ICD-",dx_ver," ",dx,": ",str_sub(desc,1,40)))
+
+ssd_counts_validated <- ssd_counts_validated %>% 
   mutate(label = paste0("ICD-",dx_ver," ",dx,": ",desc))
 
-
 pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/ssd_trends.pdf",onefile = TRUE)
+pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/1_12_24/sup_fig_2_ssd_trends.pdf",onefile = TRUE)
 for (i in 1:ceiling(nrow(ssd_counts_totals)/6)){
   
   p <- ssd_counts_totals %>% 
@@ -78,13 +110,35 @@ for (i in 1:ceiling(nrow(ssd_counts_totals)/6)){
 }
 dev.off()
 
-ssd_counts_totals %>% 
-  slice((i*6-5):(i*6))
+# ssd_counts_totals %>% 
+#   slice((i*6-5):(i*6))
+# 
+# ssd_counts_totals %>% 
+#   inner_join(distinct(ssd_counts,dx,dx_ver,desc)) %>% 
+#   write_csv("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/ssd_include.csv")
 
-ssd_counts_totals %>% 
-  inner_join(distinct(ssd_counts,dx,dx_ver,desc)) %>% 
-  write_csv("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/ssd_include.csv")
+pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/ssd_trends_validated.pdf",onefile = TRUE)
+for (i in 1:ceiling(nrow(ssd_counts_totals_validated)/6)){
   
+  p <- ssd_counts_totals_validated %>% 
+    slice((i*6-5):(i*6)) %>% 
+    select(-n) %>% 
+    inner_join(ssd_counts_validated) %>% 
+    filter(days_since_index!=0) %>% 
+    group_by(dx,dx_ver,label) %>% 
+    mutate(weeks_since_index = days_since_index %/% 7) %>% 
+    group_by(dx,dx_ver,label,weeks_since_index) %>% 
+    summarise(n = mean(n)) %>% 
+    ggplot(aes(weeks_since_index,n)) +
+    geom_point() +
+    facet_wrap(~label, scales = "free_y", ncol = 2) +
+    geom_vline(aes(xintercept = 0), linetype = 2) +
+    theme_bw()
+  
+  print(p)
+}
+dev.off()
+
 
 
 ssd_counts_totals %>% 
@@ -101,6 +155,110 @@ ssd_counts_totals %>%
   facet_wrap(~label, scales = "free_y", ncol = 2) +
   geom_vline(aes(xintercept = 0), linetype = 2) +
   theme_bw()
+
+#######################
+#### Plot Selected ####
+#######################
+
+count_weeks <- function(codes){
+  dx_visits %>% 
+    filter(dx %in% c(codes)) %>% 
+    filter(between(days_since_index,-180,180)) %>% 
+    filter(days_since_index!=0) %>% 
+    mutate(weeks_since_index = days_since_index %/% 7) %>% 
+    distinct(patient_id,weeks_since_index) %>% 
+    count(weeks_since_index)
+}
+
+count_weeks2 <- function(codes){
+  dx_visits %>% 
+    filter(dx %in% c(codes)) %>% 
+    filter(between(days_since_index,-180,180)) %>% 
+    filter(days_since_index!=0) %>% 
+    distinct(patient_id,days_since_index) %>% 
+    count(days_since_index) %>% 
+    mutate(weeks_since_index = days_since_index %/% 7) %>% 
+    group_by(weeks_since_index) %>% 
+    summarise(n = mean(n,na.rm = T))
+}
+
+# cough
+count_weeks(c("7862","R05")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+# fever
+count_weeks(c("7806","R509")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+# croup
+count_weeks(c("4644","J050")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+# Asthma
+count_weeks(c("49392","J45901")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+# Bronchitis
+count_weeks2(c("4660","J209")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+# Unspecified resp infection
+count_weeks2(c("4659","J069")) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() 
+
+pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/focal_ssd_trends.pdf",
+    width = 6, height = 4)
+bind_rows(mutate(count_weeks2(c("4659","J069")),
+                 group = "Acute Resp. Inf. Unspec."),
+          mutate(count_weeks2(c("4660","J209")),
+                 group = "Bronchitis"),
+          mutate(count_weeks2(c("49392","J45901")),
+                 group = "Asthma"),
+          mutate(count_weeks2(c("4644","J050")),
+                 group = "Croup"),
+          mutate(count_weeks2(c("7806","R509")),
+                 group = "Fever"),
+          mutate(count_weeks2(c("7862","R05")),
+                 group = "Cough"))   %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal() +
+  facet_wrap(~group,scales = "free_y") +
+  xlab("Weeks Since Index Pertussis Diagnosis") +
+  ylab("Number of Patients with a Visit")
+dev.off()
+
+
+dx_visits %>% 
+  filter(dx %in% c("7862","R05")) %>% 
+  filter(between(days_since_index,-180,180)) %>% 
+  filter(days_since_index!=0) %>% 
+  mutate(weeks_since_index = days_since_index %/% 7) %>% 
+  distinct(patient_id,weeks_since_index) %>% 
+  count(weeks_since_index) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_minimal()
 
 
 
