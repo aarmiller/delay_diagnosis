@@ -37,15 +37,17 @@ load(paste0(sim_res_path,"sim_res_ssd.RData"))
 # sim_res_ssd
 
 
-# ssd_codes <- codeBuildr::load_ssd_codes("sepsis_revised10") %>%
-#   filter(type %in% c("icd9","icd10")) %>%
-#   mutate(dx=code,
-#          dx_ver = ifelse(type=="icd9",9L,10L)) %>%
-#   select(dx,dx_ver) %>% 
-#   distinct() %>% 
-#   filter(!is.na(dx))
+########################
+#### All SSD Counts ####
+########################
 
-
+ssd_codes <- codeBuildr::load_ssd_codes("sepsis_revised10") %>%
+  filter(type %in% c("icd9","icd10")) %>%
+  mutate(dx=code,
+         dx_ver = ifelse(type=="icd9",9L,10L)) %>%
+  select(dx,dx_ver) %>%
+  distinct() %>%
+  filter(!is.na(dx))
 
 
 count_ssds <- function(data){
@@ -150,5 +152,102 @@ save(ssd_counts_summary,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revise
 
 
 ### Category 2 -----------------------------------------------------------------
+
+
+# get aggregated SSD categories
+ssd_cats <- read_csv("/Shared/AML/cdc_sepsis/delay_dx/data/sepsis_ssd_categories.csv")
+
+ssd_codes <- ssd_cats %>% 
+  select(dx=`ICD Code`,label=group2) %>% 
+  mutate(dx_ver=10)
+
+
+ssd_dx_visits <- inner_join(all_dx_visits, ssd_codes, by = c("dx", "dx_ver"))
+
+
+count_ssd_cats <- function(data){
+  data %>% 
+    inner_join(sim_obs,by = join_by(obs)) %>%
+    inner_join(ssd_dx_visits,by = join_by(patient_id, days_since_index),relationship = "many-to-many") %>% 
+    distinct(label,boot_id,days_since_index) %>% 
+    count(label) %>% 
+    arrange(desc(n)) %>% 
+    mutate(frac = n/nrow(data))
+}
+
+
+count_ssd_cats(sim_res_ssd$res[[1]])
+
+tmp <- sim_res_ssd %>% 
+  mutate(ssd_count = map(res,count_ssd_cats))
+
+
+ssd_counts <- tmp %>% 
+  select(sim_trial,boot_trial,ssd_count) %>% 
+  unnest(ssd_count)
+
+ssd_counts_summary <- ssd_counts %>% 
+  mutate(miss_frac = 100*frac) %>% 
+  group_by(label) %>% 
+  summarise(mean_miss_frac = mean(miss_frac),
+            low_miss_frac = quantile(miss_frac,probs =0.025),
+            high_miss_frac = quantile(miss_frac,probs =0.975),
+            median_miss_frac = median(miss_frac),
+            min_miss_frac = min(miss_frac),
+            max_miss_frac = max(miss_frac)) %>% 
+  arrange(desc(mean_miss_frac)) %>% 
+  ungroup()
+
+save(ssd_counts_summary,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_cat2.RData")
+
+
+### Pain -----------------------------------------------------------------------
+
+
+# get aggregated SSD categories
+ssd_cats <- read_csv("/Shared/AML/cdc_sepsis/delay_dx/data/sepsis_ssd_categories.csv")
+
+ssd_codes <- ssd_cats %>% 
+  filter(`Pain Yes/No`=="yes") %>% 
+  select(dx=`ICD Code`) %>% 
+  mutate(label = "pain") %>% 
+  mutate(dx_ver=10)
+
+
+ssd_dx_visits <- inner_join(all_dx_visits, ssd_codes, by = c("dx", "dx_ver"))
+
+
+count_ssd_cats <- function(data){
+  data %>% 
+    inner_join(sim_obs,by = join_by(obs)) %>%
+    inner_join(ssd_dx_visits,by = join_by(patient_id, days_since_index),relationship = "many-to-many") %>% 
+    distinct(label,boot_id,days_since_index) %>% 
+    count(label) %>% 
+    arrange(desc(n)) %>% 
+    mutate(frac = n/nrow(data))
+}
+
+tmp <- sim_res_ssd %>% 
+  mutate(ssd_count = map(res,count_ssd_cats))
+
+
+ssd_counts <- tmp %>% 
+  select(sim_trial,boot_trial,ssd_count) %>% 
+  unnest(ssd_count)
+
+ssd_counts_summary <- ssd_counts %>% 
+  mutate(miss_frac = 100*frac) %>% 
+  group_by(label) %>% 
+  summarise(mean_miss_frac = mean(miss_frac),
+            low_miss_frac = quantile(miss_frac,probs =0.025),
+            high_miss_frac = quantile(miss_frac,probs =0.975),
+            median_miss_frac = median(miss_frac),
+            min_miss_frac = min(miss_frac),
+            max_miss_frac = max(miss_frac)) %>% 
+  arrange(desc(mean_miss_frac)) %>% 
+  ungroup()
+
+save(ssd_counts_summary,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_cat2.RData")
+
 
 
