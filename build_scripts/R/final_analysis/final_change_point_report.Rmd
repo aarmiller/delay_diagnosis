@@ -57,11 +57,19 @@ cond_name <- cond_label
 
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 
-load(paste0(delay_base_path,"all_dx_visits.RData"))
-rm(visit_counts)
+# identify test dates
 load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(delay_base_path,"all_dx_visits.RData"))
+rm(visit_counts, sim_obs, index_dx_dates)
+
+# update all_dx_visits
+all_dx_visits <- all_dx_visits %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<=0) 
+
 patient_ids <- index_cases %>% distinct(patient_id)
-all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
 
 # visit counts
 visit_counts <- all_dx_visits %>%

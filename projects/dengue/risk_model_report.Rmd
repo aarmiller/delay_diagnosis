@@ -20,14 +20,14 @@ library(ggplot2)
 library(lubridate)
 
 # params <- list()
-# params$cond <- "tb"
+# params$cond <- "dengue"
 
 # load delay_parms
-load("/Shared/AML/params/delay_any_params.RData")
+load("/Shared/AML/params/final_delay_params.RData")
 
-delay_params <- delay_any_params[[params$cond]]
+delay_params <- final_delay_params[[proj_name]]
 
-risk_model_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/risk_models/")
+risk_model_base_path <- paste0(delay_params$out_path,"risk_models/")
 
 # load results data
 # load("/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/risk_models/ssd_miss_risk_models.RData")
@@ -57,7 +57,10 @@ better_labels <- tribble(~term,~label,
                          'raceBlack', 'Black race',
                          'raceHispanic', 'Hispanic race',
                          'raceMissing/Unknown', 'Missing/Unknown race',
-                         'raceOther', 'Other race')
+                         'raceOther', 'Other race',
+                         "abx", "Antibiotics during visit",
+                         "abx_window", "Antibiotics during delay window",
+                         "ID_consult", "ID consult during visit")
 
 ```
 

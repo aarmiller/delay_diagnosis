@@ -1,5 +1,5 @@
 
-args = commandArgs(trailingOnly=TRUE)
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
 
 # devtools::install_github("aarmiller/smallDB", dependencies = FALSE, force = TRUE)
 # devtools::install_github("aarmiller/codeBuildr", dependencies = FALSE, force = TRUE)
@@ -7,7 +7,9 @@ args = commandArgs(trailingOnly=TRUE)
 
 # Set working directory
 # name of condition
-project_name <- args[1]
+# args = commandArgs(trailingOnly=TRUE)
+# project_name <- args[1]
+# project_name <- "dengue"
 
 rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/final_analysis/final_delay_report.Rmd",
                   params = list(proj = project_name),
@@ -15,5 +17,5 @@ rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosi
                                       stringr::str_split(project_name, "_")[[1]][1], 
                                       ifelse( stringr::str_split(project_name, "_")[[1]][1] == project_name ,
                                               "/", paste0("/", project_name, "/")))
-                  )
+)
 

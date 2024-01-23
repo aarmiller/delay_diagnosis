@@ -1,11 +1,12 @@
 
 # This script is a placeholder for generating a change-point 
 
-args = commandArgs(trailingOnly=TRUE)
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
+# args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-project_name <- args[1]
-# project_name <-  "sarcoid_lung"
+# project_name <- args[1]
+# project_name <-  "dengue"
 
 rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/final_analysis/final_change_point_report.Rmd",
                   params = list(proj = project_name),
@@ -13,4 +14,4 @@ rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosi
                                       stringr::str_split(project_name, "_")[[1]][1], 
                                       ifelse( stringr::str_split(project_name, "_")[[1]][1] == project_name ,
                                               "/", paste0("/", project_name, "/")))
-                  )
+)

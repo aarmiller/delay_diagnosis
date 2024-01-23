@@ -1,11 +1,12 @@
 
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
 library(tidyverse)
 
-args = commandArgs(trailingOnly=TRUE)
+# args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-proj_name <- args[1]
-# proj_name <-  "sarcoid_lung"
+# proj_name <- args[1]
+# proj_name <-  "dengue"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 ### Load delay params ----------------------------------------------------------
@@ -34,6 +35,7 @@ if (!dir.exists(plot_path)){
 
 ### Load Data ------------------------------------------------------------------
 load("/Shared/AML/params/delay_any_params.RData")
+load(paste0(delay_params$out_path,"index_cases.RData"))
 
 tmp_delay_params <- delay_any_params[[cond_name]]
 
@@ -41,13 +43,19 @@ db_path <- tmp_delay_params$path
 
 db <- src_sqlite(paste0(db_path,"/",cond_name,".db"))
 
-load(paste0(delay_params$out_path,"index_cases.RData"))
 patient_ids <- index_cases %>% distinct(patient_id)
 
 index_dx_dates <- db %>% tbl("index_dx_dates") %>% 
-  filter(patient_id %in% local(patient_ids$patient_id)) %>% collect()
+  filter(patient_id %in% local(patient_ids$patient_id)) %>% collect() %>% 
+  select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id") 
+  
 all_dx_visits <- db %>% tbl("all_dx_visits") %>% 
-  filter(patient_id %in% local(patient_ids$patient_id)) %>% collect()
+  filter(patient_id %in% local(patient_ids$patient_id)) %>% collect() %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) 
 
 all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
 index_dx_dates <- index_dx_dates%>% inner_join(patient_ids)

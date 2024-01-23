@@ -1,5 +1,5 @@
 
-rm(list = ls())
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
 library(tidyverse)
 library(bit64)
 library(parallel)
@@ -17,11 +17,11 @@ source("github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 # source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
 # source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 
-args = commandArgs(trailingOnly=TRUE)
+# args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-proj_name <- args[1]
-# proj_name <- "sarcoid_skin"
+# proj_name <- args[1]
+# proj_name <- "dengue"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -42,7 +42,22 @@ load(paste0(data_in_path,"all_dx_visits.RData"))
 load(paste0(data_in_path,"delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-# load alls
+  
+# update all_dx_visits
+all_dx_visits <- all_dx_visits %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<=0) 
+
+# update sim_obs
+sim_obs <- sim_obs %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<0)
+
+# load all ssds
 project_test <- codeBuildr::avail_ssd_codes() %>% 
   filter(name == proj_name) %>% nrow()
 
@@ -76,8 +91,7 @@ n_patients <- nrow(patient_ids)
 ### Compute visit counts -------------------------------------------------------
 
 # all visits
-sim_tm_all <- all_dx_visits %>%
-  inner_join(patient_ids, by = "patient_id") %>% 
+sim_tm_all <- all_dx_visits %>% 
   mutate(period = -days_since_index) %>%
   distinct(patient_id,period,days_since_index) %>%
   inner_join(sim_obs,by = c("patient_id", "days_since_index")) 
@@ -88,8 +102,7 @@ all_vis_count <- sim_tm_all %>%
   mutate(dow = as.factor(period %% 7))
 
 # ssd visits
-sim_tm_ssd <- all_dx_visits %>%
-  inner_join(patient_ids, by = "patient_id") %>% 
+sim_tm_ssd <- all_dx_visits %>% 
   mutate(period = -days_since_index) %>%
   inner_join(ssd_codes,by = c("dx", "dx_ver")) %>% 
   distinct(patient_id,period,days_since_index) %>%
@@ -133,7 +146,6 @@ bind_rows(mutate(ssd_vis_count,group = "SSD Visits"),
   geom_vline(aes(xintercept = delay_params$cp)) +
   theme_bw()
 ggsave(paste0(sim_out_path,"visit_trends.jpeg"), width = 10, height = 6)
-
 
 
 ################################
@@ -280,7 +292,8 @@ sim_obs_reduced <- sim_obs %>%
 save(sim_obs_reduced, file = paste0(sim_out_path,"sim_obs_reduced.RData"))
 
 # cleanup
-rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name","n_patients"))])
+rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name","n_patients",
+                             "proj_name", "project_name"))])
 gc()
 
 

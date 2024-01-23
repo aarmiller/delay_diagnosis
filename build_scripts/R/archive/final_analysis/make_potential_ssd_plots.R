@@ -1,8 +1,11 @@
 
 library(tidyverse)
 
+args = commandArgs(trailingOnly=TRUE)
+
 # name of condition
-proj_name <-  "dengue_validated"
+proj_name <- args[1]
+# proj_name <-  "sarcoid_lung"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 ### Load delay params ----------------------------------------------------------
@@ -38,45 +41,16 @@ db_path <- tmp_delay_params$path
 
 db <- src_sqlite(paste0(db_path,"/",cond_name,".db"))
 
-# identify test dates
 load(paste0(delay_params$out_path,"index_cases.RData"))
-db <- src_sqlite(paste0(delay_params$small_db_path, "dengue.db"))
-proc_codes <- c("86790", "87449", "87798")
-
-procs <- db %>% 
-  tbl("all_proc_visits") %>% 
-  filter(proc %in% proc_codes) %>% 
-  filter(between(days_since_index,-14,0)) %>% 
-  collect()
-
-procs <- procs %>% distinct() %>% 
-  group_by(patient_id) %>% 
-  summarise(days_since_index = min(days_since_index))
-
-# 342 enrolles had index date shifted back to test date.
-index_cases <- index_cases %>%  left_join(procs, by = "patient_id") %>% 
-  mutate(days_since_index = ifelse(is.na(days_since_index), 0L, days_since_index)) %>% 
-  mutate(test_date = index_date + days_since_index) %>% 
-  rowwise() %>% 
-  mutate(new_index = min(index_date, test_date)) %>% 
-  ungroup() %>% 
-  select(patient_id, old_index = index_date, index_date = new_index, time_before_index, max_time_before_index) 
-# %>% 
-#   filter(index_date<old_index)
-
 patient_ids <- index_cases %>% distinct(patient_id)
 
-index_dx_dates <- index_cases
+index_dx_dates <- db %>% tbl("index_dx_dates") %>% 
+  filter(patient_id %in% local(patient_ids$patient_id)) %>% collect()
 all_dx_visits <- db %>% tbl("all_dx_visits") %>% 
   filter(patient_id %in% local(patient_ids$patient_id)) %>% collect()
 
-# update all_dx_visits
-all_dx_visits <- all_dx_visits %>%
-  inner_join(index_cases %>% select(patient_id, old_index, index_date), by = "patient_id") %>% 
-  mutate(admdate = old_index+days_since_index) %>% 
-  select(-days_since_index) %>% 
-  mutate(days_since_index = admdate-index_date) %>% 
-  select(-admdate) 
+all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
+index_dx_dates <- index_dx_dates%>% inner_join(patient_ids)
 
 index_dx_dates <- index_dx_dates %>%
   filter(time_before_index>=delay_params$upper_bound)

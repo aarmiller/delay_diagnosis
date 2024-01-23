@@ -5,7 +5,7 @@ library(smallDB)
 # devtools::install_github("aarmiller/smallDB")
 
 # name of condition
-proj_name <- "dengue"
+proj_name <- "dengue_validated"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -116,7 +116,8 @@ rx_visits <- rx_visits %>%
 
 gc()
 
-abx_codes <- read_csv(paste0(delay_params$out_path, "antibiotics.csv"))
+dir <- stringr::str_split(delay_params$out_path, "/")[[1]]
+abx_codes <- read_csv(paste0(paste0(dir[1:(length(dir)-1)], collapse = "/"), "/antibiotics.csv"))
 abx_rx_vis <- rx_visits %>% 
   filter(ndcnum %in% abx_codes$ndcnum) 
 
@@ -699,5 +700,5 @@ save(ssd_miss_risk_models,file = paste0(out_path,"ssd_miss_risk_models.RData"))
 
 
 rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/dengue/risk_model_report.Rmd",
-                  params = list(cond = "Dengue"),
+                  params = list(cond = "Dengue Validated"),
                   output_dir = out_path)

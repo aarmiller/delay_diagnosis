@@ -16,8 +16,8 @@ source("github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-proj_name <- "dengue_validated"
-
+proj_name <- args[1]
+# proj_name <- "sarcoid_lung" 
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -43,52 +43,12 @@ load(paste0(delay_params$base_path,"/delay_results/all_dx_visits.RData"))
 load(paste0(delay_params$base_path,"/delay_results/delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-# identify test dates
-db <- src_sqlite(paste0(delay_params$small_db_path, "dengue.db"))
-proc_codes <- c("86790", "87449", "87798")
-
-procs <- db %>% 
-  tbl("all_proc_visits") %>% 
-  filter(proc %in% proc_codes) %>% 
-  filter(between(days_since_index,-14,0)) %>% 
-  collect()
-
-procs <- procs %>% distinct() %>% 
-  group_by(patient_id) %>% 
-  summarise(days_since_index = min(days_since_index))
-
-# 342 enrolles had index date shifted back to test date.
-index_cases <- index_cases %>%  left_join(procs, by = "patient_id") %>% 
-  mutate(days_since_index = ifelse(is.na(days_since_index), 0L, days_since_index)) %>% 
-  mutate(test_date = index_date + days_since_index) %>% 
-  rowwise() %>% 
-  mutate(new_index = min(index_date, test_date)) %>% 
-  ungroup() %>% 
-  select(patient_id, old_index = index_date, index_date = new_index, time_before_index, max_time_before_index) 
-# %>% 
-#   filter(index_date<old_index)
-
-# update all_dx_visits
-all_dx_visits <- all_dx_visits %>%
-  inner_join(index_cases %>% select(patient_id, old_index, index_date), by = "patient_id") %>% 
-  mutate(admdate = old_index+days_since_index) %>% 
-  select(-days_since_index) %>% 
-  mutate(days_since_index = admdate-index_date) %>% 
-  select(-admdate) %>% 
-  filter(days_since_index<=0) 
-
 # Subset to project specific patient ids
-index_dx_dates <- index_cases
+index_dx_dates <- index_dx_dates %>% inner_join(index_cases)
 patient_ids <- index_cases %>% distinct(patient_id)
 all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
 n_patients <- nrow(patient_ids)
-tm <- tm %>% 
-  inner_join(index_cases %>% select(patient_id, old_index, index_date), by = "patient_id") %>% 
-  select(-days_since_index) %>% 
-  mutate(days_since_index = admdate-index_date) %>% 
-  select(-old_index) %>% 
-  filter(days_since_index<=0) %>% 
-  select(patient_id, admdate, disdate, days_since_index, stdplac, setting_type)
+tm <- tm %>% inner_join(patient_ids)
 
 sim_tm <- all_dx_visits %>%
   mutate(period = -days_since_index) %>%
@@ -399,10 +359,8 @@ setting_counts_index <- generate_setting_counts(tm_data = tm,
 ### Rurality -------------------------------------------------------------------
 
 load(paste0(delay_params$base_path,"/delay_results/demo_data.RData"))
-demo1 <- demo1 %>% select(-index_date) %>% 
-  inner_join(index_cases %>% select(-time_before_index, -max_time_before_index, -old_index))
-demo2 <- demo2 %>% select(-index_date) %>% 
-  inner_join(index_cases %>% select(-time_before_index, -max_time_before_index, -old_index))
+demo1 <- demo1 %>% inner_join(patient_ids)
+demo2 <- demo2 %>% inner_join(patient_ids)
 
 rural_ids <- rural_visits %>% inner_join(patient_ids) %>% distinct(patient_id)
 

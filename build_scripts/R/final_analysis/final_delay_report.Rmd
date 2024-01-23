@@ -53,17 +53,24 @@ if(project_test>0){
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
-
 ## Pull in the data
-load(paste0(delay_base_path,"all_dx_visits.RData"))
-rm(visit_counts)
-load(paste0(delay_base_path,"delay_tm.RData"))
+# identify test dates
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
+load(paste0(delay_base_path,"all_dx_visits.RData"))
+rm(visit_counts, sim_obs, index_dx_dates)
+
+# update all_dx_visits
+all_dx_visits <- all_dx_visits %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<=0) 
+
 # Subset to project specific patient ids
-index_dx_dates <- index_dx_dates %>% inner_join(index_cases)
+index_dx_dates <- index_cases
 patient_ids <- index_cases %>% distinct(patient_id)
-all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
+
 total_patients <- nrow(patient_ids)
 
 # visit counts

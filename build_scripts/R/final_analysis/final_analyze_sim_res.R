@@ -1,5 +1,5 @@
 
-rm(list = ls())
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
 library(tidyverse)
 library(bit64)
 library(parallel)
@@ -13,11 +13,11 @@ setwd("/Shared/Statepi_Diagnosis/atlan")
 source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
 source("github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 
-args = commandArgs(trailingOnly=TRUE)
+# args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
-proj_name <- args[1]
-# proj_name <- "sarcoid_lung" 
+# proj_name <- args[1]
+# proj_name <- "dengue"
 
 load("/Shared/AML/params/final_delay_params.RData")
 
@@ -43,12 +43,24 @@ load(paste0(delay_params$base_path,"/delay_results/all_dx_visits.RData"))
 load(paste0(delay_params$base_path,"/delay_results/delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
+# update all_dx_visits
+all_dx_visits <- all_dx_visits %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<=0) 
+
 # Subset to project specific patient ids
-index_dx_dates <- index_dx_dates %>% inner_join(index_cases)
+index_dx_dates <- index_cases
 patient_ids <- index_cases %>% distinct(patient_id)
-all_dx_visits <- all_dx_visits %>% inner_join(patient_ids)
 n_patients <- nrow(patient_ids)
-tm <- tm %>% inner_join(patient_ids)
+
+# update time map
+tm <- tm %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>%
+  filter(days_since_index<=0)
 
 sim_tm <- all_dx_visits %>%
   mutate(period = -days_since_index) %>%
@@ -359,8 +371,12 @@ setting_counts_index <- generate_setting_counts(tm_data = tm,
 ### Rurality -------------------------------------------------------------------
 
 load(paste0(delay_params$base_path,"/delay_results/demo_data.RData"))
-demo1 <- demo1 %>% inner_join(patient_ids)
-demo2 <- demo2 %>% inner_join(patient_ids)
+demo1 <- demo1 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+demo2 <- demo2 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
 
 rural_ids <- rural_visits %>% inner_join(patient_ids) %>% distinct(patient_id)
 
