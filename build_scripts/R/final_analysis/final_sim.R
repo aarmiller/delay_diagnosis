@@ -221,10 +221,12 @@ tmp <- tmp %>%
 #### finalize and save data for bootstrapping ----------------------------------
 boot_data <- tmp
 rm(tmp)
+n_miss_boot_data <- boot_data %>% select(boot_trial, n_miss_all, n_miss_ssd)
 
 # save bootstrap data
 save(boot_data,file = paste0(sim_out_path,"boot_data.RData"))
-
+save(n_miss_boot_data, file = paste0(sim_out_path,"n_miss_boot_data.RData"))
+rm(n_miss_boot_data)
 # Compute number missed (note: need to export info in a report in future)
 # boot_data %>% 
 #   summarise(mean_n_miss_all = mean(n_miss_all),

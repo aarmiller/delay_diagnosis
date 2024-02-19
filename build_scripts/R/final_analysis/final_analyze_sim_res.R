@@ -363,10 +363,15 @@ source("github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R"
 sim_res <- sim_res_ssd %>% mutate(trial = row_number()) %>% 
   unnest(cols = c(res))
 
-# Generate the index counts
+# Generate the index counts by stdplac
 setting_counts_index <- generate_setting_counts(tm_data = tm,
-                               sim_res_data = sim_res,
-                               sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
+                                                sim_res_data = sim_res,
+                                                sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
+
+# Generate the index counts by setting
+setting_counts_index_by_setting <- generate_setting_counts_2(tm_data = tm,
+                                                             sim_res_data = sim_res,
+                                                             sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
 
 ### Rurality -------------------------------------------------------------------
 
@@ -450,5 +455,6 @@ save(agg_stats_all, agg_stats_ssd,
      dur_bins_all, dur_bins_ssd, 
      setting_counts_ssd, setting_counts_all,
      setting_counts_index,
+     setting_counts_index_by_setting,
      location_counts,
      file = paste0(sim_out_path,"aggregated_sim_results.RData"))

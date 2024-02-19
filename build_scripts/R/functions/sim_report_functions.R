@@ -1,5 +1,5 @@
 
-# generate counts by setting
+# generate counts by stdplac
 generate_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
   
   # NOTE: Change this to update groupings
@@ -85,3 +85,68 @@ generate_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
     left_join(index_stdplac_counts,by = "stdplac_group")
   
 }
+
+
+# generate counts by setting
+generate_setting_counts_2 <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
+  
+  # count patients
+  total_patients <- filter(tm_data,days_since_index==0) %>% 
+    distinct(patient_id) %>% 
+    nrow()
+  
+  index_setting_counts <- tm_data %>% 
+    filter(days_since_index==0) %>%
+    filter(setting_type!=4) %>% 
+    mutate(setting_type = setting_type_labels(setting_type)) %>%
+    distinct(patient_id,setting_type) %>% 
+    count(setting_type,name = "index_count") %>% 
+    mutate(index_pct1 = 100*index_count/sum(index_count),   # percent of total index locations
+           index_pct2 = 100*index_count/total_patients)     # percent of total patients %>% # percent of total index locations w/o Other
+  
+  ## get observation timemap -----------------------------------------------------
+  obs_tm <- tm_data %>%
+    inner_join(sim_res_sim_obs_data, by = c("patient_id", "days_since_index")) %>% 
+    filter(setting_type!=4) %>% 
+    mutate(setting_type = setting_type_labels(setting_type)) %>%
+    distinct(obs,days_since_index,patient_id,setting_type) 
+  
+  # join obs time map into simulation results
+  tmp <- sim_res_data %>% 
+    inner_join(obs_tm, by = "obs")
+  
+  sim_res_setting_counts <- tmp %>% 
+    distinct(trial,patient_id,days_since_index,setting_type) %>% 
+    group_by(trial,setting_type) %>% 
+    summarise(n=n(),
+              duration = mean(-days_since_index)) %>%  
+    group_by(trial) %>% 
+    mutate(pct_opp = 100*n/sum(n)) %>% 
+    ungroup() %>% 
+    inner_join(select(index_setting_counts,setting_type,index_count),by = "setting_type") %>% 
+    mutate(pct_opp_missed = 100*n/(n+index_count)) %>% 
+    group_by(setting_type) %>%
+    summarise(n_mean = mean(n),
+              n_low = quantile(n,probs = 0.025),
+              n_high = quantile(n,probs = 0.975),
+              dur_mean = mean(duration),
+              dur_low = quantile(duration,probs = 0.025),
+              dur_high = quantile(duration,probs = 0.975),
+              pct_opp_mean = mean(pct_opp),
+              pct_opp_low = quantile(pct_opp,probs = 0.025),
+              pct_opp_high = quantile(pct_opp,probs = 0.975),
+              pct_opp_missed_mean = mean(pct_opp_missed),
+              pct_opp_missed_low = quantile(pct_opp_missed,probs = 0.025),
+              pct_opp_missed_high = quantile(pct_opp_missed,probs = 0.975)) 
+  
+  sim_res_setting_counts %>% 
+    mutate_at(vars(n_mean:pct_opp_missed_high),~round(.,2)) %>% 
+    mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+           dur = paste0(dur_mean," (",dur_low,"-",dur_high,")"),
+           pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+           pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")")) %>% 
+    select(setting_type,n,dur,pct_opp,pct_opp_missed) %>% 
+    left_join(index_setting_counts,by = "setting_type")
+  
+}
+

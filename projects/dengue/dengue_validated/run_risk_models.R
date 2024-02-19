@@ -95,7 +95,7 @@ reg_demo <- reg_demo %>%
   mutate(age_cat = cut(age,age_cats)) %>% 
   mutate(month = as.character(month(as_date(index_date))),
          year = as.character(year(as_date(index_date)))) %>% 
-  select(patient_id,female,age_cat,msa,source,year,month,msa,race) %>% 
+  select(patient_id,female,age_cat,age,msa,source,year,month,msa,race) %>% 
   left_join(distinct(rural_visits,patient_id) %>% 
               mutate(rural = 1L), by = "patient_id") %>% 
   mutate(rural = replace_na(rural,0L))
@@ -117,7 +117,7 @@ rx_visits <- rx_visits %>%
 gc()
 
 dir <- stringr::str_split(delay_params$out_path, "/")[[1]]
-abx_codes <- read_csv(paste0(paste0(dir[1:(length(dir)-1)], collapse = "/"), "/antibiotics.csv"))
+abx_codes <- read_csv(paste0(paste0(dir[1:(length(dir)-2)], collapse = "/"), "/antibiotics.csv"))
 abx_rx_vis <- rx_visits %>% 
   filter(ndcnum %in% abx_codes$ndcnum) 
 
@@ -128,7 +128,7 @@ reg_demo <- reg_demo %>%
               mutate(abx_window=1L)) %>% 
   mutate_at(vars(abx_window),~replace_na(.,0L))
 
-
+save(reg_demo, file=paste0(out_path,"reg_data.RData"))
 ## Prepare ID consult indicators -----------------------------------------------
 
 # Aaron wants to know among those who received testing for dengue 
@@ -173,35 +173,48 @@ reg_demo <- reg_demo %>%
 #   mutate(time_between_test_ID = test_date-admdate) %>%
 #   count(time_between_test_ID) %>% print(n = Inf)
 
-consult_ids <- function (db_con, index_cases, stdproc_codes) {
-  plan <- collect_plan(db_con)
-  temp.out <- plan %>% mutate(setting = map(year, ~c("facility", "outpatient"))) %>% unnest(setting) %>%
-    filter(!(year == "01" & setting == "facility")) %>% 
-    gether_core_data(vars = c("patient_id", "stdplac", "svcdate",
-                              "stdprov"),
-                     db_con = db_con) %>% dplyr::mutate(core_data = purrr::map(core_data,
-                                                                               ~dplyr::distinct(.)))
-  temp.out <- temp.out %>% dplyr::mutate(source_type = ifelse(source ==
-                                                                "ccae", 1L, ifelse(source == "mdcr", 0L, 2L))) %>% dplyr::select("year",
-                                                                                                                                 "source_type", "core_data") %>% mutate(core_data = map(core_data,
-                                                                                                                                                                                        ~mutate(., stdprov = as.character(stdprov)))) %>%
-    tidyr::unnest(cols = c(core_data)) %>% dplyr::mutate(disdate = svcdate,
-                                                         admdate = svcdate) %>% dplyr::select(-svcdate) %>%
-    distinct()
-  
-  temp.out <- temp.out %>% inner_join(index_cases, by = "patient_id") %>% distinct() %>% 
-    filter(stdprov %in% stdproc_codes) %>% 
-    filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>% 
-    distinct(patient_id, admdate)
-  return(temp.out)
-}
+# This is the old function to find consult ids before Aaron added the stdprov_visits table to the database
+# consult_ids <- function (db_con, index_cases, stdproc_codes) {
+#   plan <- collect_plan(db_con)
+#   temp.out <- plan %>% mutate(setting = map(year, ~c("facility", "outpatient"))) %>% unnest(setting) %>%
+#     filter(!(year == "01" & setting == "facility")) %>% 
+#     gether_core_data(vars = c("patient_id", "stdplac", "svcdate",
+#                               "stdprov"),
+#                      db_con = db_con) %>% dplyr::mutate(core_data = purrr::map(core_data,
+#                                                                                ~dplyr::distinct(.)))
+#   temp.out <- temp.out %>% dplyr::mutate(source_type = ifelse(source ==
+#                                                                 "ccae", 1L, ifelse(source == "mdcr", 0L, 2L))) %>% dplyr::select("year",
+#                                                                                                                                  "source_type", "core_data") %>% mutate(core_data = map(core_data,
+#                                                                                                                                                                                         ~mutate(., stdprov = as.character(stdprov)))) %>%
+#     tidyr::unnest(cols = c(core_data)) %>% dplyr::mutate(disdate = svcdate,
+#                                                          admdate = svcdate) %>% dplyr::select(-svcdate) %>%
+#     distinct()
+#   
+#   temp.out <- temp.out %>% inner_join(index_cases, by = "patient_id") %>% distinct() %>% 
+#     filter(stdprov %in% stdproc_codes) %>% 
+#     filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>% 
+#     distinct(patient_id, admdate)
+#   return(temp.out)
+# }
 
+# 
+# ID_consult_vis_old <- consult_ids(con, 
+#                               index_cases %>% 
+#                                 mutate(index_date = index_date + shift) %>% 
+#                                 select(patient_id, index_date),
+#                               c("285", "448")) 
 
-ID_consult_vis <- consult_ids(con, 
-                              index_cases %>% 
-                                mutate(index_date = index_date + shift) %>% 
-                                select(patient_id, index_date),
-                              c("285", "448")) 
+ID_consult_vis <- con %>% tbl("stdprov_visits") %>% 
+  filter(patient_id %in% local(index_cases$patient_id)) %>% 
+  filter(stdprov %in%  c("285", "448")) %>% 
+  distinct() %>% 
+  collect() %>% 
+  inner_join(index_cases %>% 
+               mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id") %>% 
+  rename(admdate = svcdate) %>% 
+  filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>% 
+  distinct(patient_id, admdate)
 
 
 ## Add abx and ID consult to time map
