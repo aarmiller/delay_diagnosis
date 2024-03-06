@@ -13,6 +13,7 @@ load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
 out_path <-paste0(delay_params$out_path,"risk_models/") 
+sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
 # enrollment time prior to index
 db <- src_sqlite(paste0(delay_params$small_db_path, cond_name, ".db"))
@@ -124,10 +125,42 @@ table1 <- table1_fun(reg_demo)
 write_csv(table1, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table1.csv"))
 
 
+# Table 2 ----------------------------------------------------------------------
+load(paste0(sim_in_path,"aggregated_sim_results.RData"))
+
+index <- setting_counts_index_by_setting %>%
+  select(setting_type,index_count_mean:index_pct2_upperCI) %>% 
+  mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ","))) %>% 
+  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+  mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
+         index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
+  select(setting = setting_type,`Index Visits`=index_count,
+         `% of all Index Locations`=index_pct1)
+
+
+misses <- setting_counts_index_by_setting %>%
+  select(setting_type,n_mean:pct_opp_missed_high) %>% 
+  mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",")))%>% 
+  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")")) %>%
+  select(setting = setting_type, 
+         `Missed Opportunities`=n,
+         `% Missed Opp. In Setting`=pct_opp,
+         `% of Opportunities Missed`=pct_opp_missed)
+
+table2 <- inner_join(index, misses) %>% 
+  mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
+                          labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
+  arrange(setting)
+
+write_csv(table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table2.csv"))
+
+
+
 # Table 3 ----------------------------------------------------------------------
 n_total <- nrow(reg_demo)
-sim_in_path <- paste0(delay_params$out_path,"sim_results/")
-load(paste0(sim_in_path,"aggregated_sim_results.RData"))
 
 temp <- stringr::str_split(miss_bins_ssd$n, " ")
 n_new <- ceiling(as.numeric(sapply(temp, FUN = function(x) {x[1]})))
@@ -188,8 +221,8 @@ dur_bins_ssd_new <- dur_bins_ssd %>%
 dur_bins_ssd_mean_median <- agg_stats_ssd$main_stats %>% 
   select(-measure_out) %>% 
   filter(measure %in% c("mean_dur", "median_dur")) %>% 
-  mutate(CI = paste0(low, "-", high),
-         mean = as.character(mean)) %>% 
+  mutate(CI = paste0(trimws(format(round(low, 2), nsmall = 2)), "-", trimws(format(round(high, 2), nsmall = 2))),
+         mean = trimws(format(round(mean, 2), nsmall = 2))) %>% 
   select(metric = measure, estimate = mean, CI)
 
 table3 <- bind_rows(tibble(metric = "No. of missed opportunities per patient",
@@ -205,5 +238,127 @@ table3 <- bind_rows(tibble(metric = "No. of missed opportunities per patient",
                     
 write_csv(table3, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table3.csv"))
 
-                    
-                    
+# Appendix Table 1 --------------------------------------------------------------
+# name of condition
+proj_name <- "dengue_validated"
+cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
+
+load("/Shared/AML/params/final_delay_params.RData")
+
+delay_params <- final_delay_params[[proj_name]]
+out_path <-paste0(delay_params$out_path,"risk_models/") 
+sim_in_path <- paste0(delay_params$out_path,"sim_results/")
+load(paste0(out_path, "reg_data.RData"))
+
+load(paste0(sim_in_path,"aggregated_sim_results.RData"))
+
+index <- setting_counts_index_by_setting %>%
+  select(setting_type,index_count_mean:index_pct2_upperCI) %>% 
+  mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ","))) %>% 
+  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+  mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
+         index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
+  select(setting = setting_type,`Index Visits`=index_count,
+         `% of all Index Locations`=index_pct1)
+
+
+misses <- setting_counts_index_by_setting %>%
+  select(setting_type,n_mean:pct_opp_missed_high) %>% 
+  mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",")))%>% 
+  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")")) %>%
+  select(setting = setting_type, 
+         `Missed Opportunities`=n,
+         `% Missed Opp. In Setting`=pct_opp,
+         `% of Opportunities Missed`=pct_opp_missed)
+
+appendix_table1 <- inner_join(index, misses) %>% 
+  mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
+                          labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
+  arrange(setting)
+
+write_csv(appendix_table1, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "dengue", "/tables/appendix_table1.csv"))
+
+
+
+# Appendix Table 2 --------------------------------------------------------------
+
+n_total <- nrow(reg_demo)
+
+temp <- stringr::str_split(miss_bins_ssd$n, " ")
+n_new <- ceiling(as.numeric(sapply(temp, FUN = function(x) {x[1]})))
+n_range <- sapply(temp, FUN = function(x) {stringr::str_split(gsub("[()]", "", x[2]),  "-")})
+n_lower <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[1]})))
+n_upper <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[2]})))
+
+# No. of missed opportunities per patient
+
+miss_bins_ssd_new <- miss_bins_ssd %>% 
+  mutate(miss_bin = paste0(">=",miss_bin)) %>% 
+  select(miss_bin, n) %>% 
+  mutate(N_pat =  n_new,
+         N_pat_low = n_lower,
+         N_pat_upper = n_upper) %>% 
+  rowwise() %>% 
+  mutate(estimate = paste0(format(N_pat, big.mark = ","), " (", format(round(N_pat/n_total *100, 1), nsmall = 1), "%)"),
+         CI = paste0(format(N_pat_low, big.mark = ","), "-", format(N_pat_upper, big.mark = ","), " (",
+                     format(round(N_pat_low/n_total *100, 1), nsmall = 1), "-",
+                     format(round(N_pat_upper/n_total *100, 1), nsmall = 1), "%)")) %>% 
+  select(metric = miss_bin, estimate, CI)
+
+# mean/median No. of missed opportunities per patient
+miss_bins_ssds_mean_median <- agg_stats_ssd$main_stats %>% 
+  select(-measure_out) %>% 
+  filter(measure %in% c("mean_n_miss", "median_n_miss")) %>% 
+  mutate(CI = paste0(low, "-", high),
+         mean = as.character(mean)) %>% 
+  select(metric = measure, estimate = mean, CI)
+
+
+# Duration of Delayed Visits (days)
+
+temp <- stringr::str_split(dur_bins_ssd$n, " ")
+n_new <- ceiling(as.numeric(sapply(temp, FUN = function(x) {x[1]})))
+n_range <- sapply(temp, FUN = function(x) {stringr::str_split(gsub("[()]", "", x[2]),  "-")})
+n_lower <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[1]})))
+n_upper <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[2]})))
+
+
+dur_bins_ssd_new <- dur_bins_ssd %>% 
+  mutate(Duration = ifelse(duration_bin==1,
+                           paste0(">= ",duration_bin, " Day"),
+                           paste0(">= ",duration_bin, " Days"))) %>% 
+  select(Duration, n) %>% 
+  mutate(N_pat =  n_new,
+         N_pat_low = n_lower,
+         N_pat_upper = n_upper) %>% 
+  rowwise() %>% 
+  mutate(estimate = paste0(format(N_pat, big.mark = ","), " (", format(round(N_pat/n_total *100, 1), nsmall = 1), "%)"),
+         CI = paste0(format(N_pat_low, big.mark = ","), "-", format(N_pat_upper, big.mark = ","), " (",
+                     format(round(N_pat_low/n_total *100, 1), nsmall = 1), "-",
+                     format(round(N_pat_upper/n_total *100, 1), nsmall = 1), "%)")) %>% 
+  select(metric = Duration, estimate, CI)
+
+
+# mean/median No. of missed opportunities per patient
+dur_bins_ssd_mean_median <- agg_stats_ssd$main_stats %>% 
+  select(-measure_out) %>% 
+  filter(measure %in% c("mean_dur", "median_dur")) %>% 
+  mutate(CI = paste0(trimws(format(round(low, 2), nsmall = 2)), "-", trimws(format(round(high, 2), nsmall = 2))),
+         mean = trimws(format(round(mean, 2), nsmall = 2))) %>% 
+  select(metric = measure, estimate = mean, CI)
+
+appendix_table2 <- bind_rows(tibble(metric = "No. of missed opportunities per patient",
+                           estimate = "",
+                           CI = ""),
+                    miss_bins_ssd_new %>% mutate(metric=paste0(" ", metric)),
+                    miss_bins_ssds_mean_median %>% mutate(metric=paste0(" ", metric)),
+                    tibble(metric = "Duration of Delayed Visits ",
+                           estimate = "",
+                           CI = ""),
+                    dur_bins_ssd_new %>% mutate(metric=paste0(" ", metric)),
+                    dur_bins_ssd_mean_median %>% mutate(metric=paste0(" ", metric)))
+
+write_csv(appendix_table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "dengue", "/tables/appendix_table2.csv"))

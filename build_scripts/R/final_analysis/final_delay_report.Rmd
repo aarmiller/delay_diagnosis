@@ -104,6 +104,29 @@ total_ssd_visit_days_in_window <- all_dx_visits %>%
   distinct(patient_id,days_since_index) %>% 
   nrow()
 
+total_ssd_visit_days_in_study_period <- all_dx_visits %>% 
+  inner_join(ssd_codes) %>% 
+  filter(between(days_since_index,-delay_params$upper_bound,-1)) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  nrow()
+
+
+total_patient_any_vis_in_study_period <- all_dx_visits %>% 
+  filter(between(days_since_index,-delay_params$upper_bound,-1)) %>% 
+  distinct(patient_id) %>% 
+  nrow()
+
+percent_patient_any_vis_in_study_period <- gsub(" ", "", format(round(total_patient_any_vis_in_study_period/total_patients *100, 2), nsmall = 2))
+
+total_patient_ssd_in_study_period <- all_dx_visits %>% 
+  inner_join(ssd_codes) %>% 
+  filter(between(days_since_index,-delay_params$upper_bound,-1)) %>% 
+  distinct(patient_id) %>% 
+  nrow()
+
+percent_patient_ssd_in_study_period<- gsub(" ", "", format(round(total_patient_ssd_in_study_period/total_patients *100, 2), nsmall = 2))
+
+
 total_patient_any_vis_in_window <- all_dx_visits %>% 
   filter(between(days_since_index,-delay_params$cp,-1)) %>% 
   distinct(patient_id) %>% 
@@ -128,6 +151,8 @@ There were `r total_patients` enrollees diagnosed with `r cond_label`.
 The diagnostic opportunity window (i.e., time period before diagnosis where diagnostic opportunities may occur) was set between 1 and `r delay_params$cp` days before diagnosis.
 
 ### Visit Trends
+
+In the `r delay_params$upper_bound`-days prior to the index dengue diagnosis, `r percent_patient_any_vis_in_study_period`% (`r total_patient_any_vis_in_study_period`) of patients had at least one healthcare visit for any reason and `r percent_patient_ssd_in_study_period`% (`r total_patient_ssd_in_study_period`) had at least one SSD visit. There was a total of `r total_ssd_visit_days_in_study_period` SSD-visit days in the `r delay_params$upper_bound`-days prior to diagnosis. 
 
 Of the `r total_patients` patients considered, `r total_patient_any_vis_in_window` patients (`r percent_patient_any_vis_in_window`%) had a healthcare visit during diagnostic opportunity window. Additionally, of the `r total_patients` patients considered, `r total_patient_ssd_vis_in_window` patients (`r percent_patient_ssd_vis_in_window`%) had an SSD-related visit during diagnostic opportunity window.
 
@@ -335,11 +360,19 @@ miss_bins_ssd %>%
 The following table summarizes the basic types of settings where missed opportunities occurred:
 
 ```{r, echo = FALSE}
-setting_counts_ssd$setting_type_res %>%
-  mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
-         per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
-         per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2))) %>% 
-  mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+# setting_counts_ssd$setting_type_res %>%
+#   mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
+#          per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
+#          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2))) %>% 
+#   mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+
+
+setting_counts_ssd$setting_type_res %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+       pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
+       pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
          `Percent of Missed opportunities` = pct,
@@ -351,12 +384,21 @@ setting_counts_ssd$setting_type_res %>%
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
 ```{r, echo = FALSE}
+# setting_counts_ssd$stdplac_res %>%
+#   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
+#   mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
+#          per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
+#          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2))) %>% 
+#   mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+#   
+  
 setting_counts_ssd$stdplac_res %>%
-  inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
-  mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
-         per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2)),
-         per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2))) %>% 
-  mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+  inner_join(smallDB::stdplac_labels, by = "stdplac")  %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
+         pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(Setting = label,
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
@@ -369,7 +411,14 @@ The following table summarizes the types of settings where the index diagnoses o
 
 ```{r, echo = FALSE}
 setting_counts_index_by_setting %>%
-  select(setting = setting_type,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+  select(setting_type,index_count_mean:index_pct2_upperCI) %>% 
+  mutate(across(index_count_mean:index_count_upperCI, ~ceiling(.))) %>% 
+  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
+         index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")"),
+         index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
+  select(setting = setting_type,`Index Visits`=index_count,
+         `% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
@@ -379,6 +428,12 @@ The following table summarizes the more specific types of settings where the ind
 
 ```{r, echo = FALSE}
 setting_counts_index %>%
+  select(stdplac_group,index_count_mean:index_pct2_upperCI) %>% 
+  mutate(across(index_count_mean:index_count_upperCI, ~ceiling(.))) %>% 
+  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
+         index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")"),
+         index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
   select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>%
@@ -390,6 +445,13 @@ The following table summarizes the types of settings where missed opportunities 
 
 ```{r, echo = FALSE}
 setting_counts_index_by_setting %>%
+  select(setting_type,n_mean:pct_opp_missed_high) %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")"),
+         dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>%
   select(setting = setting_type, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
          `% of Opportunities Missed`=pct_opp_missed,
@@ -402,6 +464,13 @@ The following table is similar to the one above, but now presented by more speci
 
 ```{r, echo = FALSE}
 setting_counts_index %>%
+  select(stdplac_group,n_mean:pct_opp_missed_high) %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")"),
+         dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>% 
   select(setting = stdplac_group, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
          `% of Opportunities Missed`=pct_opp_missed,
@@ -485,11 +554,17 @@ miss_bins_all %>%
 The following table summarizes the basic types of settings where missed opportunities occurred:
 
 ```{r, echo = FALSE}
-setting_counts_all$setting_type_res  %>%
-  mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
-         per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
-         per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
-  mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+# setting_counts_all$setting_type_res  %>%
+#   mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
+#          per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
+#          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
+
+setting_counts_all$setting_type_res %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
+         pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
          `Percent of Missed opportunities` = pct,
@@ -501,16 +576,24 @@ setting_counts_all$setting_type_res  %>%
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
 ```{r, echo = FALSE}
+# setting_counts_all$stdplac_res %>%
+#   mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
+#          per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
+#          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
+#   mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
+#   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
+  
 setting_counts_all$stdplac_res %>%
-  mutate(per_mean_by_vis_days = gsub(" ", "", format(round(n_mean/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
-         per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
-         per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
-  mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
-  inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
+  inner_join(smallDB::stdplac_labels, by = "stdplac")  %>% 
+  mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+         pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
+         pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(Setting = label,
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
-         `Percent of Missed Visit Days` = pct_vis_days) %>%
+         `Percent of Missed Visit Days` = pct_vis_days) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```

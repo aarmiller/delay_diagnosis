@@ -62,6 +62,11 @@ better_labels <- tribble(~term,~label,
                          "abx_window", "Antibiotics during delay window",
                          "ID_consult", "ID consult during visit")
 
+better_labels <- better_labels %>% 
+  bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
+              select(term) %>% 
+              filter(grepl("setting_label", term)) %>% 
+              mutate(label = stringr::str_remove_all(term, "setting_label")))
 ```
 
 
@@ -79,7 +84,11 @@ The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_opp_res %>% 
-  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
   inner_join(better_labels) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
@@ -90,8 +99,11 @@ The following risk model pertains to Medicaid patients
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_opp_res_med %>% 
-  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
-  inner_join(better_labels) %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
@@ -109,8 +121,11 @@ The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_delay_pat_res %>% 
-  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
-  inner_join(better_labels) %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
@@ -121,8 +136,11 @@ The following risk model pertains to Medicaid patients
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_delay_pat_res_med %>% 
-  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
-  inner_join(better_labels) %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
@@ -142,7 +160,11 @@ The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_dur_res %>% 
-  mutate(`Estimate (Days)` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
+  mutate(`Estimate (Days)` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
   inner_join(better_labels) %>% 
   select(label, `Estimate (Days)`) %>% 
   kableExtra::kable() %>% 
@@ -154,8 +176,11 @@ The following risk model pertains to Medicaid patients
 ```{r, echo = FALSE}
 
 ssd_miss_risk_models$miss_dur_res_med %>% 
-  mutate(`Estimate (Days)` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
-  inner_join(better_labels) %>% 
+  mutate(`Estimate (Days)` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
   select(label, `Estimate (Days)`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)

@@ -24,6 +24,10 @@ if (!dir.exists(out_path)) {
 ### Load index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
+### Connect to db
+con <- DBI::dbConnect(RSQLite::SQLite(), 
+                      paste0(delay_params$small_db_path, str_split(proj_name, "_")[[1]][1], ".db"))
+
 num_cores <- 40
 cp_selected <- delay_params$cp
 
@@ -47,7 +51,6 @@ all_dx_visits <- all_dx_visits %>%
   select(-shift) %>% 
   filter(days_since_index<=0) 
 
-
 # update sim_obs
 sim_obs <- sim_obs %>%
   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
@@ -58,11 +61,44 @@ sim_obs <- sim_obs %>%
 
 # update time map
 load(paste0(delay_base_path,"delay_tm.RData"))
-tm <- tm %>% 
+
+# problem patient_ids that do not have index visits in tm (i.e. days_since_index ==0)
+problem_patient_ids <- tm %>% filter(days_since_index == 0) %>% distinct(patient_id) %>%
+  anti_join(tm %>% distinct(patient_id),.)
+
+# Get setting type for index dates
+setting_problem_patient_id <- tbl(con, "tm_full") %>% filter(patient_id %in% local(problem_patient_ids$patient_id)) %>% 
+  collect() %>% inner_join(index_cases %>% select(patient_id, svcdate = index_date) %>% 
+                             inner_join(problem_patient_ids)) %>% 
+  select(patient_id, admdate = svcdate, disdate, outpatient:inpatient) %>% 
+  pivot_longer(outpatient:inpatient, names_to = "setting_type", values_to = "ind") %>% 
+  filter(ind !=0) %>% select(-ind) %>% 
+  mutate(setting_type = as.integer(factor(setting_type, labels= 1:5,
+                               levels = c("outpatient",
+                                          "ed",
+                                          "obs_stay",
+                                          "rx",
+                                          "inpatient"))))
+
+# Get stdplac type for index dates
+std_plac_problem_patient_id <- tbl(con, "stdplac_visits") %>% filter(patient_id %in% local(problem_patient_ids$patient_id)) %>% 
+  collect() %>% inner_join(index_cases %>% select(patient_id, svcdate = index_date) %>% 
+                             inner_join(problem_patient_ids)) %>% 
+  select(patient_id, admdate = svcdate, stdplac)
+
+# construct tm for index dates for problem vis
+tm_problem_patient_id <- setting_problem_patient_id %>% inner_join(std_plac_problem_patient_id) %>% 
+  inner_join(index_cases %>% select(patient_id, index_date) %>% 
+               inner_join(problem_patient_ids)) %>% 
+  mutate(days_since_index = admdate - index_date) %>% 
+  select(names(tm))
+  
+tm <- tm %>% bind_rows(tm_problem_patient_id) %>% 
   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
   mutate(days_since_index = days_since_index - shift) %>% 
   select(-shift) %>%
   filter(days_since_index<=0)
+
 
 load(paste0(sim_out_path,"/sim_res_ssd.RData"))
 # sim_res_ssd
@@ -102,9 +138,6 @@ reg_demo <- reg_demo %>%
 
 
 ## Prepare antibiotic indicators -----------------------------------------------
-
-con <- DBI::dbConnect(RSQLite::SQLite(), 
-                      paste0(delay_params$small_db_path, str_split(proj_name, "_")[[1]][1], ".db"))
 
 rx_visits <- con %>% tbl("all_rx_visits") %>% 
   filter(patient_id %in% local(unique(index_cases$patient_id))) %>% 
@@ -227,6 +260,27 @@ tm <- tm %>% left_join(abx_rx_vis %>% mutate(abx = 1L), by = c("patient_id", "ad
 #### Prepare Visit Info ####
 ############################
 
+setting_labels <- expand.grid(outpatient = c("Outpatient", NA),
+                    inpatient = c("Inpatient", NA),
+                    ed = c("ED", NA),
+                    obs_stay = c("Observational Stay", NA)) %>% 
+  unite(., col = setting_label, sep = " + ", na.rm = T, remove =F) %>% 
+  mutate(across(outpatient:obs_stay, ~ifelse(is.na(.), F, T))) %>% 
+  mutate(setting_label = ifelse(setting_label == "", "Not any",
+                                ifelse(setting_label == "Inpatient", "Inpatient Only",
+                                       ifelse(setting_label == "Outpatient", "Outpatient Only",
+                                              ifelse(setting_label == "ED", "ED Only",
+                                                     ifelse(setting_label == "Observational Stay", "Observational Stay Only",
+                                                            setting_label))))))
+setting_labels <- setting_labels[order(rowSums(setting_labels[,2:5])), ]
+setting_labels <- setting_labels %>% mutate(setting_label = factor(setting_label, 
+                                 levels = c(setting_labels$setting_label[which(setting_labels$setting_label=="Outpatient Only")],
+                                            setting_labels$setting_label[-which(setting_labels$setting_label %in% c("Not any", "Outpatient Only"))],
+                                            setting_labels$setting_label[which(setting_labels$setting_label=="Not any")]),
+                                 labels = c(setting_labels$setting_label[which(setting_labels$setting_label=="Outpatient Only")],
+                                            setting_labels$setting_label[-which(setting_labels$setting_label %in% c("Not any", "Outpatient Only"))],
+                                            setting_labels$setting_label[which(setting_labels$setting_label=="Not any")])))
+
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
   filter(setting_type !=4) %>%
@@ -237,24 +291,7 @@ index_locations <- tm %>%
   select(patient_id,setting,weekend,dow, abx, ID_consult) %>%
   mutate(value = TRUE) %>% 
   spread(key= setting, value = value,fill = FALSE) %>% 
-  inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
-                     T,F,F,"Out only",
-                     T,T,F,"Out and ED",
-                     T,T,T,"All three",
-                     T,F,T,"Out and inpatient",
-                     F,T,F,"ED only",
-                     F,T,T,"ED and inpatient",
-                     F,F,T,"Inpatient only",
-                     F,F,F,"none")) %>% 
-  mutate(setting_label = fct_relevel(setting_label,
-                                     "Out only",
-                                     "ED only",
-                                     "Inpatient only",
-                                     "Out and ED",
-                                     "Out and inpatient",
-                                     "ED and inpatient",
-                                     "All three",
-                                     "none")) 
+  inner_join(setting_labels) 
 
 obs_locations <- tm %>% 
   left_join(sim_obs,by = c("patient_id", "days_since_index")) %>% 
@@ -265,24 +302,7 @@ obs_locations <- tm %>%
   select(patient_id,obs,setting, abx, ID_consult) %>%
   mutate(value = TRUE) %>% 
   spread(key= setting, value = value,fill = FALSE) %>% 
-  inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
-                     T,F,F,"Out only",
-                     T,T,F,"Out and ED",
-                     T,T,T,"All three",
-                     T,F,T,"Out and inpatient",
-                     F,T,F,"ED only",
-                     F,T,T,"ED and inpatient",
-                     F,F,T,"Inpatient only",
-                     F,F,F,"none")) %>% 
-  mutate(setting_label = fct_relevel(setting_label,
-                                     "Out only",
-                                     "ED only",
-                                     "Inpatient only",
-                                     "Out and ED",
-                                     "Out and inpatient",
-                                     "ED and inpatient",
-                                     "All three",
-                                     "none")) 
+  inner_join(setting_labels) 
 
 ### Prep weekend visit info ------------
 
@@ -320,7 +340,7 @@ get_miss_res <- function(trial_val){
     inner_join(reg_demo, by = "patient_id")
   
   
-  fit <- glm(miss~setting_label + obs_stay + age_cat + female + rural + source + weekend + abx + ID_consult, 
+  fit <- glm(miss~setting_label  + age_cat + female + rural + source + weekend + abx + ID_consult, 
              family = "binomial", data=reg_data)
   
   broom::tidy(fit)
@@ -373,10 +393,10 @@ get_miss_res_med <- function(trial_val){
     filter(source == "medicaid")
   
   
-  fit <- glm(miss~setting_label+obs_stay + age_cat + female + rural + race + weekend + abx + ID_consult,
+  fit <- glm(miss~setting_label + age_cat + female + rural + race + weekend + abx + ID_consult,
              family = "binomial", data=reg_data)
   
-  # fit.penalized <- logistf(miss~setting_label+obs_stay + age_cat + female + rural + race + weekend + abx ,
+  # fit.penalized <- logistf(miss~setting_label + age_cat + female + rural + race + weekend + abx ,
   #                          family = binomial, data=reg_data,
   #                          control = logistf.control( maxit = 1000),
   #                          plcontrol = logistpl.control( maxit = 1000)) 
@@ -713,4 +733,6 @@ save(ssd_miss_risk_models,file = paste0(out_path,"ssd_miss_risk_models.RData"))
 
 rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/dengue/risk_model_report.Rmd",
                   params = list(cond = "Dengue"),
-                  output_dir = out_path)
+                  output_dir = out_path,
+                  output_file = paste0(proj_name, "_risk_model_report_", lubridate::today() %>% format('%m-%d-%Y')))
+

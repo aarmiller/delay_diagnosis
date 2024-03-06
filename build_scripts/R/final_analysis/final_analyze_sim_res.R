@@ -35,13 +35,14 @@ if (!dir.exists(sim_out_path)) {
 ######################
 
 #### Load Data  ----------------------------------------------------------------
-# Load in sumulation results
+# Load in simulation results
 load(paste0(sim_out_path,"sim_res_ssd.RData"))
 load(paste0(sim_out_path,"sim_res_all.RData"))
 load(paste0(sim_out_path,"sim_obs_reduced.RData"))
 load(paste0(delay_params$base_path,"/delay_results/all_dx_visits.RData"))
 load(paste0(delay_params$base_path,"/delay_results/delay_tm.RData"))
 load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(sim_out_path,"boot_data.RData"))
 
 # update all_dx_visits
 all_dx_visits <- all_dx_visits %>%
@@ -347,15 +348,18 @@ sim_res <- list(sim_res_obs= sim_res_ssd %>% mutate(trial = row_number()) %>%
                 sim_res_miss_tab = sim_res_ssd %>% mutate(trial = row_number()) %>%
                   distinct(trial))
 
-setting_counts_ssd <- generate_setting_counts(obs_tm = obs_tm,
-                                          sim_res =sim_res)
+setting_counts_ssd <- generate_setting_counts_2(obs_tm = obs_tm,
+                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_ssd),
+                                                sim_res =sim_res)
 
 sim_res <- list(sim_res_obs= sim_res_all %>% mutate(trial = row_number()) %>% 
                   unnest(cols = c(res)),
                 sim_res_miss_tab = sim_res_all %>% mutate(trial = row_number()) %>%
                   distinct(trial))
-setting_counts_all <- generate_setting_counts(obs_tm = obs_tm,
-                                          sim_res = sim_res)
+
+setting_counts_all <- generate_setting_counts_2(obs_tm = obs_tm,
+                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_all),
+                                                sim_res = sim_res)
 
 ### Setting summary index ------------------------------------------------------
 
@@ -364,12 +368,14 @@ sim_res <- sim_res_ssd %>% mutate(trial = row_number()) %>%
   unnest(cols = c(res))
 
 # Generate the index counts by stdplac
-setting_counts_index <- generate_setting_counts(tm_data = tm,
-                                                sim_res_data = sim_res,
-                                                sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
+setting_counts_index <- generate_setting_counts_2(tm_data = tm,
+                                                  bootstrap_data = boot_data %>% select(boot_trial, boot_sample),
+                                                  sim_res_data = sim_res,
+                                                  sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
 
 # Generate the index counts by setting
-setting_counts_index_by_setting <- generate_setting_counts_2(tm_data = tm,
+setting_counts_index_by_setting <- generate_setting_counts_3(tm_data = tm,
+                                                             bootstrap_data = boot_data %>% select(boot_trial, boot_sample),
                                                              sim_res_data = sim_res,
                                                              sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
 
