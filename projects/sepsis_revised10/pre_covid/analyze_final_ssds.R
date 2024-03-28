@@ -107,8 +107,12 @@ ssd_counts_summary %>%
 # get aggregated SSD categories
 ssd_cats <- read_csv("/Shared/AML/cdc_sepsis/delay_dx/data/sepsis_ssd_categories.csv")
 
-ssd_codes <- ssd_cats %>% 
-  select(dx=`ICD Code`,label=group1) %>% 
+ssd_cats_corretion <- read_csv("/Shared/AML/cdc_sepsis/delay_dx/data/corrected_labels.csv")
+
+ssd_codes <- ssd_cats_corretion %>%
+  rename(group1=label) %>% 
+  inner_join(ssd_cats) %>% 
+  select(dx=`ICD Code`,label=`new lab`) %>% 
   mutate(dx_ver=10)
 
 
@@ -247,7 +251,60 @@ ssd_counts_summary <- ssd_counts %>%
   arrange(desc(mean_miss_frac)) %>% 
   ungroup()
 
-save(ssd_counts_summary,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_cat2.RData")
+save(ssd_counts_summary,file = "/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_pain.RData")
+
+rm(list = ls())
+
+#######################
+#### Export Tables ####
+#######################
+
+load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_cat1.RData")
+cat1_res <- ssd_counts_summary
+load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_cat2.RData")
+cat2_res <- ssd_counts_summary
+load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/exponential_cp14/ssd_summary_counts_pain.RData")
+pain_res <- ssd_counts_summary
+
+tab1 <- bind_rows(cat1_res,pain_res) %>% 
+  arrange(desc(median_miss_frac)) %>% 
+  mutate(res =paste0(round(median_miss_frac,2)," (",round(low_miss_frac,2),"-",round(high_miss_frac,2),")")) %>% 
+  select(label,res)
+
+tab1 %>% write_csv("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/manuscripts/ssd_res_table1.csv")
+
+tab1 %>% arrange(label) %>% write_csv("~/Downloads/tmp.csv")
 
 
+tab2 <- bind_rows(cat2_res,pain_res) %>% 
+  arrange(desc(median_miss_frac)) %>% 
+  mutate(res =paste0(round(median_miss_frac,2)," (",round(low_miss_frac,2),"-",round(high_miss_frac,2),")")) %>% 
+  select(label,res)
 
+tab2 %>% write_csv("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/manuscripts/ssd_res_table2.csv")
+
+
+## Appendix table with codes
+
+ssd_cats <- read_csv("/Volumes/AML/cdc_sepsis/delay_dx/data/sepsis_ssd_categories.csv")
+
+ssd_cats_corretion <- read_csv("/Volumes/AML/cdc_sepsis/delay_dx/data/corrected_labels.csv")
+
+ssd_cats_corretion
+tmp1 <- ssd_cats %>% 
+  select(label = group1,dx = `ICD Code`) %>% 
+  inner_join(ssd_cats_corretion) %>% 
+  select(label = `new lab`,dx) %>% 
+  group_by(label) %>% 
+  nest() %>% 
+  mutate(codes = map_chr(data,~.$dx %>% paste0(collapse=", "))) %>% 
+  select(label,codes)
+
+tmp2 <- tibble(label = "pain",
+       codes = ssd_cats %>% 
+         filter(`Pain Yes/No`=="yes") %>% 
+         .$`ICD Code` %>% 
+         paste0(collapse = ", "))
+
+bind_rows(tmp1,tmp2) %>% 
+  write_csv("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/manuscripts/1_19_24/code_table.csv")

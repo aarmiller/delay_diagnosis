@@ -440,6 +440,12 @@ tm <- tm %>% inner_join(patient_ids)
 # Load Obs
 load(paste0(delay_params$base_path,"delay_results/all_dx_visits.RData"))
 
+# Load Boot data
+load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
+
+
+
+# Limit to the obs visits selected
 tmp <- sim_res_ssd %>% 
   mutate(obs = map(res,~distinct(.,obs))) %>% 
   select(obs) %>% 
@@ -450,10 +456,6 @@ sim_obs <- sim_obs %>%
   inner_join(tmp)
 
 rm(tmp)
-
-generate_setting_counts(tm_data = tm, 
-                        sim_res_data = sim_res_ssd$res[[1]],
-                        sim_res_sim_obs_data = sim_obs)
 
 new_stdplac_group <- tribble(~stdplac,~stdplac_group,
                              2, "Telehealth",
@@ -469,8 +471,10 @@ new_stdplac_group <- tribble(~stdplac,~stdplac_group,
                              31, "Nursing Facility",
                              32, "Nursing Facility")
 
-#### Note - Maybe go back to the index visits to compute these
-index_stdplac_counts <- tm %>% 
+#### Combute index visits counts -----------------------------------------------
+
+# compute index settings
+index_stdplac <- tm %>% 
   filter(days_since_index==0) %>%
   filter(setting_type!=4) %>% 
   filter(!(stdplac %in% c(81,41,42))) %>% #remove lab (81), ambulance land (41), ambulance air/water (42)
@@ -478,11 +482,16 @@ index_stdplac_counts <- tm %>%
   mutate(stdplac_group = ifelse(setting_type==2,"ED",
                                 ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
   mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
-  distinct(patient_id,stdplac_group) %>% 
-  count(stdplac_group,name = "index_count") %>% 
-  mutate(index_pct1 = 100*index_count/sum(index_count),   # percent of total index locations
-         index_pct2 = 100*index_count/n_patients)     # percent of total patients %>% # percent of total index locations w/o Other
+  distinct(patient_id,stdplac_group)
 
+index_stdplac_counts <- boot_data %>% 
+  select(boot_trial, boot_sample) %>% 
+  mutate(index_count = map(boot_sample,
+                           ~left_join(.,index_stdplac, by = "patient_id", relationship = "many-to-many") %>% 
+                             count(stdplac_group,name = "index_count")))
+
+
+#### Compute setting counts across ---------------------------------------------
 
 obs_tm <- tm %>%
   inner_join(sim_obs, by = c("patient_id", "days_since_index")) %>% 
@@ -495,19 +504,20 @@ obs_tm <- tm %>%
   mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
   distinct(obs,days_since_index,patient_id,stdplac_group) 
 
-sim_res_ssd <- sim_res_ssd %>% 
-  mutate(res = map(res,~inner_join(.,obs_tm, by = "obs", relationship = "many-to-many") %>% 
-                     distinct(patient_id,days_since_index,stdplac_group)))
+# sim_res_ssd <- sim_res_ssd %>% 
+#   mutate(res = map(res,~inner_join(.,obs_tm, by = "obs", relationship = "many-to-many") %>% 
+#                      distinct(patient_id,days_since_index,stdplac_group)))
 
 get_miss_location_counts <- function(sim_data){
   sim_data %>% 
     inner_join(obs_tm, by = "obs", relationship = "many-to-many") %>% 
-    distinct(patient_id,days_since_index,stdplac_group) %>% 
+    distinct(patient_id,boot_id,days_since_index,stdplac_group) %>% 
     group_by(stdplac_group) %>% 
     summarise(n=n(),
               duration = mean(-days_since_index)) 
 }
 
+get_miss_location_counts(sim_res_ssd$res[[1]])
 
 # compute missing setting location counts
 
@@ -518,25 +528,25 @@ sim_res_settings <- tmp
 
 # count boot id locations
 
-load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
+# load(paste0(delay_params$out_path,"sim_results/boot_data.RData"))
 
 
-pat_id_index <- tm %>% 
-  filter(days_since_index==0) %>%
-  filter(setting_type!=4) %>% 
-  left_join(new_stdplac_group, by = "stdplac") %>% 
-  mutate(stdplac_group = ifelse(setting_type==2,"ED",
-                                ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
-  mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
-  distinct(patient_id,stdplac_group) 
+# pat_id_index <- tm %>% 
+#   filter(days_since_index==0) %>%
+#   filter(setting_type!=4) %>% 
+#   left_join(new_stdplac_group, by = "stdplac") %>% 
+#   mutate(stdplac_group = ifelse(setting_type==2,"ED",
+#                                 ifelse(setting_type==5,"Inpatient",stdplac_group))) %>% 
+#   mutate(stdplac_group=replace_na(stdplac_group,"Other Outpatient")) %>% 
+#   distinct(patient_id,stdplac_group) 
+# 
+# tmp <- boot_data %>% 
+#   select(boot_trial,boot_sample) %>% 
+#   mutate(setting_count = map(boot_sample, 
+#                              ~inner_join(.,pat_id_index,by = "patient_id",relationship = "many-to-many") %>% 
+#                                count(stdplac_group,name = "index_count") ))
 
-tmp <- boot_data %>% 
-  select(boot_trial,boot_sample) %>% 
-  mutate(setting_count = map(boot_sample, 
-                             ~inner_join(.,pat_id_index,by = "patient_id",relationship = "many-to-many") %>% 
-                               count(stdplac_group,name = "index_count") ))
-
-boot_index_counts <- tmp %>% select(boot_trial,setting_count)
+boot_index_counts <- index_stdplac_counts %>% select(boot_trial,setting_count=index_count)
 
 save(sim_res_settings,boot_index_counts, file = paste0(delay_params$out_path,"sim_results/exponential_cp14/sim_res_ssd_setting_counts.RData"))
 
@@ -552,12 +562,23 @@ tmp <- sim_res_settings %>%
 
 
 tmp1 <- tmp %>% 
-  mutate(pct_miss = 100*n/(n+index_count)) %>% 
+  mutate(tot_opp = n+index_count,
+         pct_miss = 100*n/(tot_opp)) %>% 
   group_by(stdplac_group) %>% 
-  summarise(n_miss = mean(n),
+  summarise(n_index_mn = mean(index_count),
+            n_index_mdn = median(index_count),
+            n_index_low = quantile(index_count,probs = 0.025),
+            n_index_high = quantile(index_count,probs = 0.975),
+            n_miss_mn = mean(n),
+            n_miss_mdn = median(n),
             n_miss_low = quantile(n,probs = 0.025),
             n_miss_high = quantile(n,probs = 0.975),
-            pct_opp_miss = mean(pct_miss),
+            n_opp_mn = mean(tot_opp),
+            n_opp_mdn = median(tot_opp),
+            n_opp_low = quantile(tot_opp,probs = 0.025),
+            n_opp_high = quantile(tot_opp,probs = 0.975),
+            pct_opp_miss_mn = mean(pct_miss),
+            pct_opp_miss_mdn = median(pct_miss),
             pct_opp_miss_low = quantile(pct_miss,probs = 0.025),
             pct_opp_miss_high = quantile(pct_miss,probs = 0.975))
 
@@ -568,7 +589,8 @@ tmp2 <- tmp %>%
   ungroup() %>% 
   mutate(pct_setting = 100*n/(tot_miss)) %>% 
   group_by(stdplac_group) %>% 
-  summarise(pct_miss_setting = mean(pct_setting),
+  summarise(pct_miss_setting_mn = mean(pct_setting),
+            pct_miss_setting_mdn = median(pct_setting),
             pct_miss_setting_low = quantile(pct_setting,probs = 0.025),
             pct_miss_setting_high = quantile(pct_setting,probs = 0.975))
 
@@ -587,16 +609,37 @@ tmp3 <- tmp %>%
   inner_join(boot_miss_counts) %>% 
   mutate(pct_setting = 100*n/total_miss) %>% 
   group_by(stdplac_group) %>% 
-  summarise(pct_miss_setting2 = mean(pct_setting),
+  summarise(pct_miss_setting2_mn = mean(pct_setting),
+            pct_miss_setting2_mdn = median(pct_setting),
             pct_miss_setting_low2 = quantile(pct_setting,probs = 0.025),
             pct_miss_setting_high2 = quantile(pct_setting,probs = 0.975))
 
 # Aggregate final bootstrap stats
 setting_miss_stats <- tmp1 %>% inner_join(tmp2) %>% inner_join(tmp3)
 
+index_stdplac_counts <- index_stdplac_counts %>% select(boot_trial,index_count) %>% unnest()
+
 
 ### Save Setting Counts for report ---------------------------------------------
 save(setting_miss_stats, index_stdplac_counts, file =  paste0(delay_params$out_path,"sim_results/report_data/setting_counts.RData"))
+
+
+### view table locally ---------------------------------------------------------
+load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/sim_results/report_data/setting_counts.RData")
+
+setting_miss_stats %>% 
+  mutate_at(vars(-stdplac_group,-pct_miss_setting_mdn,-pct_miss_setting_low,-pct_miss_setting_high,
+                 -pct_opp_miss_mdn,-pct_opp_miss_low,-pct_opp_miss_high),~round(.,0)) %>% 
+  mutate_at(vars(pct_miss_setting_mdn,pct_miss_setting_low,pct_miss_setting_high,
+                 pct_opp_miss_mdn,pct_opp_miss_low,pct_opp_miss_high),~round(.,2)) %>% 
+  arrange(-n_index_mdn) %>% 
+  mutate(tot_index = paste0(n_index_mdn," (",n_index_low,",",n_index_high,")"),
+         tot_miss = paste0(n_miss_mdn," (",n_miss_low,",",n_miss_high,")"),
+         pct_miss = paste0(pct_miss_setting_mdn," (",pct_miss_setting_low,",",pct_miss_setting_high,")"),
+         tot_opp = paste0(n_opp_mdn," (",n_opp_low,",",n_opp_high,")"),
+         pct_opp_miss = paste0(pct_opp_miss_mdn," (",pct_opp_miss_low,",",pct_opp_miss_high,")")) %>% 
+  select(stdplac_group,tot_index,tot_miss,pct_miss,tot_opp,pct_opp_miss) %>% 
+  write_csv("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/tables/misses_by_setting.csv")
 
 
 ######################

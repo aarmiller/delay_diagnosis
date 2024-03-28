@@ -87,13 +87,64 @@ ssd_counts <- ssd_counts %>%
 ssd_counts_validated <- ssd_counts_validated %>% 
   mutate(label = paste0("ICD-",dx_ver," ",dx,": ",desc))
 
+ssd_counts_totals
+
+max(ssd_counts_totals$group)
+
+ssd_counts_totals <- ssd_counts_totals %>% 
+  mutate(row = row_number(),
+         group = (row-7)%/%8+2)
+
 pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/ssd_trends.pdf",onefile = TRUE)
-pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/revisions/1_12_24/sup_fig_2_ssd_trends.pdf",onefile = TRUE)
-for (i in 1:ceiling(nrow(ssd_counts_totals)/6)){
+pdf("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/final_revisions/sdc2.pdf",onefile = TRUE)
+for (i in 1:max(ssd_counts_totals$group)){
   
+  if (i==1){
+    p <- ssd_counts_totals %>% 
+      filter(group==i) %>%  
+      select(dx,dx_ver) %>% 
+      inner_join(ssd_counts) %>% 
+      filter(days_since_index!=0) %>% 
+      group_by(dx,dx_ver,label) %>% 
+      mutate(weeks_since_index = days_since_index %/% 7) %>% 
+      group_by(dx,dx_ver,label,weeks_since_index) %>% 
+      summarise(n = mean(n)) %>% 
+      ggplot(aes(weeks_since_index,n)) +
+      geom_point() +
+      facet_wrap(~label, scales = "free_y", ncol = 2) +
+      geom_vline(aes(xintercept = 0), linetype = 2) +
+      theme_bw() +
+      ggtitle("Supplemental Digital Content 2") +
+      ylab("Number of Visits with Diagnosis") +
+      xlab("Weeks Since Index")
+  } else {
+    p <- ssd_counts_totals %>% 
+      filter(group==i) %>%  
+      select(dx,dx_ver) %>% 
+      inner_join(ssd_counts) %>% 
+      filter(days_since_index!=0) %>% 
+      group_by(dx,dx_ver,label) %>% 
+      mutate(weeks_since_index = days_since_index %/% 7) %>% 
+      group_by(dx,dx_ver,label,weeks_since_index) %>% 
+      summarise(n = mean(n)) %>% 
+      ggplot(aes(weeks_since_index,n)) +
+      geom_point() +
+      facet_wrap(~label, scales = "free_y", ncol = 2) +
+      geom_vline(aes(xintercept = 0), linetype = 2) +
+      theme_bw() +
+      ylab("Number of Visits with Diagnosis") +
+      xlab("Weeks Since Index")
+  }
+  
+  print(p)
+}
+dev.off()
+
+for (i in 2:max(ssd_counts_totals$group)){
+  pdf(paste0("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/final_revisions/sdc2/set_",i,".pdf"),height = 9.5)
   p <- ssd_counts_totals %>% 
-    slice((i*6-5):(i*6)) %>% 
-    select(-n) %>% 
+    filter(group==i) %>%  
+    select(dx,dx_ver) %>% 
     inner_join(ssd_counts) %>% 
     filter(days_since_index!=0) %>% 
     group_by(dx,dx_ver,label) %>% 
@@ -104,13 +155,35 @@ for (i in 1:ceiling(nrow(ssd_counts_totals)/6)){
     geom_point() +
     facet_wrap(~label, scales = "free_y", ncol = 2) +
     geom_vline(aes(xintercept = 0), linetype = 2) +
-    theme_bw()
-  
+    theme_bw() +
+    ylab("Number of Visits with Diagnosis") +
+    xlab("Weeks Since Index")
   print(p)
+  dev.off()
 }
+
+i <- 11
+pdf(paste0("~/OneDrive - University of Iowa/WorkingPapers/alan_pertussis/delays and household transmisson/submissions/PIDJ/final_revisions/sdc2/set_",i,".pdf"),height = 3)
+p <- ssd_counts_totals %>% 
+  filter(group==i) %>%  
+  select(dx,dx_ver) %>% 
+  inner_join(ssd_counts) %>% 
+  filter(days_since_index!=0) %>% 
+  group_by(dx,dx_ver,label) %>% 
+  mutate(weeks_since_index = days_since_index %/% 7) %>% 
+  group_by(dx,dx_ver,label,weeks_since_index) %>% 
+  summarise(n = mean(n)) %>% 
+  ggplot(aes(weeks_since_index,n)) +
+  geom_point() +
+  facet_wrap(~label, scales = "free_y", ncol = 2) +
+  geom_vline(aes(xintercept = 0), linetype = 2) +
+  theme_bw() +
+  ylab("Number of Visits with Diagnosis") +
+  xlab("Weeks Since Index")
+print(p)
 dev.off()
 
-# ssd_counts_totals %>% 
+ # ssd_counts_totals %>% 
 #   slice((i*6-5):(i*6))
 # 
 # ssd_counts_totals %>% 

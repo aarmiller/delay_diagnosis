@@ -15,7 +15,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "sarcoid"
+# cond_name <- "dengue"
 
 # Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
@@ -76,18 +76,17 @@ index_dx_dates <- index_dx_dates %>%
 # collect_tab <- collect_table(years = years,medicaid_years = medicaid_years)
 
 # add timemap keys to the database
-add_tm_keys(db_con = con, overwrite = TRUE, temporary = FALSE)
+# add_tm_keys(db_con = con, overwrite = TRUE, temporary = FALSE)
 
 # pull timemap
-tm <- build_tm(db_con = con)
-
+tm <- con %>% tbl("tm") %>% collect()
 
 # restrict time_map to distinct visit types & period before
 tm <- tm %>%
   inner_join(select(index_dx_dates,patient_id,index_date),by = "patient_id") %>%    # filter to enrolled ids
-  mutate(days_since_index = admdate-index_date) %>%
+  mutate(days_since_index = svcdate-index_date) %>%
   filter(between(days_since_index,-delay_params$upper_bound,0)) %>%
-  distinct(patient_id,admdate,disdate,days_since_index,stdplac,setting_type)
+  distinct(patient_id,svcdate,days_since_index,stdplac,setting_type)
 
 save(tm, file = paste0(sim_out_path,"/delay_tm.RData"))
 # load(paste0(sim_out_path,"/delay_tm.RData"))
