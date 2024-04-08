@@ -1,6 +1,6 @@
 
 
-
+rm(list = ls())
 library(tidyverse)
 
 cond_name <- "sepsis_pre_covid"
@@ -12,7 +12,7 @@ delay_params <- final_delay_params[[cond_name]]
 sim_out_path <- paste0("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/","sim_results/")
 
 # Load Index cases
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load("/Volumes/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/index_cases.RData")
 
 n_patients <- nrow(index_cases)
 
@@ -109,9 +109,14 @@ trends_ssd %>%
   ylab("Total visits with signs or symptoms") +
   xlab("Days before index sepsis diagnosis") +
   theme(legend.title = element_blank(),
-        legend.position = "bottom")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/figures/figure1.pdf",
-       width = 4.5, height = 4)
+        legend.position = c(0.25, 0.8))
+# ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/figures/figure1.pdf",
+#        width = 4.5, height = 4)
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/figure1.pdf",
+       width = 4.5, height = 4, dpi = 600)
+# 
+# ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/figure1.tiff",dpi = 300,
+#        width = 4.5, height = 4)
 
 
 ### Figure 2 -------------------------------------------------------------------
@@ -126,5 +131,5 @@ trends_ssd %>%
   ylab("Number of Missed Opportunities") +
   xlab("Days Before Index Diagnosis") +
   theme_bw() 
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/figures/figure2.pdf",
-       width = 4, height = 3.5)
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/figure2.pdf",
+       width = 4.5, height = 4, dpi = 600)
