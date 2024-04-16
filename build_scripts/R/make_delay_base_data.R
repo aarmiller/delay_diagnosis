@@ -19,13 +19,18 @@ cond_name <- args[1]
 
 # Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[cond_name]]
 
 out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
+# out_path <- paste0("~/Data/tmp/",cond_name)
 
 # connect to database
 con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
+# con <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db")
+
+con %>% DBI::dbListTables()
 
 #### Add output folders ---------------------------------------------------------
 
@@ -55,29 +60,6 @@ index_dx_dates <- index_dx_dates %>%
 
 #### Build timemap -------------------------------------------------------------
 
-# # find available years and medicaid years
-# avail_data <- tibble(table = DBI::dbListTables(con)) %>%
-#   filter(str_detect(table,"inpatient_core")) %>%
-#   mutate(tmp = str_remove(table,"inpatient_core_")) %>%
-#   mutate(year = as.integer(str_sub(tmp,start = -2, end = -1))) %>%
-#   mutate(source = str_remove(tmp,"_[0-9]*")) %>%
-#   select(year,source)
-# 
-# medicaid_years <- filter(avail_data,source == "medicaid") %>%
-#   distinct(year) %>%
-#   arrange(year) %>%
-#   .$year
-# 
-# years <- filter(avail_data,source == "ccae") %>%
-#   distinct(year) %>%
-#   arrange(year) %>%
-#   .$year
-# 
-# collect_tab <- collect_table(years = years,medicaid_years = medicaid_years)
-
-# add timemap keys to the database
-# add_tm_keys(db_con = con, overwrite = TRUE, temporary = FALSE)
-
 # pull timemap
 tm <- con %>% tbl("tm") %>% collect()
 
@@ -86,7 +68,7 @@ tm <- tm %>%
   inner_join(select(index_dx_dates,patient_id,index_date),by = "patient_id") %>%    # filter to enrolled ids
   mutate(days_since_index = svcdate-index_date) %>%
   filter(between(days_since_index,-delay_params$upper_bound,0)) %>%
-  distinct(patient_id,svcdate,days_since_index,stdplac,setting_type)
+  distinct(patient_id,svcdate,days_since_index,mdcr,ccae,medicaid,outpatient,ed,obs_stay,inpatient,rx)
 
 save(tm, file = paste0(sim_out_path,"/delay_tm.RData"))
 # load(paste0(sim_out_path,"/delay_tm.RData"))
@@ -101,9 +83,12 @@ sim_obs <- tm %>%
 
 ## Filter to final counts 
 all_dx_visits <- con %>%
-  tbl("all_dx_visits") %>%
+  tbl("dx_dates_alg1") %>%
   collect() %>%
-  filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound))
+  inner_join(select(index_dx_dates,patient_id,index_date),by = "patient_id") %>%    # filter to enrolled ids
+  mutate(days_since_index = date-index_date) %>% 
+  filter(between(days_since_index,-delay_params$upper_bound,delay_params$upper_bound)) %>% 
+  select(patient_id,dx,dx_ver,inpatient,date,days_since_index)
 
 # make sure to only count cases with continuous enrollment (i.e., join with filtered index dates)
 all_dx_visits <- all_dx_visits %>%

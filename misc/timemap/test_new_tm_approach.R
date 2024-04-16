@@ -8,7 +8,7 @@ con <- DBI::dbConnect(RSQLite::SQLite(), "/Shared/AML/truven_extracts/small_dbs/
 # con <- DBI::dbConnect(RSQLite::SQLite(), "~/Data/MarketScan/truven_extracts/small_dbs/dengue/dengue.db")
 
 # pull timemap
-tm <- con %>% tbl("tm") %>% collect()
+# tm <- con %>% tbl("tm") %>% collect()
 
 ##########################
 #### Script Functions ####
@@ -69,10 +69,37 @@ get_dx_data_fac <-function(source,year){
   
 }
 
+# get outpatient diagnoses
+get_dx_data_out <-function(source,year){
+  if (as.integer(year) > 14){
+    tmp1 <- tbl(con,glue::glue("outpatient_dx9_{source}_{year}")) %>%
+      distinct(patient_id,svcdate,dx) %>%
+      collect() %>%
+      mutate(dx_ver=9L,
+             patient_id=patient_id)
+    
+    tmp2 <- tbl(con,glue::glue("outpatient_dx10_{source}_{year}")) %>%
+      distinct(patient_id,svcdate,dx) %>%
+      collect() %>%
+      mutate(dx_ver=10L,
+             patient_id=patient_id)
+    
+    rbind(tmp1,tmp2)
+    
+  } else {
+    tbl(con,glue::glue("outpatient_dx_{source}_{year}")) %>%
+      distinct(patient_id,svcdate,dx) %>%
+      collect() %>%
+      mutate(dx_ver=9L,
+             patient_id=patient_id)
+  }
+  
+}
 
-##################################
-#### Pull Inpatient Diagnoses ####
-##################################
+
+########################
+#### Pull Diagnoses ####
+########################
 
 ## Collect base inpatient data -------------------------------------------------
 
@@ -111,6 +138,13 @@ in_facility_dx <- filter(facility_dx,!is.na(caseid) &
 
 out_facility_dx <- facility_dx %>% 
   anti_join(in_facility_dx,by = join_by(patient_id, svcdate, caseid, dx, dx_ver))
+
+## Collect Outpatient Visits ---------------------------------------------------
+
+outpatient_dx <- collect_plan(con) %>%
+  mutate(data=map2(source,year,get_dx_data_out)) %>%
+  select(data) %>%
+  unnest(cols = c(data))
 
 
 #############################################
@@ -160,7 +194,7 @@ in_dx <- inpatient_dx %>%
 
 # facility inpatient that match on caseid
 in_fac1 <- in_facility_dx %>% 
-  inner_join(inpatient_core,by = join_by(patient_id, caseid)) %>% 
+  inner_join(inpatient_core,by = join_by(patient_id, caseid),relationship = "many-to-many") %>% 
   filter(svcdate<=disdate & svcdate>=admdate)
 
 # facility inpatient that match on time but not caseid
@@ -260,15 +294,11 @@ in_serv_span <- bind_rows(in_serv1,in_serv2,in_serv3) %>%
   unnest(date) %>% 
   distinct(patient_id,dx,dx_ver,date)
 
-
-# unspanned diagnoses...do no match to stay
-bind_rows(in_fac3,in_serv4)
-
 ## Combine diagnoses
 in_dx_dates <- bind_rows(in_dx_span,
-          in_fac_span,
-          in_serv_span,
-          distinct(bind_rows(in_fac3,in_serv4),patient_id,dx,dx_ver,date=svcdate)) %>% 
+                         in_fac_span,
+                         in_serv_span,
+                         distinct(bind_rows(in_fac3,in_serv4),patient_id,dx,dx_ver,date=svcdate)) %>%
   distinct()
 
 
@@ -296,3 +326,29 @@ gc()
 ##################################################
 #### Construct the outpatient diagnosis dates ####
 ##################################################
+
+out_dx_dates <- bind_rows(distinct(out_facility_dx,patient_id,svcdate,dx,dx_ver),
+                          outpatient_dx) %>% 
+  rename(date=svcdate) %>% 
+  distinct()
+
+###########################
+#### Combine Diagnoses ####
+###########################
+
+dx_dates <- bind_rows(mutate(out_dx_dates,inpatient=0L),
+                      mutate(in_dx_dates,inpatient=1L)) %>% 
+  arrange(patient_id,date,inpatient)
+
+#####################
+#### Write to DB ####
+#####################
+
+dplyr::copy_to(dest=con,
+               df=dx_dates,
+               name = "dx_dates_alg1",
+               temporary = FALSE,
+               overwrite = TRUE)
+
+con %>% tbl("dx_dates_alg1")
+

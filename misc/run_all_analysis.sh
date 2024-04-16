@@ -131,16 +131,16 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh meningitis
 # qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh pcp
 
 #### Dengue ####
-# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx_new.sh dengue
-# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh dengue
-# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh dengue
 
-# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
-# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
-# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue
-# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue
-# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
-# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
 qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh dengue
 
 
@@ -173,5 +173,37 @@ qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh endocarditis
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh endocarditis
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh endocarditis
 qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh endocarditis
+
+
+
+#### blasto ####
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh blasto
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh blasto
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts_new.sh blasto
+
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/get_clusters.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh endocarditis
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh endocarditis
+
+
+
+#### Dengue ####
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh dengue
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh dengue
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh dengue
 
 
