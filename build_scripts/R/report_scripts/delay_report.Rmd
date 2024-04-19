@@ -235,6 +235,7 @@ The following table provides a more detailed summary of all the specific types o
 
 optimal_model_res$stdplac_res %>% 
   inner_join(smallDB::stdplac_labels, by = "stdplac") %>% 
+  arrange(desc(n_mean)) %>% 
   select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
@@ -246,13 +247,14 @@ The following table summarizes the types of settings where the index diagnoses o
 
 ```{r, echo = FALSE}
 # Generate the index counts
-tmp <- generate_setting_counts(tm_data = tm,
-                        sim_res_data = sim_res,
-                        sim_res_sim_obs_data = sim_res_sim_obs)
+tmp <- generate_main_setting_counts(tm_data = tm,
+                                    sim_res_data = sim_res,
+                                    sim_res_sim_obs_data = sim_res_sim_obs)
 
 
 tmp %>% 
-  select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+  mutate_at(vars(index_pct1,index_pct2),~round(.,2)) %>% 
+  select(Setting,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
@@ -263,15 +265,48 @@ The following table summarizes the types of settings where missed opportunities 
 
 ```{r, echo = FALSE}
 tmp %>% 
-  select(setting = stdplac_group, `Missed Opportunities`=n,
+  mutate_at(vars(index_pct1:pct_opp_miss_high),~round(.,2)) %>% 
+  mutate(miss_opps = paste0(miss_mean," (",miss_low,"-",miss_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_miss_mean," (",pct_opp_miss_low,"-",pct_opp_miss_high,")"),
+         tot_opps = paste0(tot_opp_mean," (",tot_opp_low,"-",tot_opp_high,")"),) %>% 
+  select(Setting, 
+         `Index Visits` = index_count,
+         `Missed Opportunities`=miss_opps,
          `% Missed Opp. In Setting`=pct_opp,
-         `% of Opportunities Missed`=pct_opp_missed,
-         `Mean time before for Misses`=dur) %>% 
+         `Total Opportunities`=tot_opps,
+         `% of Opportunities Missed`=pct_opp_missed) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
 
-### Results by patient location (plurality)
+The following table provides a breakdown of the Places of Service for the outpatient 
+visits in terms of the number of missed opportunities and the likelihood of a missed opportunity
+
+```{r}
+tmp <- generate_stdplac_setting_counts(tm_data = tm,
+                                sim_res_data = sim_res,
+                                sim_res_sim_obs_data = sim_res_sim_obs,
+                                tm_stdplac_data = tm_stdplac)
+
+tmp %>% 
+  mutate_at(vars(index_visits:pct_opp_miss_high),~round(.,2)) %>% 
+  mutate(miss_opps = paste0(miss_mean," (",miss_low,"-",miss_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_miss_mean," (",pct_opp_miss_low,"-",pct_opp_miss_high,")"),
+         tot_opps = paste0(tot_opp_mean," (",tot_opp_low,"-",tot_opp_high,")")) %>% 
+  select(`Place of Care`, 
+         `Index Visits` = index_visits,
+         `Missed Opportunities`=miss_opps,
+         `% Missed Opp. In Setting`=pct_opp,
+         `Total Opportunities`=tot_opps,
+         `% of Opportunities Missed`=pct_opp_missed) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+### Results by patient location (Rurality)
 
 The following table provides a breakdown of results by patient location, particularly whether the patient was located in a rural versus an urban or non-rural setting.
 
@@ -291,7 +326,7 @@ no_msa_ids <- demo2 %>%
   filter(msa=="0" | msa=="") %>%
   distinct(patient_id)
 
-rural_no_msa_ids <- rural_ids %>% anti_join(msa_ids)
+rural_no_msa_ids <- rural_ids %>% anti_join(msa_ids,by = join_by(patient_id))
 
 get_id_res <- function(id_set){
   sim_obs %>% 
@@ -514,15 +549,65 @@ optimal_model_res$setting_type_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following is a summary of all the locations of care where missed opportunities occurred:
-
+The following tables summarizes the types of settings where the index diagnoses occurred:
+  
 ```{r, echo = FALSE}
+# Generate the index counts
+tmp <- generate_main_setting_counts(tm_data = tm,
+                                    sim_res_data = sim_res,
+                                    sim_res_sim_obs_data = sim_res_sim_obs)
 
-optimal_model_res$stdplac_res %>% 
-  inner_join(smallDB::stdplac_labels, by = "stdplac") %>% 
-  select(Setting = label,`Number of Misses`=n,`Percent of Missed Opportunities` = pct) %>% 
+
+tmp %>% 
+  mutate_at(vars(index_pct1,index_pct2),~round(.,2)) %>% 
+  select(Setting,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+         `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 
+```
+
+The following table summarizes the types of settings where missed opportunities occurred relative to the index diagnosis. Specifically, this table provides a rough sense of the likelihood that a diagnosis would occur in a given setting when a patient presented with symptoms.
+
+```{r, echo = FALSE}
+tmp %>% 
+  mutate_at(vars(index_pct1:pct_opp_miss_high),~round(.,2)) %>% 
+  mutate(miss_opps = paste0(miss_mean," (",miss_low,"-",miss_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_miss_mean," (",pct_opp_miss_low,"-",pct_opp_miss_high,")"),
+         tot_opps = paste0(tot_opp_mean," (",tot_opp_low,"-",tot_opp_high,")"),) %>% 
+  select(Setting, 
+         `Index Visits` = index_count,
+         `Missed Opportunities`=miss_opps,
+         `% Missed Opp. In Setting`=pct_opp,
+         `Total Opportunities`=tot_opps,
+         `% of Opportunities Missed`=pct_opp_missed) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table provides a breakdown of the Places of Service for the outpatient 
+visits in terms of the number of missed opportunities and the likelihood of a missed opportunity
+
+```{r}
+tmp <- generate_stdplac_setting_counts(tm_data = tm,
+                                       sim_res_data = sim_res,
+                                       sim_res_sim_obs_data = sim_res_sim_obs,
+                                       tm_stdplac_data = tm_stdplac)
+
+tmp %>% 
+  mutate_at(vars(index_visits:pct_opp_miss_high),~round(.,2)) %>% 
+  mutate(miss_opps = paste0(miss_mean," (",miss_low,"-",miss_high,")"),
+         pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         pct_opp_missed = paste0(pct_opp_miss_mean," (",pct_opp_miss_low,"-",pct_opp_miss_high,")"),
+         tot_opps = paste0(tot_opp_mean," (",tot_opp_low,"-",tot_opp_high,")")) %>% 
+  select(`Place of Care`, 
+         `Index Visits` = index_visits,
+         `Missed Opportunities`=miss_opps,
+         `% Missed Opp. In Setting`=pct_opp,
+         `Total Opportunities`=tot_opps,
+         `% of Opportunities Missed`=pct_opp_missed) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
 
 ```

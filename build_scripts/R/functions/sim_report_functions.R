@@ -86,6 +86,99 @@ generate_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
   
 }
 
+
+# NEW - generate the main setting counts
+generate_main_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data){
+  
+  tmp_index_counts <- tm_data %>% 
+    filter(days_since_index==0) %>%
+    summarise(Outpatient = sum(outpatient),
+              ED = sum(ed),
+              `Observational Stay` = sum(obs_stay),
+              Inpatient = sum(inpatient)) %>% 
+    gather(key = Setting,value = index_count) %>% 
+    mutate(index_pct1 = 100*index_count/sum(index_count),   # percent of total index locations
+           index_pct2 = 100*index_count/total_patients)     # percent of total patients
+  
+  out <- sim_res_data %>% 
+    inner_join(sim_res_sim_obs_data, by = "obs") %>% 
+    inner_join(tm_data, by = join_by(patient_id, days_since_index)) %>% 
+    group_by(trial) %>% 
+    summarise(Outpatient = sum(outpatient),
+              ED = sum(ed),
+              `Observational Stay` = sum(obs_stay),
+              Inpatient = sum(inpatient)) %>% 
+    gather(key = Setting,value = n, -trial) %>% 
+    inner_join(select(tmp_index_counts,Setting,index_count),by = join_by(Setting)) %>% 
+    mutate(total_opportunities = n+index_count,
+           pct_opp_miss = 100*n/total_opportunities) %>% 
+    group_by(trial) %>% 
+    mutate(pct_opp = 100*n/sum(n)) %>% 
+    ungroup() %>% 
+    group_by(Setting) %>%
+    summarise(miss_mean = mean(n),
+              miss_low = quantile(n,probs = 0.025),
+              miss_high = quantile(n,probs = 0.975),
+              tot_opp_mean = mean(total_opportunities),
+              tot_opp_low = quantile(total_opportunities,probs = 0.025),
+              tot_opp_high = quantile(total_opportunities,probs = 0.975),
+              pct_opp_mean = mean(pct_opp),
+              pct_opp_low = quantile(pct_opp,probs = 0.025),
+              pct_opp_high = quantile(pct_opp,probs = 0.975),
+              pct_opp_miss_mean = mean(pct_opp_miss),
+              pct_opp_miss_low = quantile(pct_opp_miss,probs = 0.025),
+              pct_opp_miss_high = quantile(pct_opp_miss,probs = 0.975))
+  
+  out <- inner_join(tmp_index_counts,out, by = "Setting")
+  
+  return(out)
+  
+}
+
+# NEW - generate the stdplac counts
+generate_stdplac_setting_counts <- function(tm_data,sim_res_data,sim_res_sim_obs_data,tm_stdplac_data){
+  
+  tmp_index_counts <- tm_data %>% 
+    filter(days_since_index==0) %>%
+    inner_join(tm_stdplac_data,by = join_by(patient_id, svcdate, days_since_index)) %>% 
+    filter(!(stdplac %in% c(81,41,42))) %>% #remove lab (81), ambulance land (41), ambulance air/water (42)
+    left_join(smallDB::stdplac_labels, by = "stdplac") %>% 
+    distinct(patient_id,svcdate,label) %>% 
+    count(label,name = "index_visits") %>% 
+    arrange(desc(index_visits)) 
+  
+  out <- sim_res_data %>% 
+    inner_join(sim_res_sim_obs_data, by = "obs") %>% 
+    inner_join(tm_stdplac_data,by = join_by(patient_id, days_since_index),relationship = "many-to-many") %>% 
+    left_join(smallDB::stdplac_labels, by = "stdplac") %>% 
+    group_by(trial) %>% 
+    count(label) %>% 
+    inner_join(tmp_index_counts,by = join_by(label)) %>% 
+    mutate(total_opportunities = n+index_visits,
+           pct_opp_miss = 100*n/total_opportunities) %>% 
+    group_by(trial) %>% 
+    mutate(pct_opp = 100*n/sum(n)) %>% 
+    ungroup() %>% 
+    group_by(label) %>%
+    summarise(miss_mean = mean(n),
+              miss_low = quantile(n,probs = 0.025),
+              miss_high = quantile(n,probs = 0.975),
+              tot_opp_mean = mean(total_opportunities),
+              tot_opp_low = quantile(total_opportunities,probs = 0.025),
+              tot_opp_high = quantile(total_opportunities,probs = 0.975),
+              pct_opp_mean = mean(pct_opp),
+              pct_opp_low = quantile(pct_opp,probs = 0.025),
+              pct_opp_high = quantile(pct_opp,probs = 0.975),
+              pct_opp_miss_mean = mean(pct_opp_miss),
+              pct_opp_miss_low = quantile(pct_opp_miss,probs = 0.025),
+              pct_opp_miss_high = quantile(pct_opp_miss,probs = 0.975)) 
+  
+  out <- inner_join(tmp_index_counts,out, by = "label") %>%  
+    rename(`Place of Care`=label)
+  
+  return(out)
+}
+
 # generate counts by stdplac version 2
 
 generate_setting_counts_2 <- function(tm_data,sim_res_data, bootstrap_data, sim_res_sim_obs_data){
