@@ -23,18 +23,26 @@ library(ggplot2)
 library(lubridate)
 library(changepoint)
 library(trend)
+library(codeBuildr)
 
 # load delay_parms
 load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
+
+# params <- list()
+# params$cond <- "dengue"
 
 delay_params <- delay_any_params[[params$cond]]
+# delay_params <- delay_any_params[["dengue"]]
 
 
 in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results")
+# in_path <- paste0("~/Data/tmp/dengue/delay_results")
 
 load(paste0(in_path,"/all_dx_visits.RData"))
 
 cond_name <- filter(codeBuildr::avail_disease_codes(),name==params$cond)$description
+# cond_name <- filter(codeBuildr::avail_disease_codes(),name=="dengue")$description
 
 ```
 

@@ -1,5 +1,5 @@
 
-
+rm(list = ls())
 library(tidyverse)
 library(bit64)
 # library(parallel)
@@ -28,7 +28,7 @@ out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
 
 # connect to database
 con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
-# con <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db")
+# con <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db"))
 
 con %>% DBI::dbListTables()
 
@@ -75,9 +75,11 @@ save(tm, file = paste0(sim_out_path,"/delay_tm.RData"))
 
 #### Generate obs values for simulation ----------------------------------------
 sim_obs <- tm %>% 
+  filter(!(outpatient==0 & ed==0 & obs_stay==0 & inpatient==0)) %>% 
   distinct(patient_id,days_since_index) %>% 
   filter(between(days_since_index,-delay_params$upper_bound,-1)) %>% 
   mutate(obs=row_number())
+  
 
 #### Generate Counts of Each ICD-9 & 10 ----------------------------------------
 
@@ -93,6 +95,15 @@ all_dx_visits <- con %>%
 # make sure to only count cases with continuous enrollment (i.e., join with filtered index dates)
 all_dx_visits <- all_dx_visits %>%
   inner_join(distinct(index_dx_dates,patient_id), by = "patient_id")
+
+
+# require corresponding obs from tm  (note: two steps so we keep the day 0 visits)
+all_dx_visits <- bind_rows(all_dx_visits %>% 
+            filter(days_since_index>=0),
+          all_dx_visits %>% 
+            inner_join(distinct(sim_obs,patient_id,days_since_index))) %>% 
+  arrange(patient_id,days_since_index)
+
 
 # dx counts
 dx_counts <- all_dx_visits %>%
