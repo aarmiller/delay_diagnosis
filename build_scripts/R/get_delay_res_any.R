@@ -10,7 +10,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "histo"
+# cond_name <- "dengue"
 
 load("/Shared/AML/params/delay_any_params.RData")
 
@@ -62,8 +62,8 @@ all_vis_count <- sim_tm %>%
 obs_tm <- sim_tm %>%
   distinct(obs,days_since_index,patient_id) %>%
   inner_join(tm,by = c("days_since_index", "patient_id")) %>%
-  distinct(obs,stdplac,setting_type) %>%
-  filter(setting_type!=4)
+  distinct(obs,outpatient,ed,obs_stay,inpatient)
+
 
 #### fit models ----------------------------------------------------------------
 if (delay_params$periodicity){
@@ -186,8 +186,15 @@ sim_res_main <-  run_sim(sim_data_all,n_trials = n_trials)
 export_stats <- compute_export_stats(sim_res = sim_res_main,
                                      n_patients = sim_data_all$total_patients)
 
+load(paste0(sim_in_path,"visit_info.RData"))
+
+tm_stdplac <- tm_stdplac %>% 
+  left_join(select(sim_tm,-period))
+
 setting_counts <- generate_setting_counts(obs_tm = obs_tm,
-                                          sim_res = sim_res_main)
+                                          sim_res = sim_res_main,
+                                          tm_stdplac = tm_stdplac)
+
 
 # Save output
 optimal_model_res <- c(export_stats,setting_counts)
@@ -252,7 +259,8 @@ for (i in 1:nrow(other_mods)){
                                        n_patients = sim_data_other$total_patients)
 
   setting_counts <- generate_setting_counts(obs_tm = obs_tm,
-                                            sim_res = sim_res_other)
+                                            sim_res = sim_res_other,
+                                            tm_stdplac = tm_stdplac)
 
   res[["model_res"]] <-  c(export_stats,setting_counts)
 

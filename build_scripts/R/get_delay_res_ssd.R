@@ -72,8 +72,7 @@ all_vis_count <- sim_tm %>%
 obs_tm <- sim_tm %>%
   distinct(obs,days_since_index,patient_id) %>%
   inner_join(tm,by = c("days_since_index", "patient_id")) %>%
-  distinct(obs,stdplac,setting_type) %>%
-  filter(setting_type!=4)
+  distinct(obs,outpatient,ed,obs_stay,inpatient)
 
 #### fit models ----------------------------------------------------------------
 if (delay_params$periodicity){

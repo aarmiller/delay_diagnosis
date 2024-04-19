@@ -176,10 +176,11 @@ compute_export_stats <- function(sim_res,n_patients){
 }
 
 # generate counts of misses in each setting
-generate_setting_counts <- function(obs_tm,sim_res){
+generate_setting_counts <- function(obs_tm,sim_res,tm_stdplac){
   
   tmp <- obs_tm %>%
-    inner_join(sim_res$sim_res_obs, by = "obs")
+    inner_join(sim_res$sim_res_obs, by = "obs") %>% 
+    inner_join(distinct(tm_stdplac,obs,stdplac),by = join_by(obs),relationship = "many-to-many")
   
   tmp2 <- tmp %>%
     group_by(trial) %>%
@@ -210,8 +211,12 @@ generate_setting_counts <- function(obs_tm,sim_res){
   
   tmp2 <- tmp %>%
     group_by(trial) %>%
-    count(setting_type) %>%
-    ungroup()
+    summarise(outpatient = sum(outpatient),
+              ed = sum(ed),
+              obs_stay = sum(obs_stay),
+              inpatient = sum(inpatient)) %>% 
+    ungroup() %>% 
+    gather(key = setting_type, value=n, -trial)
   
   setting_type_res <- tmp2 %>%
     group_by(trial) %>%
@@ -223,7 +228,6 @@ generate_setting_counts <- function(obs_tm,sim_res){
               pct_mean = mean(pct),
               pct_low = quantile(pct,probs = 0.025),
               pct_high = quantile(pct,probs = 0.975)) %>%
-    mutate(setting_type = setting_type_labels(setting_type)) %>%
     mutate(n = paste0(round(n_mean,2)," (",round(n_low,2),"-",round(n_high,2),")"),
            pct = paste0(round(pct_mean,2)," (",round(pct_low,2),"-",round(pct_high,2),")")) %>%
     select(setting_type,n,pct,everything())
@@ -232,7 +236,6 @@ generate_setting_counts <- function(obs_tm,sim_res){
   return(list(stdplac_res = stdplac_res,
               setting_type_res = setting_type_res))
 }
-
 
 
 # generate counts of misses in each setting version 2
