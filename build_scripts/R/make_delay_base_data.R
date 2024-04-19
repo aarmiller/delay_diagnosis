@@ -230,3 +230,35 @@ rural_visits <- rural_visits %>%
 save(demo1,demo2,rural_visits, file = paste0(sim_out_path,"/demo_data.RData"))
 
 
+##########################################
+#### Pull in More Granular Visit Info ####
+##########################################
+
+## STDPLAC ---------------------------------------------------------------------
+
+stdplac_visits <- con %>% tbl("stdplac_visits") %>% collect()
+
+tm_stdplac <- select(tm,patient_id,svcdate,days_since_index) %>% 
+  inner_join(stdplac_visits,by = join_by(patient_id, svcdate))
+
+
+## STDPROV ---------------------------------------------------------------------
+
+stdprov_visits <- con %>% tbl("stdprov_visits") %>% collect()
+
+tm_stdprov <- select(tm,patient_id,svcdate,days_since_index) %>% 
+  inner_join(stdprov_visits,by = join_by(patient_id, svcdate))
+
+
+## SVCSCAT ---------------------------------------------------------------------
+
+svcscat_visits <- con %>% tbl("svcscat_visits") %>% collect()
+
+tm_svcscat <- select(tm,patient_id,svcdate,days_since_index) %>% 
+  inner_join(svcscat_visits,by = join_by(patient_id, svcdate))
+
+
+save(tm_stdplac,tm_stdprov,tm_svcscat, file = paste0(sim_out_path,"/visit_info.RData"))
+
+
+
