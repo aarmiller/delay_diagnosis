@@ -44,6 +44,7 @@ delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$con
 load(paste0(delay_base_path,"all_dx_visits.RData"))
 load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
 load(paste0(delay_base_path,"delay_tm.RData"))
+load(paste0(delay_base_path,"visit_info.RData"))
 
 
 total_patients <- nrow(index_dx_dates)
