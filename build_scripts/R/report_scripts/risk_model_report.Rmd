@@ -27,7 +27,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[params$cond]]
 
-risk_model_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/risk_models/")
+risk_model_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/risk_models/")
 
 # load results data
 # load("/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/risk_models/ssd_miss_risk_models.RData")
@@ -42,15 +42,23 @@ better_labels <- tribble(~term,~label,
                          'age_cat(54,64]', 'Age 55-64'  ,
                          'age_cat(64,130]', 'Age >= 65'  ,
                          'femaleTRUE', 'Female'  ,
-                         'obs_stayTRUE', 'Observational Stay'  ,
+                         'obs_stayTRUE', 'Observational Stay' ,
                          'rural', 'Rural'  ,
-                         'setting_labelAll three', 'Outpatient, ED, and Inpatient'  ,
-                         'setting_labelED and inpatient', 'ED and Inpatient'  ,
-                         'setting_labelED only', 'ED Only'  ,
-                         'setting_labelInpatient only', 'Inpatient Only'  ,
-                         'setting_labelOut and ED', 'Outpatient and ED'  ,
-                         'setting_labelOut and inpatient', 'Outpatient and Inpatient'  ,
-                         'setting_labelnone', 'Not Outpatient, ED or Inpatient'  ,
+                         "setting_labelAll Four Settings", "All Four Settings",         
+                         "setting_labelED and Inpatient", "ED and Inpatient",          
+                         "setting_labelED and Obs", "ED and Obs",          
+                         "setting_labelED and Obs and Inpatient", "ED and Obs and Inpatient",  
+                         "setting_labelED only", "ED only",                   
+                         "setting_labelInpatient only", "Inpatient only",      
+                         "setting_labelObs and Inpatient", "Obs and Inpatient",         
+                         "setting_labelObs only", "Obs only",
+                         "setting_labelOut and ED", "Out and ED",           
+                         "setting_labelOut and ED and Inpatient", "Out and ED and Inpatient",
+                         "setting_labelOut and ED and Obs", "Out and ED and Obs",    
+                         "setting_labelOut and Inpatient", "Out and Inpatient", 
+                         "setting_labelOut and Obs", "Out and Obs",
+                         "setting_labelOut and Obs and Inpatient", "Out and Obs and Inpatient",
+                         "inpatient","Inpatient",
                          'sourcemdcr', 'Medicare'  ,
                          'sourcemedicaid', 'Medicaid',
                          "weekendTRUE", "Weekend Visit",
@@ -82,6 +90,20 @@ ssd_miss_risk_models$miss_opp_res %>%
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid),
+using a single inpatient indicator.
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res2 %>% 
+  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
 The following risk model pertains to Medicaid patients
 
 ```{r, echo = FALSE}
@@ -93,6 +115,20 @@ ssd_miss_risk_models$miss_opp_res_med %>%
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
+
+The following risk model pertains to Medicaid patients, using a single inpatient
+indicator
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res_med2 %>% 
+  mutate(`Odds Ratio` = paste0(round(est,2)," (",round(low,2),"-",round(high,2),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
 
 ### Missed Patients
 

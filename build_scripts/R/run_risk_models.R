@@ -5,7 +5,7 @@ library(lubridate)
 args = commandArgs(trailingOnly=TRUE)
 # name of condition
 cond_name <- args[1]
-# cond_name <- "histo"
+# cond_name <- "dengue"
 
 load("/Shared/AML/params/delay_any_params.RData")
 
@@ -20,7 +20,50 @@ if (!dir.exists(out_path)) {
   dir.create(out_path)
 }
 
+## Setup model parameters ------------------------------------------------------
+
+n_trials <- max(sim_res$trial)
 num_cores <- 40
+
+## Setup age categories
+age_cats <- c(-1,17,34,44,54,64,130)
+
+## Main setting labels
+setting_labels <- tribble(~outpatient,~ed,~obs_stay,~inpatient,~setting_label,
+                          1,0,0,0,"Out only",
+                          1,1,0,0,"Out and ED",
+                          1,0,1,0,"Out and Obs",
+                          1,0,0,1,"Out and Inpatient",
+                          1,1,1,0,"Out and ED and Obs",
+                          1,1,0,1,"Out and ED and Inpatient",
+                          1,0,1,1,"Out and Obs and Inpatient",
+                          1,1,1,1,"All Four Settings",
+                          0,1,0,0,"ED only",
+                          0,1,1,0,"ED and Obs",
+                          0,1,0,1,"ED and Inpatient",
+                          0,1,1,1,"ED and Obs and Inpatient",
+                          0,0,1,0,"Obs only",
+                          0,0,1,1,"Obs and Inpatient",
+                          0,0,0,1,"Inpatient only") %>% 
+  mutate(setting_label = fct_relevel(setting_label,
+                                     "Out only",
+                                     "ED only",
+                                     "Obs only",
+                                     "Inpatient only",
+                                     "Out and ED",
+                                     "Out and Obs",
+                                     "Out and Inpatient",
+                                     "ED and Obs",
+                                     "ED and Inpatient",
+                                     "Obs and Inpatient",
+                                     "Out and ED and Obs",
+                                     "Out and ED and Inpatient",
+                                     "Out and Obs and Inpatient",
+                                     "ED and Obs and Inpatient",
+                                     "All Four Settings")) 
+
+
+## Load Delay Data -------------------------------------------------------------
 
 load(paste0(delay_base_path,"demo_data.RData"))
 # demo1
@@ -38,69 +81,30 @@ load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
 # sim_res
 # sim_res_sim_obs
 
-n_trials <- max(sim_res$trial)
 
 
 ############################
 #### Prepare Visit Info ####
 ############################
 
+
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
-  filter(setting_type !=4) %>%
-  distinct(patient_id,setting_type,admdate) %>% 
-  mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
-  mutate(dow=weekdays(as_date(admdate))) %>% 
+  filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
+  distinct(patient_id,outpatient,ed,obs_stay,inpatient,svcdate) %>% 
+  mutate(dow=weekdays(as_date(svcdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-  select(patient_id,setting,weekend,dow) %>%
-  mutate(value = TRUE) %>% 
-  spread(key= setting, value = value,fill = FALSE) %>% 
-  inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
-                     T,F,F,"Out only",
-                     T,T,F,"Out and ED",
-                     T,T,T,"All three",
-                     T,F,T,"Out and inpatient",
-                     F,T,F,"ED only",
-                     F,T,T,"ED and inpatient",
-                     F,F,T,"Inpatient only",
-                     F,F,F,"none")) %>% 
-  mutate(setting_label = fct_relevel(setting_label,
-                                     "Out only",
-                                     "ED only",
-                                     "Inpatient only",
-                                     "Out and ED",
-                                     "Out and inpatient",
-                                     "ED and inpatient",
-                                     "All three",
-                                     "none")) 
+  select(patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow) %>%
+  inner_join(setting_labels,by = join_by(outpatient, ed, obs_stay, inpatient))
+
 
 obs_locations <- tm %>% 
   left_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
   filter(!is.na(obs)) %>% 
-  filter(setting_type !=4) %>%
-  distinct(patient_id,obs,setting_type) %>% 
-  mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
-  select(patient_id,obs,setting) %>%
-  mutate(value = TRUE) %>% 
-  spread(key= setting, value = value,fill = FALSE) %>% 
-  inner_join(tribble(~outpatient,~ed,~inpatient,~setting_label,
-                     T,F,F,"Out only",
-                     T,T,F,"Out and ED",
-                     T,T,T,"All three",
-                     T,F,T,"Out and inpatient",
-                     F,T,F,"ED only",
-                     F,T,T,"ED and inpatient",
-                     F,F,T,"Inpatient only",
-                     F,F,F,"none")) %>% 
-  mutate(setting_label = fct_relevel(setting_label,
-                                     "Out only",
-                                     "ED only",
-                                     "Inpatient only",
-                                     "Out and ED",
-                                     "Out and inpatient",
-                                     "ED and inpatient",
-                                     "All three",
-                                     "none")) 
+  filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
+  distinct(obs,patient_id,outpatient,ed,obs_stay,inpatient,svcdate) %>%
+  inner_join(setting_labels,by = join_by(outpatient, ed, obs_stay, inpatient))
+
 
 reg_demo <- demo1 %>% 
   mutate(female=(sex==2),
@@ -120,8 +124,6 @@ reg_demo <- reg_demo %>%
               distinct(patient_id,source,msa=msa_new),
             by = "patient_id")
 
-age_cats <- c(-1,17,34,44,54,64,130)
-
 reg_demo <- reg_demo %>% 
   mutate(age_cat = cut(age,age_cats)) %>% 
   mutate(month = as.character(month(as_date(index_date))),
@@ -137,7 +139,7 @@ reg_demo <- reg_demo %>%
 # add weekend and demo to sim data
 sim_res <- sim_res %>% 
   select(obs,trial) %>% 
-  inner_join(obs_locations) %>% 
+  inner_join(obs_locations,by = join_by(obs)) %>% 
   inner_join(sim_res_sim_obs %>% 
                inner_join(select(index_dx_dates,patient_id,index_date), by = "patient_id") %>% 
                mutate(vis_date = index_date+days_since_index) %>% 
@@ -193,12 +195,63 @@ miss_opp_res <- parallel::parLapply(cl = cluster,
 
 miss_opp_res <- bind_rows(miss_opp_res) %>% 
   group_by(term) %>% 
-  summarise(est = mean(exp(estimate)),
-            low = quantile(exp(estimate),probs = c(0.025)),
-            high = quantile(exp(estimate),probs = c(0.975)))
+  summarise(est = mean(exp(estimate),na.rm = TRUE),
+            low = quantile(exp(estimate),probs = c(0.025),na.rm = TRUE),
+            high = quantile(exp(estimate),probs = c(0.975),na.rm = TRUE))
 
+parallel::stopCluster(cluster)
 rm(cluster)
 gc()
+
+
+## Using 2 (inpatient vs outpatient) setting labels ----------------------------
+
+get_miss_res2 <- function(trial_val){
+  
+  # trial_val <- 1
+  
+  tmp1 <- sim_res %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% 
+                          mutate(miss=TRUE),
+                        index_locations %>% 
+                          mutate(miss=FALSE)) %>% 
+    inner_join(reg_demo, by = "patient_id")
+  
+  
+  fit <- glm(miss~inpatient+obs_stay + age_cat + female + rural + source + weekend, family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+cluster <- parallel::makeCluster(num_cores)
+# cluster <- parallel::makeCluster(6)
+
+parallel::clusterCall(cluster, function() library(tidyverse))
+parallel::clusterExport(cluster,c("sim_res","get_miss_res2","index_locations","reg_demo"),
+                        envir=environment())
+
+
+miss_opp_res2 <- parallel::parLapply(cl = cluster,
+                                     1:max(sim_res$trial),
+                                     function(x){get_miss_res2(x)})
+
+
+# parallel::stopCluster(cluster)
+
+miss_opp_res2 <- bind_rows(miss_opp_res2) %>% 
+  group_by(term) %>% 
+  summarise(est = mean(exp(estimate),na.rm = TRUE),
+            low = quantile(exp(estimate),probs = c(0.025),na.rm = TRUE),
+            high = quantile(exp(estimate),probs = c(0.975),na.rm = TRUE))
+
+parallel::stopCluster(cluster)
+rm(cluster)
+gc()
+
 
 #### Missed opportunities Medicaid ---------------------------------------------
 
@@ -237,15 +290,62 @@ miss_opp_res_med <- parallel::parLapply(cl = cluster,
 
 
 parallel::stopCluster(cluster)
+rm(cluster)
+gc()
 
 miss_opp_res_med <- bind_rows(miss_opp_res_med) %>% 
   group_by(term) %>% 
-  summarise(est = mean(exp(estimate)),
-            low = quantile(exp(estimate),probs = c(0.025)),
-            high = quantile(exp(estimate),probs = c(0.975)))
+  summarise(est = mean(exp(estimate),na.rm = TRUE),
+            low = quantile(exp(estimate),probs = c(0.025),na.rm = TRUE),
+            high = quantile(exp(estimate),probs = c(0.975),na.rm = TRUE))
 
+
+## Using 2 (inpatient vs outpatient) setting labels ----------------------------
+
+get_miss_res_med2 <- function(trial_val){
+  
+  tmp1 <- sim_res %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% 
+                          mutate(miss=TRUE),
+                        index_locations %>% 
+                          mutate(miss=FALSE)) %>% 
+    inner_join(reg_demo, by = "patient_id") %>% 
+    filter(source == "medicaid")
+  
+  
+  fit <- glm(miss~inpatient+obs_stay + age_cat + female + rural + race + weekend, family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+# get_miss_res_med(10)
+
+cluster <- parallel::makeCluster(num_cores)
+
+parallel::clusterCall(cluster, function() library(tidyverse))
+parallel::clusterExport(cluster,c("get_miss_res_med2","sim_res","index_locations","reg_demo"),
+                        envir=environment())
+
+
+miss_opp_res_med2 <- parallel::parLapply(cl = cluster,
+                                         1:max(sim_res$trial),
+                                         function(x){get_miss_res_med2(x)})
+
+
+parallel::stopCluster(cluster)
 rm(cluster)
 gc()
+
+miss_opp_res_med2 <- bind_rows(miss_opp_res_med2) %>% 
+  group_by(term) %>% 
+  summarise(est = mean(exp(estimate),na.rm = TRUE),
+            low = quantile(exp(estimate),probs = c(0.025),na.rm = TRUE),
+            high = quantile(exp(estimate),probs = c(0.975),na.rm = TRUE))
+
 
 
 #### Delay duration All --------------------------------------------------------
@@ -423,6 +523,8 @@ miss_delay_pat_res_med <- parallel::parLapply(cl = cluster,
 
 
 parallel::stopCluster(cluster)
+rm(cluster)
+gc()
 
 miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>% 
   group_by(term) %>% 
@@ -512,7 +614,9 @@ miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>%
 ########################
 
 ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res,
+                             miss_opp_res2 = miss_opp_res2,
                              miss_opp_res_med = miss_opp_res_med,
+                             miss_opp_res_med2 = miss_opp_res_med2,
                              miss_dur_res = miss_dur_res,
                              miss_dur_res_med = miss_dur_res_med,
                              miss_delay_pat_res = miss_delay_pat_res,
