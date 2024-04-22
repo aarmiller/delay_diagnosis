@@ -21,8 +21,6 @@ if (!dir.exists(out_path)) {
 }
 
 ## Setup model parameters ------------------------------------------------------
-
-n_trials <- max(sim_res$trial)
 num_cores <- 40
 
 ## Setup age categories
@@ -80,6 +78,8 @@ load(paste0(delay_base_path,"delay_tm.RData"))
 load(paste0(delay_base_path,"ssd_visit/sim_res.RData"))
 # sim_res
 # sim_res_sim_obs
+
+n_trials <- max(sim_res$trial)
 
 
 
