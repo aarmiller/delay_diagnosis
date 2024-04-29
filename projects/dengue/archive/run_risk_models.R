@@ -21,12 +21,12 @@ if (!dir.exists(out_path)) {
   dir.create(out_path)
 }
 
+### Load index cases
+load(paste0(delay_params$out_path,"index_cases.RData"))
+
 ### Connect to db
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       paste0(delay_params$small_db_path, str_split(proj_name, "_")[[1]][1], ".db"))
-
-### Load index cases
-load(paste0(delay_params$out_path,"index_cases.RData"))
 
 num_cores <- 40
 cp_selected <- delay_params$cp
@@ -58,46 +58,53 @@ sim_obs <- sim_obs %>%
   select(-shift) %>% 
   filter(days_since_index<0)
 
+
 # update time map
 load(paste0(delay_base_path,"delay_tm.RData"))
 
+# problem patient_ids that do not have index visits in tm (i.e. days_since_index ==0)
 problem_patient_ids <- tm %>% filter(days_since_index == 0) %>% distinct(patient_id) %>%
   anti_join(tm %>% distinct(patient_id),.)
 
-tm <- tm %>% 
+# Get setting type for index dates
+setting_problem_patient_id <- tbl(con, "tm_full") %>% filter(patient_id %in% local(problem_patient_ids$patient_id)) %>% 
+  collect() %>% inner_join(index_cases %>% select(patient_id, svcdate = index_date) %>% 
+                             inner_join(problem_patient_ids)) %>% 
+  select(patient_id, admdate = svcdate, disdate, outpatient:inpatient) %>% 
+  pivot_longer(outpatient:inpatient, names_to = "setting_type", values_to = "ind") %>% 
+  filter(ind !=0) %>% select(-ind) %>% 
+  mutate(setting_type = as.integer(factor(setting_type, labels= 1:5,
+                               levels = c("outpatient",
+                                          "ed",
+                                          "obs_stay",
+                                          "rx",
+                                          "inpatient"))))
+
+# Get stdplac type for index dates
+std_plac_problem_patient_id <- tbl(con, "stdplac_visits") %>% filter(patient_id %in% local(problem_patient_ids$patient_id)) %>% 
+  collect() %>% inner_join(index_cases %>% select(patient_id, svcdate = index_date) %>% 
+                             inner_join(problem_patient_ids)) %>% 
+  select(patient_id, admdate = svcdate, stdplac)
+
+# construct tm for index dates for problem vis
+tm_problem_patient_id <- setting_problem_patient_id %>% inner_join(std_plac_problem_patient_id) %>% 
+  inner_join(index_cases %>% select(patient_id, index_date) %>% 
+               inner_join(problem_patient_ids)) %>% 
+  mutate(days_since_index = admdate - index_date) %>% 
+  select(names(tm))
+  
+tm <- tm %>% bind_rows(tm_problem_patient_id) %>% 
   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
   mutate(days_since_index = days_since_index - shift) %>% 
   select(-shift) %>%
   filter(days_since_index<=0)
 
-#Load in the setting types
-load(paste0(delay_base_path,"visit_info.RData"))
-
-# update tm_stdplac
-tm_stdprov <- tm_stdprov %>% 
-  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
-  mutate(days_since_index = days_since_index - shift) %>% 
-  select(-shift) %>%
-  filter(days_since_index<=0)
 
 load(paste0(sim_out_path,"/sim_res_ssd.RData"))
-sim_res_ssd <- sim_res_ssd %>% mutate(trial = row_number()) %>% 
-  select(trial, boot_trial, res) %>% 
-  unnest(res) %>% 
-  select(-boot_id)
+# sim_res_ssd
 
-load(paste0(sim_out_path,"sim_obs_reduced.RData"))
-sim_obs_reduced <- sim_obs_reduced %>% 
-  mutate(days_since_index = -period) %>% 
-  select(-period)
 
-sim_res_sim_obs <- sim_res_ssd %>% 
-  inner_join(sim_obs_reduced, by = "obs") 
-
-load(paste0(sim_out_path,"boot_data.RData"))
-boot_data <- boot_data %>% select(boot_trial, boot_sample)
-
-n_trials <- nrow(distinct(sim_res_ssd,trial))
+n_trials <- nrow(distinct(sim_res_ssd))
 
 # Demo data
 reg_demo <- demo1 %>% 
@@ -153,18 +160,7 @@ reg_demo <- reg_demo %>%
               mutate(abx_window=1L)) %>% 
   mutate_at(vars(abx_window),~replace_na(.,0L))
 
-opioid_codes <- codeBuildr::load_rx_codes("opioids") %>% unlist(use.names = F) %>% unique()
-
-opioid_rx_vis <- rx_visits %>% 
-  filter(ndcnum %in% opioid_codes) 
-
-reg_demo <- reg_demo %>% 
-  left_join(opioid_rx_vis %>% 
-              filter(date<index_date & (date)>=(index_date-cp_selected)) %>% 
-              distinct(patient_id) %>% 
-              mutate(opioid_window=1L)) %>% 
-  mutate_at(vars(opioid_window),~replace_na(.,0L))
-
+save(reg_demo, file=paste0(out_path,"reg_data.RData"))
 ## Prepare ID consult indicators -----------------------------------------------
 
 # Aaron wants to know among those who received testing for dengue 
@@ -241,46 +237,28 @@ reg_demo <- reg_demo %>%
 #                               c("285", "448")) 
 
 
-# ID_consult_vis <- con %>% tbl("stdprov_visits") %>% 
-#   filter(patient_id %in% local(index_cases$patient_id)) %>% 
-#   filter(stdprov %in%  c("285", "448")) %>% 
-#   distinct() %>% 
-#   collect() %>% 
-#   inner_join(index_cases %>% 
-#              mutate(index_date = index_date + shift) %>% 
-#              select(patient_id, index_date), by = "patient_id") %>% 
-#   rename(admdate = svcdate) %>% 
-#   filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>% 
-#   distinct(patient_id, admdate)
+ID_consult_vis <- con %>% tbl("stdprov_visits") %>% 
+  filter(patient_id %in% local(index_cases$patient_id)) %>% 
+  filter(stdprov %in%  c("285", "448")) %>% 
+  distinct() %>% 
+  collect() %>% 
+  inner_join(index_cases %>% 
+             mutate(index_date = index_date + shift) %>% 
+             select(patient_id, index_date), by = "patient_id") %>% 
+  rename(admdate = svcdate) %>% 
+  filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>% 
+  distinct(patient_id, admdate)
 
-
-ID_consult_vis <- tm_stdprov %>% 
-    filter(patient_id %in% local(index_cases$patient_id)) %>%
-    filter(stdprov %in%  c("285", "448")) %>%
-    distinct() %>%
-    inner_join(index_cases %>%
-               mutate(index_date = index_date + shift) %>%
-               select(patient_id, index_date), by = "patient_id") %>%
-    rename(admdate = svcdate) %>%
-    filter(admdate<=index_date & (admdate)>=(index_date-(delay_params$upper_bound))) %>%
-    distinct(patient_id, admdate)
-  
 ## Add abx and ID consult to time map
 abx_rx_vis <- abx_rx_vis %>% distinct(patient_id, admdate = date)
-opioid_rx_vis <- opioid_rx_vis %>% distinct(patient_id, admdate = date)
 
-tm <- tm %>% rename(admdate = svcdate) %>% left_join(abx_rx_vis %>% mutate(abx = 1L), by = c("patient_id", "admdate")) %>% 
-  left_join(opioid_rx_vis %>% mutate(opioid = 1L), by = c("patient_id", "admdate")) %>% 
+tm <- tm %>% left_join(abx_rx_vis %>% mutate(abx = 1L), by = c("patient_id", "admdate")) %>% 
   left_join(ID_consult_vis %>% mutate(ID_consult = 1L), by = c("patient_id", "admdate")) %>% 
-  mutate_at(vars(abx, opioid, ID_consult),~replace_na(.,0L)) 
-
+  mutate_at(vars(abx, ID_consult),~replace_na(.,0L)) 
 
 ############################
 #### Prepare Visit Info ####
 ############################
-
-# total number of combinations: \sum_i=1^k choose(n, k) + 1 for no cat
-# so here it is sum(choose(4, 1:4)) +1
 
 setting_labels <- expand.grid(outpatient = c("Outpatient", NA),
                     inpatient = c("Inpatient", NA),
@@ -305,43 +283,42 @@ setting_labels <- setting_labels %>% mutate(setting_label = factor(setting_label
 
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
-  filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
-  distinct(patient_id,outpatient,ed,obs_stay,inpatient,admdate,abx, opioid, ID_consult) %>% 
+  filter(setting_type !=4) %>%
+  distinct(patient_id,setting_type,admdate, abx, ID_consult) %>% 
+  mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
   mutate(dow=weekdays(as_date(admdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-  mutate(year = year(as_date(admdate)),
-         month = month(as_date(admdate))) %>% 
-  select(patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month, abx, opioid, ID_consult) %>% 
+  select(patient_id,setting,weekend,dow, abx, ID_consult) %>%
+  mutate(value = TRUE) %>% 
+  spread(key= setting, value = value,fill = FALSE) %>% 
   inner_join(setting_labels) 
 
 obs_locations <- tm %>% 
-  inner_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
+  left_join(sim_obs,by = c("patient_id", "days_since_index")) %>% 
   filter(!is.na(obs)) %>% 
-  filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
-  distinct(obs,patient_id,outpatient,ed,obs_stay,inpatient,admdate,abx, opioid, ID_consult) %>%
-  mutate(dow = weekdays(as_date(admdate))) %>% 
-  mutate(year = year(as_date(admdate)),
-         month = month(as_date(admdate))) %>% 
-  mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-  mutate(year = year(as_date(admdate)),
-         month = month(as_date(admdate))) %>% 
-  select(obs,patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month, abx, opioid, ID_consult) %>% 
+  filter(setting_type !=4) %>%
+  distinct(patient_id,obs,setting_type, abx, ID_consult) %>% 
+  mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
+  select(patient_id,obs,setting, abx, ID_consult) %>%
+  mutate(value = TRUE) %>% 
+  spread(key= setting, value = value,fill = FALSE) %>% 
   inner_join(setting_labels) 
 
 ### Prep weekend visit info ------------
 
 # add weekend and demo to sim data
 sim_res_ssd <- sim_res_ssd %>% 
-  inner_join(obs_locations)
-
-
-full_reg_data <- nest(sim_res_ssd, .by = c("trial", "boot_trial"))
-full_reg_data <- full_reg_data %>% 
-  inner_join(boot_data %>% 
-               mutate(boot_sample = map(boot_sample, ~inner_join(., index_locations))))
-
-# all.equal(full_reg_data %>% slice(100) %>% select(boot_sample) %>% unnest(boot_sample),
-#           full_reg_data %>% slice(1000) %>% select(boot_sample) %>% unnest(boot_sample))
+  select(res) %>% 
+  mutate(trial = row_number()) %>% 
+  unnest(res) %>% 
+  inner_join(obs_locations) %>% 
+  inner_join(sim_obs %>% 
+               inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+                            select(patient_id,index_date), by = "patient_id") %>% 
+               mutate(vis_date = index_date+days_since_index) %>% 
+               mutate(dow=weekdays(as_date(vis_date))) %>% 
+               select(obs,dow) %>% 
+               mutate(weekend = dow %in% c("Saturday","Sunday")), by = "obs")
 
 ###########################
 #### Regression Models ####
@@ -353,19 +330,17 @@ get_miss_res <- function(trial_val){
   
   # trial_val <- 1
   
-  tmp1 <- full_reg_data %>% 
+  tmp1 <- sim_res_ssd %>% 
     filter(trial==trial_val)
   
-  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
-                          unnest(data) %>% 
+  reg_data <- bind_rows(tmp1 %>% 
                           mutate(miss=TRUE),
-                        tmp1 %>% select(boot_sample) %>% 
-                          unnest(boot_sample) %>% 
+                        index_locations %>% 
                           mutate(miss=FALSE)) %>% 
     inner_join(reg_demo, by = "patient_id")
   
   
-  fit <- glm(miss~setting_label  + age_cat + female + rural + source + weekend + abx + opioid + ID_consult, 
+  fit <- glm(miss~setting_label  + age_cat + female + rural + source + weekend + abx + ID_consult, 
              family = "binomial", data=reg_data)
   
   broom::tidy(fit)
@@ -388,7 +363,7 @@ get_miss_res <- function(trial_val){
 #                                     function(x){get_miss_res(x)})
 # parallel::stopCluster(cluster)
 
-miss_opp_res <- parallel::mclapply(1:max(full_reg_data$trial),
+miss_opp_res <- parallel::mclapply(1:max(sim_res_ssd$trial),
                                             function(x){get_miss_res(x)}, 
                                             mc.cores = num_cores)
 
@@ -407,20 +382,18 @@ gc()
 
 get_miss_res_med <- function(trial_val){
   
-  tmp1 <- full_reg_data %>% 
+  tmp1 <- sim_res_ssd %>% 
     filter(trial==trial_val)
   
-  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
-                          unnest(data) %>% 
+  reg_data <- bind_rows(tmp1 %>% 
                           mutate(miss=TRUE),
-                        tmp1 %>% select(boot_sample) %>% 
-                          unnest(boot_sample) %>% 
+                        index_locations %>% 
                           mutate(miss=FALSE)) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
     filter(source == "medicaid")
   
   
-  fit <- glm(miss~setting_label + age_cat + female + rural + race + weekend + abx + opioid + ID_consult,
+  fit <- glm(miss~setting_label + age_cat + female + rural + race + weekend + abx + ID_consult,
              family = "binomial", data=reg_data)
   
   # fit.penalized <- logistf(miss~setting_label + age_cat + female + rural + race + weekend + abx ,
@@ -453,7 +426,7 @@ get_miss_res_med <- function(trial_val){
 # parallel::stopCluster(cluster)
 
 
-miss_opp_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
+miss_opp_res_med <- parallel::mclapply(1:max(sim_res_ssd$trial),
                                             function(x){get_miss_res_med(x)}, 
                                             mc.cores = num_cores)
 
@@ -471,40 +444,26 @@ gc()
 #### Delay duration All --------------------------------------------------------
 
 # compute duration by simulation (note this will be used in the next step)
-full_reg_data_dur <- full_reg_data %>% 
-  mutate(data = map(data, ~inner_join(., sim_obs_reduced, by = c("obs", "patient_id")) %>% 
-                      group_by(patient_id) %>% 
-                      summarise(duration = -min(days_since_index)) %>% 
-                      ungroup()))
+sim_res_dur <- sim_res_ssd %>% 
+  select(obs,trial) %>% 
+  inner_join(sim_obs,by = "obs") %>% 
+  group_by(trial,patient_id) %>% 
+  summarise(duration = -min(days_since_index)) %>% 
+  ungroup()
 
-# rm(sim_res_ssd)
+rm(sim_res_ssd)
 gc()
-  
-# 
-# all.equal(full_reg_data %>% select(data) %>% slice(1) %>% 
-#             unnest(data) %>% inner_join(., sim_obs_reduced,by = c("obs", "patient_id")) %>% 
-#             group_by(patient_id) %>% 
-#             summarise(duration = -min(days_since_index)) %>% 
-#             ungroup(),
-#           full_reg_data %>% select(data) %>% slice(1) %>% 
-#             unnest(data) %>% inner_join(., sim_obs,by = c("obs", "patient_id")) %>% 
-#             group_by(patient_id) %>% 
-#             summarise(duration = -min(days_since_index)) %>% 
-#             ungroup())
 
 get_dur_res <- function(trial_val){
   
-  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  tmp1 <- sim_res_dur %>% filter(trial==trial_val)
   
-  reg_data <- tmp1 %>% 
-    select(boot_sample) %>% 
-    unnest(boot_sample) %>% 
-    inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+  reg_data <- reg_demo %>% 
+    left_join(tmp1) %>% 
     mutate(duration = replace_na(duration,0L))
   
   
-  fit <- glm(duration~age_cat + female + rural + source + abx_window + opioid_window, family = "gaussian", data=reg_data)
+  fit <- glm(duration~age_cat + female + rural + source + abx_window, family = "gaussian", data=reg_data)
   
   broom::tidy(fit)
   
@@ -526,7 +485,7 @@ get_dur_res <- function(trial_val){
 # 
 # parallel::stopCluster(cluster)
 
-miss_dur_res <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_dur_res <- parallel::mclapply(1:max(sim_res_dur$trial),
                                        function(x){get_dur_res(x)}, 
                                        mc.cores = num_cores)
 
@@ -544,18 +503,15 @@ gc()
 
 get_dur_res_med <- function(trial_val){
   
-  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  tmp1 <- sim_res_dur %>% filter(trial==trial_val)
   
-  reg_data <- tmp1 %>% 
-    select(boot_sample) %>% 
-    unnest(boot_sample) %>% 
-    inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+  reg_data <- reg_demo %>% 
+    left_join(tmp1) %>% 
     mutate(duration = replace_na(duration,0L)) %>% 
     filter(source == "medicaid")
   
   
-  fit <- glm(duration~age_cat + female + rural + race + abx_window + opioid_window, family = "gaussian", data=reg_data)
+  fit <- glm(duration~age_cat + female + rural + race + abx_window, family = "gaussian", data=reg_data)
   
   broom::tidy(fit)
   
@@ -577,7 +533,7 @@ get_dur_res_med <- function(trial_val){
 # 
 # parallel::stopCluster(cluster)
 
-miss_dur_res_med <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_dur_res_med <- parallel::mclapply(1:max(sim_res_dur$trial),
                                    function(x){get_dur_res_med(x)}, 
                                    mc.cores = num_cores)
 
@@ -595,18 +551,15 @@ gc()
 
 get_delay_pat_res <- function(trial_val){
   
-  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  tmp1 <- sim_res_dur %>% filter(trial==trial_val)
   
-  reg_data <- tmp1 %>% 
-    select(boot_sample) %>% 
-    unnest(boot_sample) %>% 
-    inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>%  
+  reg_data <- reg_demo %>% 
+    left_join(tmp1) %>% 
+    mutate(duration = replace_na(duration,0L)) %>% 
     mutate(miss = duration>0)
   
   
-  fit <- glm(miss~age_cat + female + rural + source + abx_window + opioid_window, family = "binomial", data=reg_data)
+  fit <- glm(miss~age_cat + female + rural + source + abx_window, family = "binomial", data=reg_data)
   
   broom::tidy(fit)
   
@@ -628,7 +581,7 @@ get_delay_pat_res <- function(trial_val){
 
 # parallel::stopCluster(cluster)
 
-miss_delay_pat_res <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_delay_pat_res <- parallel::mclapply(1:max(sim_res_dur$trial),
                                        function(x){get_delay_pat_res(x)}, 
                                        mc.cores = num_cores)
 
@@ -644,20 +597,16 @@ gc()
 
 
 get_delay_pat_res_med <- function(trial_val){
-
-  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  tmp1 <- sim_res_dur %>% filter(trial==trial_val)
   
-  reg_data <- tmp1 %>% 
-    select(boot_sample) %>% 
-    unnest(boot_sample) %>% 
-    inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>%  
+  reg_data <- reg_demo %>% 
+    left_join(tmp1) %>% 
+    mutate(duration = replace_na(duration,0L)) %>% 
     mutate(miss = duration>0) %>% 
     filter(source == "medicaid")
   
   
-  fit <- glm(miss~age_cat + female + rural + race + abx_window + opioid_window, family = "binomial", data=reg_data)
+  fit <- glm(miss~age_cat + female + rural + race + abx_window, family = "binomial", data=reg_data)
   
   broom::tidy(fit)
   
@@ -680,7 +629,7 @@ get_delay_pat_res_med <- function(trial_val){
 # 
 # parallel::stopCluster(cluster)
 
-miss_delay_pat_res_med <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_delay_pat_res_med <- parallel::mclapply(1:max(sim_res_dur$trial),
                                          function(x){get_delay_pat_res_med(x)}, 
                                          mc.cores = num_cores)
 

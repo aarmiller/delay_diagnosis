@@ -59,9 +59,7 @@ better_labels <- tribble(~term,~label,
                          'raceMissing/Unknown', 'Missing/Unknown race',
                          'raceOther', 'Other race',
                          "abx", "Antibiotics during visit",
-                         "opioid", "Opioid during visit",
                          "abx_window", "Antibiotics during delay window",
-                         "opioid_window", "Opioid during delay window",
                          "ID_consult", "ID consult during visit")
 
 better_labels <- better_labels %>% 

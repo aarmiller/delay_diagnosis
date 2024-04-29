@@ -393,7 +393,6 @@ The following table provides a more detailed summary of all the specific types o
 #   
   
 setting_counts_ssd$stdplac_res %>%
-  inner_join(smallDB::stdplac_labels, by = "stdplac")  %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
@@ -411,13 +410,13 @@ The following table summarizes the types of settings where the index diagnoses o
 
 ```{r, echo = FALSE}
 setting_counts_index_by_setting %>%
-  select(setting_type,index_count_mean:index_pct2_upperCI) %>% 
+  select(Setting,index_count_mean:index_pct2_upperCI) %>% 
   mutate(across(index_count_mean:index_count_upperCI, ~ceiling(.))) %>% 
   mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
          index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")"),
          index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
-  select(setting = setting_type,`Index Visits`=index_count,
+  select(setting = Setting,`Index Visits`=index_count,
          `% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>%
@@ -427,14 +426,15 @@ setting_counts_index_by_setting %>%
 The following table summarizes the more specific types of settings where the index diagnoses occurred:
 
 ```{r, echo = FALSE}
-setting_counts_index %>%
-  select(stdplac_group,index_count_mean:index_pct2_upperCI) %>% 
+setting_counts_index_by_stdplac %>%
+  select(label,index_count_mean:index_pct2_upperCI) %>% 
   mutate(across(index_count_mean:index_count_upperCI, ~ceiling(.))) %>% 
+  mutate(across(index_count_mean:index_pct2_upperCI, ~replace_na(., 0))) %>% 
   mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(index_count = paste0(index_count_mean," (",index_count_lowerCI,"-",index_count_upperCI,")"),
          index_pct1 = paste0(index_pct1_mean," (",index_pct1_lowerCI,"-",index_pct1_upperCI,")"),
          index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
-  select(setting = stdplac_group,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
+  select(setting = label,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
@@ -445,15 +445,19 @@ The following table summarizes the types of settings where missed opportunities 
 
 ```{r, echo = FALSE}
 setting_counts_index_by_setting %>%
-  select(setting_type,n_mean:pct_opp_missed_high) %>% 
+  select(Setting,n_mean:pct_opp_missed_high) %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
-  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(across(total_opps_mean:total_opps_high, ~ceiling(.))) %>% 
+  mutate(across(dur_mean:pct_opp_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
          pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         total_opp = paste0(total_opps_mean," (",total_opps_low,"-",total_opps_high,")"),
          pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")"),
          dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>%
-  select(setting = setting_type, `Missed Opportunities`=n,
+  select(setting = Setting, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
+         `Total Opp In Setting`= total_opp,
          `% of Opportunities Missed`=pct_opp_missed,
          `Mean time before for Misses`=dur) %>%
   kableExtra::kable() %>%
@@ -463,16 +467,20 @@ setting_counts_index_by_setting %>%
 The following table is similar to the one above, but now presented by more specific types of settings
 
 ```{r, echo = FALSE}
-setting_counts_index %>%
-  select(stdplac_group,n_mean:pct_opp_missed_high) %>% 
+setting_counts_index_by_stdplac %>%
+  select(label,n_mean:pct_opp_missed_high) %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
-  mutate(across(dur_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(across(total_opps_mean:total_opps_high, ~ceiling(.))) %>% 
+  mutate(across(dur_mean:pct_opp_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
          pct_opp = paste0(pct_opp_mean," (",pct_opp_low,"-",pct_opp_high,")"),
+         total_opp = paste0(total_opps_mean," (",total_opps_low,"-",total_opps_high,")"),
          pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")"),
          dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>% 
-  select(setting = stdplac_group, `Missed Opportunities`=n,
+  select(setting = label, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
+          `Total Opp In Setting`= total_opp,
          `% of Opportunities Missed`=pct_opp_missed,
          `Mean time before for Misses`=dur) %>%
   kableExtra::kable() %>%
@@ -584,7 +592,6 @@ The following table provides a more detailed summary of all the specific types o
 #   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
   
 setting_counts_all$stdplac_res %>%
-  inner_join(smallDB::stdplac_labels, by = "stdplac")  %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
   mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),

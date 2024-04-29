@@ -77,8 +77,7 @@ all_vis_count <- sim_tm %>%
 obs_tm <- sim_tm %>%
   distinct(obs,days_since_index,patient_id) %>%
   inner_join(tm,by = c("days_since_index", "patient_id")) %>%
-  distinct(obs,stdplac,setting_type) %>%
-  filter(setting_type!=4)
+  distinct(obs,outpatient,ed,obs_stay,inpatient)
 
 ###################################
 #### Analyze Bootstrap Results ####
@@ -341,6 +340,19 @@ dur_bins_all <- inner_join(tmp1,tmp2) %>%
 
 ### Setting summary miss opportunities --------------------------------------------
 
+# Load in the setting types
+load(paste0(data_in_path,"visit_info.RData"))
+
+# update tm_stdplac
+tm_stdplac <- tm_stdplac %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>%
+  filter(days_since_index<=0)
+
+tm_stdplac <- tm_stdplac %>% 
+  left_join(select(sim_tm,-period))
+
 source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
 
 sim_res <- list(sim_res_obs= sim_res_ssd %>% mutate(trial = row_number()) %>% 
@@ -350,7 +362,8 @@ sim_res <- list(sim_res_obs= sim_res_ssd %>% mutate(trial = row_number()) %>%
 
 setting_counts_ssd <- generate_setting_counts_2(obs_tm = obs_tm,
                                                 bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_ssd),
-                                                sim_res =sim_res)
+                                                sim_res = sim_res,
+                                                tm_stdplac = tm_stdplac)
 
 sim_res <- list(sim_res_obs= sim_res_all %>% mutate(trial = row_number()) %>% 
                   unnest(cols = c(res)),
@@ -359,7 +372,8 @@ sim_res <- list(sim_res_obs= sim_res_all %>% mutate(trial = row_number()) %>%
 
 setting_counts_all <- generate_setting_counts_2(obs_tm = obs_tm,
                                                 bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_all),
-                                                sim_res = sim_res)
+                                                sim_res = sim_res,
+                                                tm_stdplac = tm_stdplac)
 
 ### Setting summary index ------------------------------------------------------
 
@@ -368,16 +382,18 @@ sim_res <- sim_res_ssd %>% mutate(trial = row_number()) %>%
   unnest(cols = c(res))
 
 # Generate the index counts by stdplac
-setting_counts_index <- generate_setting_counts_2(tm_data = tm,
+setting_counts_index_by_stdplac <- generate_setting_counts_2(tm_data = tm,
                                                   bootstrap_data = boot_data %>% select(boot_trial, boot_sample),
                                                   sim_res_data = sim_res,
-                                                  sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
+                                                  sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period),
+                                                  tm_stdplac_data = tm_stdplac)
 
 # Generate the index counts by setting
 setting_counts_index_by_setting <- generate_setting_counts_3(tm_data = tm,
                                                              bootstrap_data = boot_data %>% select(boot_trial, boot_sample),
                                                              sim_res_data = sim_res,
-                                                             sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period))
+                                                             sim_res_sim_obs_data = sim_obs_reduced %>% mutate(days_since_index = -period),
+                                                             tm_stdplac_data = tm_stdplac)
 
 ### Rurality -------------------------------------------------------------------
 
@@ -460,7 +476,7 @@ save(agg_stats_all, agg_stats_ssd,
      miss_bins_all, miss_bins_ssd,
      dur_bins_all, dur_bins_ssd, 
      setting_counts_ssd, setting_counts_all,
-     setting_counts_index,
+     setting_counts_index_by_stdplac,
      setting_counts_index_by_setting,
      location_counts,
      file = paste0(sim_out_path,"aggregated_sim_results.RData"))

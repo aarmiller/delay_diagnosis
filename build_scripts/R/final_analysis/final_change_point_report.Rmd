@@ -76,7 +76,7 @@ visit_counts <- all_dx_visits %>%
   distinct(patient_id,dx_ver,days_since_index) %>%
   count(dx_ver,days_since_index)
 
-# populate missing valules in visit counts (i.e., assign 0 to days missing)
+# populate missing values in visit counts (i.e., assign 0 to days missing)
 visit_counts <- tibble(days_since_index=-delay_params$upper_bound:delay_params$upper_bound) %>%
   mutate(dx_ver=map(days_since_index,~c(9,10))) %>%
   unnest(dx_ver) %>%

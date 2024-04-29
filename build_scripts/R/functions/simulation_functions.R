@@ -209,7 +209,8 @@ generate_setting_counts <- function(obs_tm,sim_res,tm_stdplac){
     select(stdplac,n,pct,everything())
   
   
-  tmp2 <- tmp %>%
+  tmp2 <- obs_tm %>%
+    inner_join(sim_res$sim_res_obs, by = "obs") %>%
     group_by(trial) %>%
     summarise(outpatient = sum(outpatient),
               ed = sum(ed),
@@ -239,10 +240,11 @@ generate_setting_counts <- function(obs_tm,sim_res,tm_stdplac){
 
 
 # generate counts of misses in each setting version 2
-generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res){
+generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res, tm_stdplac){
   
   tmp <- obs_tm %>%
-    inner_join(sim_res$sim_res_obs, by = "obs")
+    inner_join(sim_res$sim_res_obs, by = "obs") %>% 
+    inner_join(distinct(tm_stdplac,obs,stdplac),by = join_by(obs),relationship = "many-to-many")
   
   tmp2 <- tmp %>%
     group_by(trial) %>%
@@ -277,13 +279,19 @@ generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res){
     # mutate(n = paste0(round(n_mean,2)," (",round(n_low,2),"-",round(n_high,2),")"),
     #        pct = paste0(round(pct_mean,2)," (",round(pct_low,2),"-",round(pct_high,2),")")) %>%
     # select(stdplac,n,pct,everything())
-    select(stdplac, everything())
+    select(stdplac, everything()) %>% 
+    left_join(smallDB::stdplac_labels, by = "stdplac") 
   
   
-  tmp2 <- tmp %>%
+  tmp2 <- obs_tm %>%
+    inner_join(sim_res$sim_res_obs, by = "obs") %>%
     group_by(trial) %>%
-    count(setting_type) %>%
-    ungroup()
+    summarise(outpatient = sum(outpatient),
+              ed = sum(ed),
+              obs_stay = sum(obs_stay),
+              inpatient = sum(inpatient)) %>% 
+    ungroup() %>% 
+    gather(key = setting_type, value=n, -trial)
   
   tmp_fill <- tmp2 %>%
     distinct(setting_type) %>%
@@ -310,7 +318,7 @@ generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res){
               pct_mean_vis_days = mean(pct_miss_vis_days),
               pct_vis_days_low = quantile(pct_miss_vis_days,probs = 0.025),
               pct_vis_days_high = quantile(pct_miss_vis_days,probs = 0.975)) %>%
-    mutate(setting_type = setting_type_labels(setting_type)) %>%
+    # mutate(setting_type = setting_type_labels(setting_type)) %>%
     # mutate(n = paste0(round(n_mean,2)," (",round(n_low,2),"-",round(n_high,2),")"),
     #        pct = paste0(round(pct_mean,2)," (",round(pct_low,2),"-",round(pct_high,2),")")) %>%
     # select(setting_type,n,pct,everything())
@@ -319,6 +327,7 @@ generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res){
   return(list(stdplac_res = stdplac_res,
               setting_type_res = setting_type_res))
 }
+
 
 # run interior simulation of bootstrap trial
 run_boot_trials <- function(boot_ids,tm_data,miss_bins,trials,delay_params,n_patients,n_trials){
