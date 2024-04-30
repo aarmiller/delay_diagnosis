@@ -196,10 +196,10 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh endocarditis
 #### Dengue ####
 qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh dengue
 qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh dengue
-qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh dengue
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh dengue;
 
-qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
-qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh dengue
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh dengue
 qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh dengue       # Need to check this with new algorithm for delay days
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh dengue 
 qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh dengue
