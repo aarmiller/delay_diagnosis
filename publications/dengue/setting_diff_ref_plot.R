@@ -2,7 +2,7 @@ library(tidyverse)
 
 ### Version 1 ------------------------------------------------------------------
 load("/Volumes/Statepi_Diagnosis/projects/dengue/risk_models/reg_data/new_setting_labels_firth_g_2001_w_diff_ref_setting_summary_res.RData")
-load("/Volumes/Statepi_Diagnosis/projects/dengue/risk_models/reg_data/new_setting_labels_firth_g_2001_w_ED_ref_setting.RData")
+# load("/Volumes/Statepi_Diagnosis/projects/dengue/risk_models/reg_data/new_setting_labels_firth_g_2001_w_ED_ref_setting.RData")
 
 setting_labels <- expand.grid(outpatient = c("Outpatient", NA),
                               inpatient = c("Inpatient", NA),
@@ -60,6 +60,11 @@ outpatient <- outpatient_res %>%
   filter(grepl("Outpatient", term)) 
 
 outpatient <- outpatient[c(7,1,6,2,3:5),] 
+outpatient <- bind_rows(tibble(term = "Outpatient Only",
+                               est = 1,
+                               low = 1,
+                               high = 1),
+                        outpatient)
 
 out_plot <- outpatient %>% 
   mutate(term = factor(term, levels = outpatient$term)) %>% 

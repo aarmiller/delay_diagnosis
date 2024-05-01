@@ -440,6 +440,7 @@ miss_opp_res <- parallel::mclapply(1:max(full_reg_data$trial),
                                    mc.cores = 60)
 
 gc()
+save(miss_opp_res, file = paste0(out_path, "reg_data/new_setting_labels_firth_g_2001_w_diff_ref_setting_data.RData"))
 
 all_but_setting_vars <- bind_rows(miss_opp_res) %>% 
   filter(!grepl("setting_label",term)) %>% 
@@ -464,16 +465,26 @@ outpatient_res <- bind_rows(outpatient_data) %>%
 
 summary_setting <- function(setting){
   data <- parallel::mclapply(miss_opp_res,
-                             function(x){x %>% 
+                             function(x){ 
+                               
+                               temp <- x %>% 
                                  filter(grepl("setting_label",term)) %>%
-                                 mutate(term = stringr::str_remove_all(term, "setting_label")) %>% 
-                                 bind_rows(tibble(term = "Outpatient Only", estimate = 0)) %>% 
-                                 mutate(ref = x %>% 
-                                          filter(grepl("setting_label",term)) %>%
-                                          mutate(term = stringr::str_remove_all(term, "setting_label")) %>% 
-                                          filter(term == setting) %>% .$estimate) %>% 
-                                 mutate(estimate = estimate - ref) %>% 
-                                 select(-ref)}, 
+                                 mutate(term = stringr::str_remove_all(term, "setting_label")) 
+                               
+                               if (nrow(filter(temp, term==setting)) >0){
+                                 temp %>% 
+                                   bind_rows(tibble(term = "Outpatient Only", estimate = 0)) %>% 
+                                   mutate(ref = x %>% 
+                                            filter(grepl("setting_label",term)) %>%
+                                            mutate(term = stringr::str_remove_all(term, "setting_label")) %>% 
+                                            filter(term == setting) %>% .$estimate) %>% 
+                                   mutate(estimate = estimate - ref) %>% 
+                                   select(-ref)
+                               } else {
+                                 temp %>% mutate(estimate = NA)
+                               }
+                               
+                             }, 
                              mc.cores = 60)
   
   res <- bind_rows(data) %>% 
@@ -487,7 +498,7 @@ ed_res <- summary_setting("ED Only")
 inpatient_res <- summary_setting("Inpatient Only")
 obs_res <- summary_setting("Observational Stay Only")
 
-save(miss_opp_res, file = paste0(out_path, "reg_data/new_setting_labels_firth_g_2001_w_diff_ref_setting_data.RData"))
+
 save(all_but_setting_vars,
      outpatient_res,
      ed_res,
