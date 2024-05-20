@@ -25,7 +25,7 @@ if (!dir.exists(out_path)) {
 delay_params <- delay_any_params[[cond_name]]
 rm(delay_any_params)
 
-paste0(out_path, "abx_duration_models.RData")
+load(paste0(out_path, "abx_duration_models.RData"))
 
 
 rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/abx_duration_report.Rmd",
