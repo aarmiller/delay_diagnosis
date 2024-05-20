@@ -29,7 +29,7 @@ delay_params <- delay_any_params[[params$cond]]
 
 delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
 
-load(paste0(delay_base_path,"/abx_duration_models.RData"))
+load(paste0(delay_base_path,"abx_duration_models.RData"))
 
 ```
 
