@@ -25,7 +25,7 @@
 desc="Run duration report for $1"
 
 #Script Paths
-script_path="github/delay_diagnosis/build_scripts/tmp/test_script.R"
+script_path="github/delay_diagnosis/build_scripts/R/tmp/test_script.R"
 r_out="/Shared/AML/job_out/R_out/delay_jobs/make_delay_report_$JOB_ID.txt"
 
 # Print job info to job_history file
