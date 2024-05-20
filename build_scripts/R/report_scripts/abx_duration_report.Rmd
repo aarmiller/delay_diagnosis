@@ -1,0 +1,82 @@
+---
+title: "Antibiotics and Delay Duration Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "tb"
+
+# load delay_parms
+load("/Shared/AML/params/delay_any_params.RData")
+
+delay_params <- delay_any_params[[params$cond]]
+
+delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
+
+load(paste0(delay_base_path,"/abx_duration_models.RData"))
+
+```
+
+# Antibiotic Delay Report for `r params$cond`
+
+The following are results for estimates of the effect of antibiotics on the diagnostic
+delay duration
+
+### Any antibiotic visit
+
+The following results estimate the effect of receiving any antibiotic during the 
+diagnostic opportunity window on the duration of diagnostic delay.
+
+Model 1 represents having received an antibiotic during the individual-specific 
+diagnostic opportunity window (i.e., the time between the patients first diagnostic 
+opportunity and the index diagnosis)
+
+Model 2 represents having received an antibiotic at any point during the entire
+diagnostic opportunity window; in this case, during the `r delay_params$cp` days
+prior to diagnosis. Note: this model does not restrict antibiotics to each individual's
+specific opportunity window.
+
+```{r, echo = FALSE}
+tmp1 <- abx_delay_res$any_abx1 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 1` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 1`)
+
+tmp2 <- abx_delay_res$any_abx2 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 2` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 2`)
+
+inner_join(tmp1,tmp2) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+### Any antibiotic visit
+
+Model 1 represents having received an antibiotic during the individual-specific 
+diagnostic opportunity window (i.e., the time between the patients first diagnostic 
+opportunity and the index diagnosis)
+
+Model 2 represents having received an antibiotic at any point during the entire
+diagnostic opportunity window; in this case, during the `r delay_params$cp` days
+prior to diagnosis. Note: this model does not restrict antibiotics to each individual's
+specific opportunity window.

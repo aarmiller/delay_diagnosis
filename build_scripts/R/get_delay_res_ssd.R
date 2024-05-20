@@ -21,8 +21,10 @@ delay_params <- delay_any_params[[cond_name]]
 # con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 
 sim_in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/")
+# sim_in_path <- paste0("~/Data/Statepi_Diagnosis/prelim_results/dengue/delay_results/")
 # sim_in_path <- paste0("/Volumes/AML/small_dbs/",cond_name,"/truven/enroll_restrict_365/","delay_results/")
 sim_out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/delay_results/ssd_visit/")
+# sim_out_path <- paste0("~/Data/Statepi_Diagnosis/prelim_results/dengue/delay_results/ssd_visit")
 
 
 if (!dir.exists(sim_out_path)) {
@@ -35,6 +37,7 @@ n_trials <- 1000
 #### Simulation Functions ####
 ##############################
 source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
+# source("build_scripts/R/functions/simulation_functions.R")
 
 
 ######################
