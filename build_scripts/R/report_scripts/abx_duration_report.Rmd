@@ -23,7 +23,7 @@ library(lubridate)
 # params$cond <- "tb"
 
 # load delay_parms
-load("/Shared/AML/params/delay_any_params.RData")
+# load("/Shared/AML/params/delay_any_params.RData")
 
 delay_params <- delay_any_params[[params$cond]]
 
@@ -70,13 +70,28 @@ inner_join(tmp1,tmp2) %>%
 ```
 
 
-### Any antibiotic visit
+### Antibiotic Days Supplied
 
-Model 1 represents having received an antibiotic during the individual-specific 
-diagnostic opportunity window (i.e., the time between the patients first diagnostic 
-opportunity and the index diagnosis)
+The following models estimate the effect of the number of antibiotic days supplied
+for antibiotics received during the diagnostic opportunity window on the duration
+of diagnostic delay.
 
-Model 2 represents having received an antibiotic at any point during the entire
-diagnostic opportunity window; in this case, during the `r delay_params$cp` days
-prior to diagnosis. Note: this model does not restrict antibiotics to each individual's
-specific opportunity window.
+Similar to above, Models 1 and 2 represent using the individual-specific diagnostic
+opportunity window (Model 1) and the overall diagnostic opportunity window (Model2).
+
+```{r, echo = FALSE}
+tmp1 <- abx_delay_res$abx_dur1 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 1` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 1`)
+
+tmp2 <- abx_delay_res$abx_dur2 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 2` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 2`)
+
+inner_join(tmp1,tmp2) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
