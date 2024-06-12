@@ -1,0 +1,135 @@
+---
+title: "Risk Factor Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "dengue"
+
+
+delay_params <- list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/pe/",
+                     base_path = "/Shared/Statepi_Diagnosis/prelim_results/pe/",  # base path to original prelim extract results
+                     out_path = "/Shared/Statepi_Diagnosis/projects/pe/",   # path to output delay new results
+                     ssd_name = "pe",
+                     cp = 98,
+                     upper_bound = 365,
+                     final_model = "quad",
+                     periodicity = TRUE,
+                     boot_trials = 100,
+                     sim_trials = 100,
+                     miss_bins = c(1,2,3,4,5),
+                     duration_bins = c(1,2,3,4,5,6,7,10,14,17,21))
+
+out_path <- paste0(delay_params$base_path,"risk_models_prelim/") 
+
+# load results data
+# load("/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/risk_models/ssd_miss_risk_models.RData")
+load(paste0(out_path,"ssd_miss_risk_models.RData"))
+
+# setup better labels
+better_labels <- tribble(~term,~label,
+                         '(Intercept)', '(Intercept)'  ,
+                         'age_cat(17,34]', 'Age 18-34'  ,
+                         'age_cat(34,44]', 'Age 35-44'  ,
+                         'age_cat(44,54]', 'Age 45-54'  ,
+                         'age_cat(54,64]', 'Age 55-64'  ,
+                         'age_cat(64,130]', 'Age >= 65'  ,
+                         'femaleTRUE', 'Female'  ,
+                         'obs_stayTRUE', 'Observational Stay'  ,
+                         'rural', 'Rural'  ,
+                         'setting_labelAll three', 'Outpatient, ED, and Inpatient'  ,
+                         'setting_labelED and inpatient', 'ED and Inpatient'  ,
+                         'setting_labelED only', 'ED Only'  ,
+                         'setting_labelInpatient only', 'Inpatient Only'  ,
+                         'setting_labelOut and ED', 'Outpatient and ED'  ,
+                         'setting_labelOut and inpatient', 'Outpatient and Inpatient'  ,
+                         'setting_labelnone', 'Not Outpatient, ED or Inpatient'  ,
+                         'sourcemdcr', 'Medicare'  ,
+                         'sourcemedicaid', 'Medicaid',
+                         "weekendTRUE", "Weekend Visit",
+                         'raceBlack', 'Black race',
+                         'raceHispanic', 'Hispanic race',
+                         'raceMissing/Unknown', 'Missing/Unknown race',
+                         'raceOther', 'Other race',
+                         "abx", "Antibiotics during visit",
+                         "opioid", "Opioid during visit",
+                         "abx_window", "Antibiotics during delay window",
+                         "opioid_window", "Opioid during delay window",     
+                         'inhaler', "Inhaler during visit",
+                         'inhaler_window', "Inhaler during delay window",
+                         'asthma_prior_cp', 'Asthma dx prior to delay window',
+                         'copd_prior_cp', 'COPD dx prior to delay window',
+                         'chest_ct_prior_cp', 'Chest CT prior to delay window',
+                         'chest_xray_prior_cp', 'Chest X-ray prior to delay window',
+                         "ID_consult", "ID consult during visit")
+
+better_labels <- better_labels %>% 
+  bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
+              select(term) %>% 
+              filter(grepl("setting_label", term)) %>% 
+              mutate(label = stringr::str_remove_all(term, "setting_label")))
+```
+
+
+# Delay Risk Factor Report for `r params$cond`
+
+### Missed Opportunities
+
+The following tables depicts results for the risk model for experiencing a missed 
+opportunity at a given visit. All missed visits and index dates are included in 
+this model with an outcome of 1 assigned to missed opportunities and 0 to index 
+diagnoses.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid).
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+### Missed Patients
+
+The following tables depict results for the risk models estimating the likelihood
+a given patient would experience a missed opportunity. Each patient is assigned 
+an outcome of 1 if they were missed (in a particular simulation) and 0 if they 
+were not missed.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid). The antibiotics during delay window variable is an indicator for whether the patient received respiratory antibiotics during the delay window (i.e. [98, 1] prior to index). Similar logic for the inhaler during delay window. Also included are variables for prior history of Asthma, COPD, and chest imaging (anytime prior to the delay window). 
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_delay_pat_res %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```

@@ -507,4 +507,11 @@ save(all_but_setting_vars,
      file = paste0(out_path, "reg_data/new_setting_labels_firth_g_2001_w_diff_ref_setting_summary_res.RData"))
 
 
+##### Table 4
+load(paste0(out_path, "reg_data/inpatient_ind_only_g_2001.RData"))
+
+table4 <- inpatient_ind_only %>% mutate(across(est:high, ~format(round(., 2), nsmall = 2))) %>% 
+  mutate(OR_CI = paste0(trimws(est), " (", trimws(low), "-", trimws(high), ")"))
+
+write_csv(table4, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table4.csv"))
 

@@ -41,7 +41,7 @@ figure1 <- ggpubr::ggarrange(fig1_A, fig1_B,
                              ncol = 2, nrow = 1)
 figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD Visits", rot = 90, vjust = 1, gp = grid::gpar(fontsize = 10)),
                 bottom = grid::textGrob("Days Before Index Dengue Diagnosis", gp = grid::gpar(fontsize = 10))) 
-ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/dengue/figures/figure1.jpeg",
+ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/dengue/figures/figure1.pdf",
        width = 10, height = 6,
        plot = figure1)
 
@@ -59,6 +59,6 @@ ssd_vis_count %>%
   theme_bw() +
   theme(axis.title = element_text(size=16),
         axis.text = element_text(size=12))
-ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/dengue/figures/Fig2.jpeg",
+ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/dengue/figures/figure2.pdf",
        width = 10, height = 6)
 
