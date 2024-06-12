@@ -1,0 +1,134 @@
+---
+title: "Antibiotics and Delay Duration Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "tb"
+
+# load delay_parms
+# load("/Shared/AML/params/delay_any_params.RData")
+
+# delay_params <- delay_any_params[[params$cond]]
+
+# delay_base_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
+
+# load(paste0(delay_base_path,"abx_duration_models.RData"))
+
+```
+
+# Antibiotic Delay Report for `r params$cond`
+
+The following are results for estimates of the effect of antibiotics on the diagnostic
+delay duration
+
+### Any antibiotic visit
+
+The following results estimate the effect of receiving any antibiotic during the 
+diagnostic opportunity window on the duration of diagnostic delay.
+
+Model 1 represents having received an antibiotic during the individual-specific 
+diagnostic opportunity window (i.e., the time between the patients first diagnostic 
+opportunity and the index diagnosis)
+
+Model 2 represents having received an antibiotic at any point during the entire
+diagnostic opportunity window; in this case, during the `r delay_params$cp` days
+prior to diagnosis. Note: this model does not restrict antibiotics to each individual's
+specific opportunity window.
+
+```{r, echo = FALSE}
+tmp1 <- abx_delay_res$any_abx1 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 1` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 1`)
+
+tmp2 <- abx_delay_res$any_abx2 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 2` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 2`)
+
+inner_join(tmp1,tmp2) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+### Antibiotic Days Supplied
+
+The following models estimate the effect of the number of antibiotic days supplied
+for antibiotics received during the diagnostic opportunity window on the duration
+of diagnostic delay.
+
+Similar to above, Models 1 and 2 represent using the individual-specific diagnostic
+opportunity window (Model 1) and the overall diagnostic opportunity window (Model2).
+
+```{r, echo = FALSE}
+tmp1 <- abx_delay_res$abx_dur1 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 1` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 1`)
+
+tmp2 <- abx_delay_res$abx_dur2 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 2` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 2`)
+
+inner_join(tmp1,tmp2) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+
+### Categories of Antibiotic Days Supplied
+
+The following models estimate the effect of the number of antibiotic days supplied
+for antibiotics received during the diagnostic opportunity window on the duration
+of diagnostic delay. However, in contrast to the model above, here we group antibiotic
+days supplied into separate categories representing commonly prescribed days of use.
+
+Similar to above, Models 1 and 2 represent using the individual-specific diagnostic
+opportunity window (Model 1) and the overall diagnostic opportunity window (Model2).
+
+```{r, echo = FALSE}
+tmp1 <- abx_delay_res$abx_cats1 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 1` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 1`)
+
+tmp2 <- abx_delay_res$abx_cats2 %>% 
+  mutate_at(vars(mdn_est:hi_est), ~round(.,2)) %>% 
+  mutate(`Model 2` = paste0(mn_est," (",lo_est,"-",hi_est,")")) %>% 
+  select(Coef = name,`Model 2`)
+
+tibble(Coef = c("(Intercept)","abx_days_cat1-3","abx_days_cat4-5","abx_days_cat6-7",
+                "abx_days_cat8-10","abx_days_cat11-14","abx_days_cat>14","age_cat(17,34]",
+                "age_cat(34,44]","age_cat(44,54]","age_cat(54,64]","age_cat(64,130]",
+                "sexmale"),
+       Coefficient = c("(Intercept)","abx 1-3 days","abx 4-5 days","abx 6-7 days",
+                "abx 8-10 days","abx 11-13 days","abx >13 days","age_cat(17,34]",
+                "age_cat(34,44]","age_cat(44,54]","age_cat(54,64]","age_cat(64,130]",
+                "sexmale")) %>%
+  inner_join(inner_join(tmp1,tmp2)) %>% 
+  select(-Coef) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+```

@@ -21,8 +21,18 @@
 #      duration_bins = c(1,2,3,4,5,6,7,10,14,17))
 
 
-delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
-                                     cp = 60,
+delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_dbs/ami/",
+                                       cp = 30,
+                                       cp_lower = NA,
+                                       cp_upper = NA,
+                                       upper_bound = 365,
+                                       final_model = "cubic",
+                                       periodicity = TRUE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
+                         
+                         blasto = list(path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                     cp = 51,
                                      cp_lower = NA,
                                      cp_upper = NA,
                                      upper_bound = 365,
@@ -31,12 +41,22 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
                                      miss_bins = c(1,2,3,4,5),
                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
+                         chf = list(path = "/Shared/AML/truven_extracts/small_dbs/chf/",
+                                       cp = 90,
+                                       cp_lower = NA,
+                                       cp_upper = NA,
+                                       upper_bound = 365*2,
+                                       final_model = "quadratic",
+                                       periodicity = TRUE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
+                         
                          cocci = list(path = "/Shared/AML/truven_extracts/small_dbs/cocci/",
-                                       cp = 70,
+                                       cp = 60,
                                        cp_lower = NA,
                                        cp_upper = NA,
                                        upper_bound = 365,
-                                       final_model = NA,
+                                       final_model = "cubic",
                                        periodicity = TRUE,
                                        miss_bins = c(1,2,3,4,5),
                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
@@ -72,14 +92,24 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21)),
                          
                          histo = list(path = "/Shared/AML/truven_extracts/small_dbs/histo/",
-                                      cp = 100,
+                                      cp = 70,
                                       cp_lower = NA,
                                       cp_upper = NA,
                                       upper_bound = 365,
-                                      final_model = NA,
+                                      final_model = "cubic",
                                       periodicity = TRUE,
                                       miss_bins = c(1,2,3,4,5),
                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60)),
+                         
+                         lung_cancer = list(path = "/Shared/AML/truven_extracts/small_dbs/lung_cancer/",
+                                   cp = 120,
+                                   cp_lower = NA,
+                                   cp_upper = NA,
+                                   upper_bound = 2*365,
+                                   final_model = "cubic",
+                                   periodicity = TRUE,
+                                   miss_bins = c(1,2,3,4,5),
+                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
                          meningitis = list(path = "/Shared/AML/truven_extracts/small_dbs/meningitis/",
                                            cp = 50,
@@ -101,6 +131,16 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
                                        miss_bins = c(1,2,3,4,5),
                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
+                         pe = list(path = "/Shared/AML/truven_extracts/small_dbs/pe/",
+                                       cp = 98,
+                                       cp_lower = NA,
+                                       cp_upper = NA,
+                                       upper_bound = 365,
+                                       final_model = "quadratic",
+                                       periodicity = TRUE,
+                                       miss_bins = c(1,2,3,4,5),
+                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
+                         
                          sepsis_revised10 = list(path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
                                                  cp = 14,
                                                  cp_lower = NA,
@@ -112,11 +152,11 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
                                                  duration_bins = c(1,2,3,4,5,6,7,10,14,17,21)),
                          
                          sarcoid = list(path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
-                                      cp = 180,
+                                      cp = 128,
                                       cp_lower = NA,
                                       cp_upper = NA,
                                       upper_bound = 365*2,
-                                      final_model = NA,
+                                      final_model = "quadratic",
                                       periodicity = TRUE,
                                       miss_bins = c(1,2,3,4,5),
                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)),
@@ -135,7 +175,7 @@ delay_any_params <- list(blasto = list(path = "/Shared/AML/truven_extracts/small
 # save parameters
 save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")
 
-# update master list
+ # update master list
 library(tidyverse)
 load("/Volumes/AML/params/delay_any_params.RData")
 
