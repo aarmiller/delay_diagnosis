@@ -223,7 +223,8 @@ obesity_inds <- obesity_dx_visits %>%
   mutate(morbid_obesity = replace_na(morbid_obesity,0)) %>% 
   group_by(patient_id) %>% 
   summarise(any_obesity = max(any_obesity),
-            morbid_obesity = max(morbid_obesity))
+            morbid_obesity = max(morbid_obesity)) %>% 
+  ungroup()
 
 reg_demo <- reg_demo %>%
   left_join(obesity_inds) %>% 
@@ -301,8 +302,8 @@ full_reg_data <- full_reg_data %>%
 #### Regression Models ####
 ###########################
 
-### Note exclude year 2002 as no index cases occured then
-index_locations %>% count(year) %>% print(n = Inf)
+### Note exclude year 2001 and 2002 as no index cases occured then
+# index_locations %>% count(year) %>% print(n = Inf)
 
 #### Missed opportunities All --------------------------------------------------
 
@@ -493,13 +494,14 @@ get_dur_res <- function(trial_val){
   reg_data <- tmp1 %>% 
     select(boot_sample) %>% 
     unnest(boot_sample) %>% 
+    select(patient_id) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>% 
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(duration, age_cat, female, rural, source, oral_steroids_in_window, inhalers_in_window, year, month,
+    select(duration, age_cat, female, rural, source, oral_steroids_window, inhalers_window, year, month,
            any_obesity, morbid_obesity, antiacid_drugs_window:cough_suppressant_drugs_window)
   
   
@@ -511,7 +513,7 @@ get_dur_res <- function(trial_val){
 }
 
 
-miss_dur_res <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_dur_res <- parallel::mclapply(1:max(full_reg_data$trial),
                                        function(x){get_dur_res(x)}, 
                                        mc.cores = num_cores)
 
@@ -534,6 +536,7 @@ get_dur_res_med <- function(trial_val){
   reg_data <- tmp1 %>% 
     select(boot_sample) %>% 
     unnest(boot_sample) %>% 
+    select(patient_id) %>%     
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>% 
@@ -541,7 +544,7 @@ get_dur_res_med <- function(trial_val){
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(duration, age_cat, female, rural, race, oral_steroids_in_window, inhalers_in_window, year, month,
+    select(duration, age_cat, female, rural, race, oral_steroids_window, inhalers_window, year, month,
            any_obesity, morbid_obesity, antiacid_drugs_window:cough_suppressant_drugs_window)
   
   
@@ -553,7 +556,7 @@ get_dur_res_med <- function(trial_val){
 }
 
 
-miss_dur_res_med <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_dur_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
                                    function(x){get_dur_res_med(x)}, 
                                    mc.cores = num_cores)
 
@@ -576,6 +579,7 @@ get_delay_pat_res <- function(trial_val){
   reg_data <- tmp1 %>% 
     select(boot_sample) %>% 
     unnest(boot_sample) %>% 
+    select(patient_id) %>%     
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>%  
@@ -583,7 +587,7 @@ get_delay_pat_res <- function(trial_val){
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, source, oral_steroids_in_window, inhalers_in_window, year, month,
+    select(miss, age_cat, female, rural, source, oral_steroids_window, inhalers_window, year, month,
            any_obesity, morbid_obesity, antiacid_drugs_window:cough_suppressant_drugs_window)
   
   
@@ -596,7 +600,7 @@ get_delay_pat_res <- function(trial_val){
 }
 
 
-miss_delay_pat_res <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_delay_pat_res <- parallel::mclapply(1:max(full_reg_data$trial),
                                        function(x){get_delay_pat_res(x)}, 
                                        mc.cores = num_cores)
 
@@ -618,6 +622,7 @@ get_delay_pat_res_med <- function(trial_val){
   reg_data <- tmp1 %>% 
     select(boot_sample) %>% 
     unnest(boot_sample) %>% 
+    select(patient_id) %>%     
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>%  
@@ -626,7 +631,7 @@ get_delay_pat_res_med <- function(trial_val){
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, race, oral_steroids_in_window, inhalers_in_window, year, month,
+    select(miss, age_cat, female, rural, race, oral_steroids_window, inhalers_window, year, month,
            any_obesity, morbid_obesity, antiacid_drugs_window:cough_suppressant_drugs_window)
   
   
@@ -637,7 +642,7 @@ get_delay_pat_res_med <- function(trial_val){
   
 }
 
-miss_delay_pat_res_med <- parallel::mclapply(1:max(full_reg_data_dur$trial),
+miss_delay_pat_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
                                          function(x){get_delay_pat_res_med(x)}, 
                                          mc.cores = num_cores)
 
@@ -737,12 +742,12 @@ ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res,
                              miss_delay_pat_res_med = miss_delay_pat_res_med)
 
 
-save(ssd_miss_risk_models,file = paste0(out_path,"ssd_miss_risk_models.RData"))
+save(ssd_miss_risk_models, index_locations, file = paste0(out_path,"ssd_miss_risk_models.RData"))
 # load(paste0(out_path,"ssd_miss_risk_models.RData"))
 
 
-rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/dengue/risk_model_report.Rmd",
-                  params = list(cond = "Dengue"),
+rmarkdown::render(input = paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/", proj_name, "/risk_model_report.Rmd"),
+                  params = list(cond = tools::toTitleCase(proj_name)),
                   output_dir = out_path,
                   output_file = paste0(proj_name, "_risk_model_report_", lubridate::today() %>% format('%m-%d-%Y')))
 
