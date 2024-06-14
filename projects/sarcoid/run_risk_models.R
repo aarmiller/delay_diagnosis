@@ -323,7 +323,7 @@ get_miss_res <- function(trial_val){
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, setting_label, age_cat, female, rural, source, weekend, oral_steroids, inhaler, year, month,
+    select(miss, setting_label, age_cat, female, rural, source, weekend, oral_steroids, inhalers, year, month,
            any_obesity, morbid_obesity, antiacid:cough_suppressant)
   
   
@@ -368,7 +368,7 @@ get_miss_res_inpatient_ind <- function(trial_val){
     filter(year>2002) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, inpatient, age_cat, female, rural, source, weekend, oral_steroids, inhaler, year, month,
+    select(miss, inpatient, age_cat, female, rural, source, weekend, oral_steroids, inhalers, year, month,
            any_obesity, morbid_obesity, antiacid:cough_suppressant)
   
   
@@ -412,7 +412,7 @@ get_miss_res_med <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     filter(source == "medicaid") %>% 
-    select(miss, setting_label, age_cat, female, rural, race, weekend, oral_steroids, inhaler, year, month,
+    select(miss, setting_label, age_cat, female, rural, race, weekend, oral_steroids, inhalers, year, month,
            any_obesity, morbid_obesity, antiacid:cough_suppressant)
   
   
@@ -454,7 +454,7 @@ get_miss_res_med_inpatient_ind <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     filter(source == "medicaid") %>% 
-    select(miss, inpatient, age_cat, female, rural, race, weekend, oral_steroids, inhaler, year, month,
+    select(miss, inpatient, age_cat, female, rural, race, weekend, oral_steroids, inhalers, year, month,
            any_obesity, morbid_obesity, antiacid:cough_suppressant)
   
   

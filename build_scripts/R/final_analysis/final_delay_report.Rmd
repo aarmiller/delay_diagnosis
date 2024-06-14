@@ -402,7 +402,7 @@ setting_counts_ssd$stdplac_res %>%
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
          `Percent of Missed Visit Days` = pct_vis_days) %>%
-  filter(!is.na(label)) %>% 
+  filter(!is.na(Setting)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -437,7 +437,7 @@ setting_counts_index_by_stdplac %>%
          index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
   select(setting = label,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
-  filter(!is.na(label)) %>% 
+  filter(!is.na(setting)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -485,7 +485,7 @@ setting_counts_index_by_stdplac %>%
          `Total Opp In Setting`= total_opp,
          `% of Opportunities Missed`=pct_opp_missed,
          `Mean time before for Misses`=dur) %>%
-  filter(!is.na(label)) %>% 
+  filter(!is.na(setting)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -604,7 +604,7 @@ setting_counts_all$stdplac_res %>%
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
          `Percent of Missed Visit Days` = pct_vis_days) %>% 
-  filter(!is.na(label)) %>% 
+  filter(!is.na(Setting)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
