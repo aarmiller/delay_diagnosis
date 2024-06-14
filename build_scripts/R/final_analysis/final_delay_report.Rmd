@@ -402,6 +402,7 @@ setting_counts_ssd$stdplac_res %>%
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
          `Percent of Missed Visit Days` = pct_vis_days) %>%
+  filter(!is.na(label)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -436,6 +437,7 @@ setting_counts_index_by_stdplac %>%
          index_pct2 = paste0(index_pct2_mean," (",index_pct2_lowerCI,"-",index_pct2_upperCI,")")) %>%
   select(setting = label,`Index Visits`=index_count,`% of all Index Locations`=index_pct1,
          `% of all Patients`=index_pct2) %>%
+  filter(!is.na(label)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -480,9 +482,10 @@ setting_counts_index_by_stdplac %>%
          dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>% 
   select(setting = label, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
-          `Total Opp In Setting`= total_opp,
+         `Total Opp In Setting`= total_opp,
          `% of Opportunities Missed`=pct_opp_missed,
          `Mean time before for Misses`=dur) %>%
+  filter(!is.na(label)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -590,7 +593,7 @@ The following table provides a more detailed summary of all the specific types o
 #          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
 #   mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
 #   inner_join(smallDB::stdplac_labels, by = "stdplac") %>%
-  
+
 setting_counts_all$stdplac_res %>%
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
@@ -601,6 +604,7 @@ setting_counts_all$stdplac_res %>%
          `Number of Misses`=n,
          `Percent of Missed Opportunities` = pct,
          `Percent of Missed Visit Days` = pct_vis_days) %>% 
+  filter(!is.na(label)) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```

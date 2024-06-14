@@ -1,0 +1,189 @@
+---
+title: "Risk Factor Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "dengue"
+
+# load delay_parms
+load("/Shared/AML/params/final_delay_params.RData")
+
+delay_params <- final_delay_params[[proj_name]]
+
+risk_model_base_path <- paste0(delay_params$out_path,"risk_models/")
+
+# load results data
+# load("/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/risk_models/ssd_miss_risk_models.RData")
+load(paste0(risk_model_base_path,"ssd_miss_risk_models.RData"))
+
+# setup better labels
+better_labels <- tribble(~term,~label,
+                         '(Intercept)', '(Intercept)'  ,
+                         'age_cat(17,34]', 'Age 18-34'  ,
+                         'age_cat(34,44]', 'Age 35-44'  ,
+                         'age_cat(44,54]', 'Age 45-54'  ,
+                         'age_cat(54,64]', 'Age 55-64'  ,
+                         'age_cat(64,130]', 'Age >= 65'  ,
+                         'femaleTRUE', 'Female'  ,
+                         'obs_stayTRUE', 'Observational Stay'  ,
+                         'rural', 'Rural'  ,
+                         'setting_labelAll three', 'Outpatient, ED, and Inpatient'  ,
+                         'setting_labelED and inpatient', 'ED and Inpatient'  ,
+                         'setting_labelED only', 'ED Only'  ,
+                         'setting_labelInpatient only', 'Inpatient Only'  ,
+                         'setting_labelOut and ED', 'Outpatient and ED'  ,
+                         'setting_labelOut and inpatient', 'Outpatient and Inpatient'  ,
+                         'setting_labelnone', 'Not Outpatient, ED or Inpatient'  ,
+                         'sourcemdcr', 'Medicare'  ,
+                         'sourcemedicaid', 'Medicaid',
+                         "weekendTRUE", "Weekend Visit",
+                         'raceBlack', 'Black race',
+                         'raceHispanic', 'Hispanic race',
+                         'raceMissing/Unknown', 'Missing/Unknown race',
+                         'raceOther', 'Other race',
+                         "abx", "Antibiotics during visit",
+                         "opioid", "Opioid during visit",
+                         "abx_window", "Antibiotics during delay window",
+                         "opioid_window", "Opioid during delay window",
+                         "ID_consult", "ID consult during visit")
+
+better_labels <- better_labels %>% 
+  bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
+              select(term) %>% 
+              filter(grepl("setting_label", term)) %>% 
+              mutate(label = stringr::str_remove_all(term, "setting_label")))
+```
+
+
+# Delay Risk Factor Report for `r params$cond`
+
+### Missed Opportunities
+
+The following tables depicts results for the risk model for experiencing a missed 
+opportunity at a given visit. All missed visits and index dates are included in 
+this model with an outcome of 1 assigned to missed opportunities and 0 to index 
+diagnoses.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+The following risk model pertains to Medicaid patients
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res_med %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+### Missed Patients
+
+The following tables depict results for the risk models estimating the likelihood
+a given patient would experience a missed opportunity. Each patient is assigned 
+an outcome of 1 if they were missed (in a particular simulation) and 0 if they 
+were not missed.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_delay_pat_res %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following risk model pertains to Medicaid patients
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_delay_pat_res_med %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+### Delay Duration
+
+The following tables depict results for the  models estimating the duration 
+of delays. In each model patients were assigned an integer value based on days 
+between index and their earliest missed opportunity. If no delay occured the 
+duration was 0 days. For these results a linear model was used to estimate the 
+days of duration
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res %>% 
+  mutate(`Estimate (Days)` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following risk model pertains to Medicaid patients
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res_med %>% 
+  mutate(`Estimate (Days)` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   inner_join(better_labels) %>% 
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```

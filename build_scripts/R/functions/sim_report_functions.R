@@ -317,24 +317,23 @@ generate_setting_counts_3 <- function(tm_data, sim_res_data, bootstrap_data, sim
               index_pct2_upperCI = quantile(index_pct2_temp, probs = 0.975)) # percent of total patients %>% # percent of total index locations w/o Other lower CI%>% 
   
   ## get observation timemap -----------------------------------------------------
-  tmp  <- sim_res_data %>% 
+  tmp2  <- sim_res_data %>% 
     inner_join(sim_res_sim_obs_data, by = "obs") %>% 
     inner_join(tm_data, by = join_by(patient_id, days_since_index)) %>% 
-    select(trial, days_since_index, outpatient, ed, obs_stay, inpatient) %>% 
-    gather(key = Setting, value = selected, -trial, -days_since_index) %>% 
-    filter(selected>0)
+    select(trial, days_since_index, outpatient, ed, obs_stay, inpatient)
   
-  tmp_fill <- tmp %>%
-    distinct(Setting) %>%
+  tmp_fill2 <- tibble(Setting = names(tmp2)[-(1:2)]) %>% 
     mutate(trial = map(Setting,~1:max(sim_res_data$trial))) %>%
     unnest(trial)
   
-  sim_res_setting_counts <- tmp %>% 
-    group_by(trial,Setting) %>% 
-    summarise(n=sum(selected),
-              duration = mean(-days_since_index)) %>%  
-    ungroup() %>% 
-    left_join(tmp_fill,.,by = c("Setting", "trial")) %>%
+  sim_res_setting_counts2 <- tibble(Setting = names(tmp2)[-(1:2)]) %>% 
+    mutate(out = map(Setting, ~tmp2 %>% filter(get(.x) == 1) %>% 
+                       group_by(trial) %>% 
+                       summarise(n = sum(get(.x)),
+                                 duration = mean(-days_since_index)) %>% 
+                       ungroup())) %>% 
+    unnest(out) %>% 
+    left_join(tmp_fill2,.,by = c("Setting", "trial")) %>%
     mutate(n=replace_na(n,0)) %>%
     group_by(trial) %>% 
     mutate(pct_opp = 100*n/sum(n)) %>% 
@@ -364,7 +363,7 @@ generate_setting_counts_3 <- function(tm_data, sim_res_data, bootstrap_data, sim
               pct_opp_missed_low = quantile(pct_opp_missed, na.rm = T, probs = 0.025),
               pct_opp_missed_high = quantile(pct_opp_missed, na.rm = T, probs = 0.975)) 
   
-  sim_res_setting_counts %>% 
+  sim_res_setting_counts2 %>% 
     full_join(index_setting_counts,by = "Setting")
   
 }

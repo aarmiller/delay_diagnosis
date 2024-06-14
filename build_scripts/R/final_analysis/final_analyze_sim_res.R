@@ -130,7 +130,7 @@ compute_boot_stats <- function(sim_data,sim_obs_data,delay_params,n_patients){
 }
 
 # setup cluster 
-plan(multisession, workers = 30)
+plan(multisession, workers = 10)
 
 tmp1 <- sim_res_ssd %>% 
   # slice(1:30) %>% 
