@@ -13,7 +13,7 @@
 #$ -q AML-HM
 
 #Select the number of slots the job will use
-#$ -pe smp 80
+#$ -pe smp 100
 
 #Print information from the job into the output file
 /bin/echo Running on host: `hostname`.

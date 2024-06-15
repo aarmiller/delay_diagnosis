@@ -4,6 +4,8 @@ library(lubridate)
 library(smallDB)
 # devtools::install_github("aarmiller/smallDB")
 
+print("started")
+
 # name of condition
 proj_name <- "sarcoid"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
@@ -28,7 +30,7 @@ con <- DBI::dbConnect(RSQLite::SQLite(),
 ### Load index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-num_cores <- 10
+num_cores <- 20
 cp_selected <- delay_params$cp
 
 #update demo1 and demo2
@@ -298,6 +300,8 @@ full_reg_data <- full_reg_data %>%
 # all.equal(full_reg_data %>% slice(100) %>% select(boot_sample) %>% unnest(boot_sample),
 #           full_reg_data %>% slice(1000) %>% select(boot_sample) %>% unnest(boot_sample))
 
+print("dataset ready")
+
 ###########################
 #### Regression Models ####
 ###########################
@@ -350,6 +354,8 @@ miss_opp_res <- bind_rows(miss_opp_res) %>%
 # rm(cluster)
 gc()
 
+print("mod 1 finished")
+
 #### Missed opportunities All -inpatient only ind --------------------------------------------------
 
 get_miss_res_inpatient_ind <- function(trial_val){
@@ -395,6 +401,8 @@ miss_opp_res_inpatient_ind <- bind_rows(miss_opp_res_inpatient_ind) %>%
 # rm(cluster)
 gc()
 
+print("mod 2 finished")
+
 #### Missed opportunities Medicaid ---------------------------------------------
 
 get_miss_res_med <- function(trial_val){
@@ -436,6 +444,9 @@ miss_opp_res_med <- bind_rows(miss_opp_res_med) %>%
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
             high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
 
+gc()
+
+print("mod 3 finished")
 
 #### Missed opportunities Medicaid - Inpatient_only ---------------------------------------------
 
@@ -477,6 +488,10 @@ miss_opp_res_med_inpatient_ind <- bind_rows(miss_opp_res_med_inpatient_ind) %>%
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
             high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+gc()
+
+print("mod 4 finished")
 
 #### Delay duration All --------------------------------------------------------
 
@@ -527,6 +542,8 @@ miss_dur_res <- bind_rows(miss_dur_res) %>%
 
 gc()
 
+print("mod 5 finished")
+
 #### Delay duration Medicaid ---------------------------------------------------
 
 get_dur_res_med <- function(trial_val){
@@ -568,6 +585,8 @@ miss_dur_res_med <- bind_rows(miss_dur_res_med) %>%
             high = quantile(estimate ,probs = c(0.975), na.rm = T))
 
 gc()
+
+print("mod 6 finished")
 
 #### Delay Patient All ---------------------------------------------------------
 
@@ -612,6 +631,8 @@ miss_delay_pat_res <- bind_rows(miss_delay_pat_res) %>%
 
 gc()
 
+print("mod 7 finished")
+
 #### Delay Patient Medicaid ----------------------------------------------------
 
 
@@ -654,6 +675,8 @@ miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>%
 
 
 gc()
+
+print("mod 8 finished")
 
 ### Alternative missed visits --------------------------------------------------
 # 
