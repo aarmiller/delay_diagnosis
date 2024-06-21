@@ -152,7 +152,7 @@ The diagnostic opportunity window (i.e., time period before diagnosis where diag
 
 ### Visit Trends
 
-In the `r delay_params$upper_bound`-days prior to the index dengue diagnosis, `r percent_patient_any_vis_in_study_period`% (`r total_patient_any_vis_in_study_period`) of patients had at least one healthcare visit for any reason and `r percent_patient_ssd_in_study_period`% (`r total_patient_ssd_in_study_period`) had at least one SSD visit. There was a total of `r total_ssd_visit_days_in_study_period` SSD-visit days in the `r delay_params$upper_bound`-days prior to diagnosis. 
+In the `r delay_params$upper_bound`-days prior to the index diagnosis, `r percent_patient_any_vis_in_study_period`% (`r total_patient_any_vis_in_study_period`) of patients had at least one healthcare visit for any reason and `r percent_patient_ssd_in_study_period`% (`r total_patient_ssd_in_study_period`) had at least one SSD visit. There was a total of `r total_ssd_visit_days_in_study_period` SSD-visit days in the `r delay_params$upper_bound`-days prior to diagnosis. 
 
 Of the `r total_patients` patients considered, `r total_patient_any_vis_in_window` patients (`r percent_patient_any_vis_in_window`%) had a healthcare visit during diagnostic opportunity window. Additionally, of the `r total_patients` patients considered, `r total_patient_ssd_vis_in_window` patients (`r percent_patient_ssd_vis_in_window`%) had an SSD-related visit during diagnostic opportunity window.
 
