@@ -140,7 +140,21 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                    boot_trials = 100,
                                                    sim_trials = 100,
                                                    miss_bins = c(1,2,3,4,5),
-                                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21))
+                                                   duration_bins = c(1,2,3,4,5,6,7,10,14,17,21)),
+                           
+                           
+                           blasto = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                         base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
+                                         out_path = "/Shared/Statepi_Diagnosis/projects/blasto/",   # path to output delay new results
+                                         ssd_name = "blasto",
+                                         cp = 92,
+                                         upper_bound = 365,
+                                         final_model = "cubic",
+                                         periodicity = TRUE,
+                                         boot_trials = 100,
+                                         sim_trials = 100,
+                                         miss_bins = c(1,2,3,4,5),
+                                         duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90))
 )
 
 # save parameters

@@ -11,3 +11,18 @@ Inhalers
 Other - the object other_drugs contains NDC codes and categories of drug classes, we essentially want an indicator in the model for each drug class. We may drop some of these if they lack sufficient observations.
 Let me know if you have any questions. Phil can give more details during the meeting today (if you are able to attend). I will try to check-in on Slack from time to time. But if I don't get back to you, feel free to pursue whatever options you think are best.
 Thanks
+
+
+
+07/02/2024
+
+Hey Alan, sorry for not getting this to you sooner. Here are some next steps for the antibiotic CDI paper and the sarcoid delay paper:
+For the antibiotic CDI paper, could you repeat the analysis but exclude patients under 18. Phil and I were going through the plots and we are still a bit concerned about the lack of monotonicity across antibiotics. This is a situation where we know from the biological mechanisms involved, that longer duration should increase microbiome disruption and thus imply greater CDI risk. Phil thought that some of the conflicting trends could be driven by different pediatric indications versus adult indications (e.g., some antibiotics are used completely differently in kids). So we wanted to check the effect of removing kids, as one final attempt at observing the duration relationship. If this still does not work out, our next strategy will be to turn to specific indications (e.g., UTI, respiratory infections) and focus on the antibiotics used to treat such conditions.
+For the sarcoid project we would like to do the following:
+Only include treatments during the delay window in the missed patients model and the duration model - these effects should proceed a missed opportunity rather than increase the risk for a missed opportunity (i.e., cough med prescribed for symptoms of sarcoid following a missed opportunity) so they don't make much sense in the missed opportunity model.
+For treatments in the risk model, remove antifungals and anti-inflamatory drugs - these were deemed too speculative
+Keep antiacids/PPI, antibiotics, antihistamines, cough suppressants, diuretics, inhalers, nasal spray and oral steroids
+Combine Antiacids and PPIs into a single indicator - these medications treat the same condition/symptom and from the model appear to exhibit a similar effect
+Remove morbid obesity as a separate indicator and just have a single "any obesity indicator" - obesity codes already lack sensitivity and specificity to a degree and we can't really be confident we can distinguish the two, so a single indicator is probably best
+For the missed opportunity model, run two models: one with the various setting types broken out like the current model, another where we just have a single indicator for inpatient stay on a given day.
+Let me know if you have any questions. Thanks.

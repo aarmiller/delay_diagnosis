@@ -94,13 +94,15 @@ visit_counts <- bind_rows(tmp,visit_counts %>%
             filter(days_since_index<=0))
 
 total_visit_days_in_window <- all_dx_visits %>% 
-  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
   distinct(patient_id,days_since_index) %>% 
   nrow()
 
 total_ssd_visit_days_in_window <- all_dx_visits %>% 
   inner_join(ssd_codes) %>% 
-  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>%   
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
   distinct(patient_id,days_since_index) %>% 
   nrow()
 
@@ -128,7 +130,8 @@ percent_patient_ssd_in_study_period<- gsub(" ", "", format(round(total_patient_s
 
 
 total_patient_any_vis_in_window <- all_dx_visits %>% 
-  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>%   
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
   distinct(patient_id) %>% 
   nrow()
 
@@ -136,7 +139,8 @@ percent_patient_any_vis_in_window <- gsub(" ", "", format(round(total_patient_an
 
 total_patient_ssd_vis_in_window <- all_dx_visits %>% 
   inner_join(ssd_codes) %>% 
-  filter(between(days_since_index,-delay_params$cp,-1)) %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>%   
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
   distinct(patient_id) %>% 
   nrow()
 
