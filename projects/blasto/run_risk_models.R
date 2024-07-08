@@ -146,7 +146,7 @@ tm <- tm %>% rename(admdate = svcdate)
 
 ## Prepare abx indicators --------------------------------------------------
 
-all_abx_codes <- read_csv("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/all_abx_codes.csv")
+all_abx_codes <- read_csv(paste0(delay_params$out_path,"all_abx_codes.csv"))
 
 all_abx_codes <- all_abx_codes %>%
   filter(!drug_name %in% tolower(c("Nitrofurantoin", "Metronidazole", "Trimethoprim",
@@ -254,8 +254,8 @@ reg_demo <- reg_demo %>%
   mutate_at(vars(IPD_prior_cp),~replace_na(.,0L))
 
 ## Prepare prior geography  ----------------------------------------------------
-source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/get_enroll_detail_fun.R")
-load("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/egeoloc_labels.RData")
+source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
+load(paste0(delay_params$out_path, "egeoloc_labels.RData"))
 
 enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = reg_demo %>% distinct(patient_id) %>% .$patient_id,
                                                     vars = "egeoloc",
