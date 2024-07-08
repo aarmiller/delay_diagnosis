@@ -24,7 +24,7 @@
 desc="run_risk_models"
 
 #Script Paths
-script_path="/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/sarcoid/run_risk_models.R"
+script_path="/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/run_risk_models.R"
 r_out="/Shared/Statepi_Diagnosis/atlan/out/delay_diagnosis/run_risk_models_$JOB_ID.txt"
 
 # Print job info to job_history file

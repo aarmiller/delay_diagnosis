@@ -7,7 +7,7 @@ library(smallDB)
 print("started")
 
 # name of condition
-proj_name <- "sarcoid"
+proj_name <- "blasto"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -30,7 +30,7 @@ con <- DBI::dbConnect(RSQLite::SQLite(),
 ### Load index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-num_cores <- 5
+num_cores <- 50
 cp_selected <- delay_params$cp
 
 #update demo1 and demo2
@@ -43,7 +43,6 @@ demo2 <- demo2 %>% select(-index_date) %>%
                select(patient_id, index_date), by = "patient_id")
 
 rural_ids <- rural_visits %>% inner_join(index_cases %>% distinct(patient_id)) %>% distinct(patient_id)
-
 
 # update all_dx_visits
 load(paste0(delay_base_path,"all_dx_visits.RData"))
@@ -131,9 +130,6 @@ reg_demo <- reg_demo %>%
               mutate(rural = 1L), by = "patient_id") %>% 
   mutate(rural = replace_na(rural,0L))
 
-# load drug codes
-
-load("/Shared/Statepi_Diagnosis/projects/sarcoid/code_sets/drug_risk_factor_codes.RData")
 
 rx_visits <- con %>% tbl("all_rx_visits") %>% 
   filter(patient_id %in% local(unique(index_cases$patient_id))) %>% 
@@ -145,96 +141,148 @@ rx_visits <- rx_visits %>%
 
 gc()
 
-## Prepare Oral Steroids indicators -----------------------------------------------
 
-oral_steroids_rx_vis <- rx_visits %>% 
-  filter(ndcnum %in% unique(steroids$ndcnum))
+tm <- tm %>% rename(admdate = svcdate)
 
-reg_demo <- reg_demo %>% 
-  left_join(oral_steroids_rx_vis %>% 
-              filter(date<index_date & (date)>=(index_date-cp_selected)) %>% 
-              distinct(patient_id) %>% 
-              mutate(oral_steroids_window=1L)) %>% 
-  mutate_at(vars(oral_steroids_window),~replace_na(.,0L))
+## Prepare abx indicators --------------------------------------------------
 
-## Prepare Inhalers indicators -----------------------------------------------
+all_abx_codes <- read_csv("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/all_abx_codes.csv")
 
-inhalers_rx_vis <- rx_visits %>% 
-  filter(ndcnum %in% unique(inhalers$ndcnum))
+all_abx_codes <- all_abx_codes %>%
+  filter(!drug_name %in% tolower(c("Nitrofurantoin", "Metronidazole", "Trimethoprim",
+                                   "Cefadroxil", "Rifampin", "Methenamine", "Demeclocycline",
+                                   "Rifaximin", "Dapsone", "Gemifloxacin", 
+                                   "Norfloxacin", "Fosfomycin", "Ofloxacin",
+                                   "Carbenicillin", "Gatifloxacin", "Cefmetazole",
+                                   "Cillin", "Fidaxomicin", "Sulfacetamide", "Sulfadiazine",
+                                   "Sulfadimethoxine", "Sulfadoxine"))) %>% 
+  distinct(ndcnum)
 
-reg_demo <- reg_demo %>% 
-  left_join(inhalers_rx_vis %>% 
-              filter(date<index_date & (date)>=(index_date-cp_selected)) %>% 
-              distinct(patient_id) %>% 
-              mutate(inhalers_window=1L)) %>% 
-  mutate_at(vars(inhalers_window),~replace_na(.,0L))
-
-## Prepare Other Drug indicators -----------------------------------------------
-other_drugs <- other_drugs %>% mutate(drug_class = stringr::str_replace_all(drug_class, " ", "_" ))
-other_drugs <- other_drugs %>% 
-  filter(!drug_class %in% c("antifungal", "antiinflammatory")) %>% 
-  mutate(drug_class = ifelse(drug_class %in% c("antiacid", "ppi"), "antiacid_ppi", drug_class))
-
-other_drugs_rx_vis <- rx_visits %>% 
-  inner_join(other_drugs) %>% 
-  select(-ndcnum, -daysupp) %>% 
-  distinct() %>% 
-  mutate(ind = 1) %>% 
-  pivot_wider(id_cols = c(patient_id, date, index_date),
-              values_from = ind,
-              names_from = drug_class) %>% 
-  mutate_at(vars(antiacid_ppi:cough_suppressant),~replace_na(.,0L))
-
-reg_demo <- reg_demo %>% 
-  left_join(other_drugs_rx_vis %>% 
-              filter(date<index_date & (date)>=(index_date-cp_selected)) %>% 
-              rename_with(~str_c(.,"_drugs_window"), antiacid_ppi:cough_suppressant) %>% 
-              group_by(patient_id) %>% 
-              summarise(across(antiacid_ppi_drugs_window:cough_suppressant_drugs_window, max)) %>% 
-              ungroup()) %>% 
-  mutate_at(vars(antiacid_ppi_drugs_window:cough_suppressant_drugs_window),~replace_na(.,0L))
-
-## Add oral sterioids, inhalers, and other drugs to time map
-oral_steroids_rx_vis <- oral_steroids_rx_vis %>% distinct(patient_id, admdate = date)
-inhalers_rx_vis <- inhalers_rx_vis %>% distinct(patient_id, admdate = date)
-other_drugs_rx_vis <- other_drugs_rx_vis %>% select(-index_date) %>% rename(admdate = date)
-
-tm <- tm %>% rename(admdate = svcdate) %>% 
-  left_join(oral_steroids_rx_vis %>% mutate(oral_steroids = 1L), by = c("patient_id", "admdate")) %>% 
-  left_join(inhalers_rx_vis %>% mutate(inhalers = 1L), by = c("patient_id", "admdate")) %>% 
-  left_join(other_drugs_rx_vis, by = c("patient_id", "admdate")) %>% 
-  mutate_at(vars(oral_steroids, inhalers, antiacid_ppi:cough_suppressant),~replace_na(.,0L)) 
-
-
-## Add morbid obesity and any obesity to reg_demo
-morbid_obesity_codes <- tibble(dx = c("27801", "E6601", "E662"),
-                               dx_ver = c(9, rep(10, 2)))
-any_obesity <-  tibble(dx =c("27800", "27801", "27802", "27803", "E66", "E660", "E6601", "E6609", "E661", "E662", "E663", "E668", "E669"),
-                       dx_ver = c(rep(9, 4), rep(10, 9)))
-
-con %>% 
-  copy_to(any_obesity, temporary = T) 
-
-obesity_dx_visits <- con %>% 
-  tbl("all_dx_visits") %>%
-  filter(days_since_index<0) %>% 
-  inner_join(tbl(con, "any_obesity")) %>% 
-  collect()
-
-obesity_inds <- obesity_dx_visits %>% 
-  inner_join(select(demo1,patient_id,index_date)) %>% 
-  mutate(any_obesity = 1) %>% 
-  left_join(morbid_obesity_codes %>% mutate(morbid_obesity = 1)) %>% 
-  mutate(morbid_obesity = replace_na(morbid_obesity,0)) %>% 
-  group_by(patient_id) %>% 
-  summarise(any_obesity = max(any_obesity),
-            morbid_obesity = max(morbid_obesity)) %>% 
-  ungroup() %>% 
-  select(-morbid_obesity)
+abx_rx_ids <- rx_visits %>% 
+  filter(ndcnum %in% all_abx_codes$ndcnum) %>% 
+  filter(date<index_date & date>=(index_date-cp_selected)) %>%
+  distinct(patient_id) %>% 
+  mutate(resp_antibiotic_drugs_window=1L)
 
 reg_demo <- reg_demo %>%
-  left_join(obesity_inds) %>% 
-  mutate_at(vars(any_obesity),~replace_na(.,0L))
+  left_join(abx_rx_ids) %>% 
+  mutate_at(vars(resp_antibiotic_drugs_window),~replace_na(.,0L))
+
+## Prepare inhaler indicators --------------------------------------------------
+
+tmp <- read_csv("/Shared/Statepi_Diagnosis/projects/sepsis_revised10/pre_covid/data/all_inhaler_codes.csv")
+
+inhale_rx_ids <- rx_visits %>% 
+  filter(ndcnum %in% tmp$NDCNUM) %>% 
+  filter(date<index_date & date>=(index_date-cp_selected)) %>%
+  distinct(patient_id) %>% 
+  mutate(inhalers_window=1L)
+
+reg_demo <- reg_demo %>%
+  left_join(inhale_rx_ids) %>% 
+  mutate_at(vars(inhalers_window),~replace_na(.,0L))
+
+## Prepare prior asthma and COPD indicators ------------------------------------
+
+#load asthma/copd codes
+old_ssds <- read_rds(paste0("/Shared/Statepi_Diagnosis/params/ssd_codes/condition_specific/ssd_tb.RDS"))
+old_ssds <- old_ssds[c("asthma", "copd")]
+asthma_COPD_codes <- tibble(dx = old_ssds$asthma$icd9_codes, dx_ver= 9L, cond = "Asthma") %>% 
+  bind_rows(tibble(dx = old_ssds$asthma$icd10_codes, dx_ver= 10L, cond = "Asthma")) %>% 
+  bind_rows(tibble(dx = old_ssds$copd$icd9_codes, dx_ver= 9L, cond = "COPD")) %>% 
+  bind_rows(tibble(dx = old_ssds$copd$icd10_codes, dx_ver= 10L, cond = "COPD")) %>% 
+  distinct()
+
+dx_visits <- con %>% tbl("all_dx_visits") %>% collect()
+
+dx_visits <- dx_visits %>% 
+  inner_join(select(demo1,patient_id,index_date)) %>% 
+  filter(days_since_index< (-cp_selected) & days_since_index>=-delay_params$upper_bound)
+
+#Asthma
+asthma <- dx_visits %>% 
+  inner_join(asthma_COPD_codes %>% filter( cond == "Asthma") %>% select(-cond)) %>% 
+  distinct(patient_id) %>% mutate(asthma_prior_cp = 1L) 
+
+#COPD
+copd <- dx_visits %>% 
+  inner_join(asthma_COPD_codes %>% filter( cond == "COPD") %>% select(-cond)) %>% 
+  distinct(patient_id) %>% mutate(copd_prior_cp = 1L) 
+
+reg_demo <- reg_demo %>%
+  left_join(asthma) %>% 
+  left_join(copd) %>% 
+  mutate_at(vars(asthma_prior_cp, copd_prior_cp),~replace_na(.,0L))
+
+## Prepare prior chest imaging -------------------------------------------------
+chest_ct <-c("71260", "71250", "71270")
+chest_xray <- c("71010", "71015", "71020", "71021", "71022", "71023",
+                "71030", "71034", "71035", "71101", "71111", "71120",
+                "71045", "71046", "71047", "71048")
+
+proc_visits <- con %>% tbl("all_proc_visits") %>% collect()
+
+proc_visits <- proc_visits %>% 
+  inner_join(select(demo1,patient_id,index_date)) %>% 
+  filter(days_since_index< (-cp_selected) & days_since_index>=-delay_params$upper_bound)
+
+chest_ct_visits <- proc_visits %>% 
+  filter(proc %in% chest_ct)%>% 
+  distinct(patient_id) %>% mutate(chest_ct_prior_cp = 1)
+
+chest_xray_visits <- proc_visits %>% 
+  filter(proc %in% chest_xray) %>% 
+  distinct(patient_id) %>% mutate(chest_xray_prior_cp = 1)
+
+reg_demo <- reg_demo %>%
+  left_join(chest_ct_visits) %>% 
+  left_join(chest_xray_visits) %>% 
+  mutate_at(vars(chest_ct_prior_cp, chest_xray_prior_cp),~replace_na(.,0L))
+
+## Prepare IPD 
+
+#IPD
+ipd_codes <- codeBuildr::load_disease_codes("ipd")
+ipd_codes <- tibble(dx_ver = 9, dx = ipd_codes$ipd$icd9_codes) %>% 
+  bind_rows(tibble(dx_ver = 10, dx = ipd_codes$ipd$icd10_codes))
+
+IPD <- dx_visits %>% inner_join(ipd_codes) %>%   
+  distinct(patient_id) %>% mutate(IPD_prior_cp = 1L) 
+
+reg_demo <- reg_demo %>%
+  left_join(IPD) %>% 
+  mutate_at(vars(IPD_prior_cp),~replace_na(.,0L))
+
+## Prepare prior geography  ----------------------------------------------------
+source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/get_enroll_detail_fun.R")
+load("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/blasto/egeoloc_labels.RData")
+
+enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = reg_demo %>% distinct(patient_id) %>% .$patient_id,
+                                                    vars = "egeoloc",
+                                                    db_path =  paste0(delay_params$small_db_path,"blasto.db"),
+                                                    num_cores=10)
+
+#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3322071/
+enroll_collapsed_temp2 <- enroll_collapsed_temp %>% 
+  inner_join(egeoloc_labels %>% select(egeoloc, location, state_name, state_abb)) %>% 
+  mutate(state_abb=ifelse(location== "washington, dc" & is.na(state_abb), "DC", state_abb)) %>% 
+  inner_join(select(demo1,patient_id,index_date)) %>% 
+  filter(index_date<=dtend & index_date>=dtstart) %>% 
+  distinct() %>% 
+  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ND", "MN",
+                                                               "WI", "IL",
+                                                               "TN", "AL",
+                                                               "MS", "LA"), 1L, 0L)) %>% 
+  filter(top2_high_inc_state_baddley == 1) %>% 
+  distinct(patient_id) %>% 
+  mutate(top2_high_inc_state_baddley = 1L)
+
+# top2_high_inc_state_baddley baddely states with incidence >= 1.38
+
+reg_demo <- reg_demo %>%
+  left_join(enroll_collapsed_temp2) %>% 
+  mutate_at(vars(top2_high_inc_state_baddley),~replace_na(.,0L))
+
 
 ############################
 #### Prepare Visit Info ####
@@ -267,26 +315,26 @@ setting_labels <- setting_labels %>% mutate(setting_label = factor(setting_label
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
   filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
-  distinct_at(vars(patient_id,outpatient,ed,obs_stay,inpatient,admdate,oral_steroids, inhalers, antiacid_ppi:cough_suppressant)) %>% 
+  distinct_at(vars(patient_id,outpatient,ed,obs_stay,inpatient,admdate)) %>% 
   mutate(dow=weekdays(as_date(admdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
-  select(patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month, oral_steroids, inhalers, antiacid_ppi:cough_suppressant) %>% 
+  select(patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month) %>% 
   inner_join(setting_labels) 
 
 obs_locations <- tm %>% 
   inner_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
   filter(!is.na(obs)) %>% 
   filter(outpatient==1 | ed==1 | obs_stay==1 | inpatient==1) %>%
-  distinct_at(vars(obs,patient_id,outpatient,ed,obs_stay,inpatient,admdate,oral_steroids, inhalers, antiacid_ppi:cough_suppressant)) %>%
+  distinct_at(vars(obs,patient_id,outpatient,ed,obs_stay,inpatient,admdate)) %>%
   mutate(dow = weekdays(as_date(admdate))) %>% 
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
-  select(obs,patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month, oral_steroids, inhalers, antiacid_ppi:cough_suppressant) %>% 
+  select(obs,patient_id,outpatient,ed,obs_stay,inpatient,weekend,dow, year, month) %>% 
   inner_join(setting_labels) 
 
 ### Prep weekend visit info ------------
@@ -310,8 +358,7 @@ print("dataset ready")
 #### Regression Models ####
 ###########################
 
-### Note exclude year 2001 and 2002 as no index cases occured then
-# index_locations %>% count(year) %>% print(n = Inf)
+# exldude year 2001 due to sparsity
 
 #### Missed opportunities All --------------------------------------------------
 library(logistf)
@@ -329,11 +376,11 @@ get_miss_res <- function(trial_val){
                           unnest(boot_sample) %>% 
                           mutate(miss=FALSE)) %>% 
     inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
-    filter(year>2002) %>% 
+    filter(year>2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     select(miss, setting_label, age_cat, female, rural, source, weekend, year, month,
-           any_obesity)
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley)
   
   # 
   # fit <- glm(miss ~ .,
@@ -383,11 +430,11 @@ get_miss_res_inpatient_ind <- function(trial_val){
                           unnest(boot_sample) %>% 
                           mutate(miss=FALSE)) %>% 
     inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
-    filter(year>2002) %>% 
+    filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     select(miss, inpatient, age_cat, female, rural, source, weekend, year, month,
-           any_obesity)
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley)
   
   
   fit <- glm(miss ~ .,
@@ -414,95 +461,95 @@ gc()
 
 print("mod 2 finished")
 
-#### Missed opportunities Medicaid ---------------------------------------------
-
-get_miss_res_med <- function(trial_val){
-  
-  tmp1 <- full_reg_data %>% 
-    filter(trial==trial_val)
-  
-  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
-                          unnest(data) %>% 
-                          mutate(miss=TRUE),
-                        tmp1 %>% select(boot_sample) %>% 
-                          unnest(boot_sample) %>% 
-                          mutate(miss=FALSE))  %>% 
-    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
-    filter(year>2002) %>% 
-    mutate(year = as.factor(year),
-           month = factor(month, levels = 1:12)) %>% 
-    filter(source == "medicaid") %>% 
-    select(miss, setting_label, age_cat, female, rural, race, weekend, year, month,
-           any_obesity)
-  
-  
-  fit <- glm(miss~.,
-             family = "binomial", data=reg_data)
-  
-  broom::tidy(fit)
-  
-  
-}
-
-
-miss_opp_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
-                                            function(x){get_miss_res_med(x)}, 
-                                            mc.cores = num_cores)
-
-miss_opp_res_med <- bind_rows(miss_opp_res_med) %>% 
-  group_by(term) %>% 
-  summarise(est = median(exp(estimate), na.rm = T),
-            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
-
-gc()
-
-print("mod 3 finished")
-
-#### Missed opportunities Medicaid - Inpatient_only ---------------------------------------------
-
-get_miss_res_med_inpatient_ind <- function(trial_val){
-  
-  tmp1 <- full_reg_data %>% 
-    filter(trial==trial_val)
-  
-  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
-                          unnest(data) %>% 
-                          mutate(miss=TRUE),
-                        tmp1 %>% select(boot_sample) %>% 
-                          unnest(boot_sample) %>% 
-                          mutate(miss=FALSE))  %>% 
-    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
-    filter(year>2002) %>% 
-    mutate(year = as.factor(year),
-           month = factor(month, levels = 1:12)) %>% 
-    filter(source == "medicaid") %>% 
-    select(miss, inpatient, age_cat, female, rural, race, weekend, year, month,
-           any_obesity)
-  
-  
-  fit <- glm(miss ~ .,
-             family = "binomial", data=reg_data)
-  
-  broom::tidy(fit)
-  
-  
-}
-
-
-miss_opp_res_med_inpatient_ind  <- parallel::mclapply(1:max(full_reg_data$trial),
-                                       function(x){get_miss_res_med_inpatient_ind(x)}, 
-                                       mc.cores = num_cores)
-
-miss_opp_res_med_inpatient_ind <- bind_rows(miss_opp_res_med_inpatient_ind) %>% 
-  group_by(term) %>% 
-  summarise(est = median(exp(estimate), na.rm = T),
-            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
-
-gc()
-
-print("mod 4 finished")
+# #### Missed opportunities Medicaid ---------------------------------------------
+# 
+# get_miss_res_med <- function(trial_val){
+#   
+#   tmp1 <- full_reg_data %>% 
+#     filter(trial==trial_val)
+#   
+#   reg_data <- bind_rows(tmp1 %>% select(data) %>% 
+#                           unnest(data) %>% 
+#                           mutate(miss=TRUE),
+#                         tmp1 %>% select(boot_sample) %>% 
+#                           unnest(boot_sample) %>% 
+#                           mutate(miss=FALSE))  %>% 
+#     inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+#     filter(year > 2001) %>% 
+#     mutate(year = as.factor(year),
+#            month = factor(month, levels = 1:12)) %>% 
+#     filter(source == "medicaid") %>% 
+#     select(miss, setting_label, age_cat, female, rural, race, weekend, year, month,
+#            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp)
+#   
+#   
+#   fit <- glm(miss~.,
+#              family = "binomial", data=reg_data)
+#   
+#   broom::tidy(fit)
+#   
+#   
+# }
+# 
+# 
+# miss_opp_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
+#                                             function(x){get_miss_res_med(x)}, 
+#                                             mc.cores = num_cores)
+# 
+# miss_opp_res_med <- bind_rows(miss_opp_res_med) %>% 
+#   group_by(term) %>% 
+#   summarise(est = median(exp(estimate), na.rm = T),
+#             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+#             high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+# 
+# gc()
+# 
+# print("mod 3 finished")
+# 
+# #### Missed opportunities Medicaid - Inpatient_only ---------------------------------------------
+# 
+# get_miss_res_med_inpatient_ind <- function(trial_val){
+#   
+#   tmp1 <- full_reg_data %>% 
+#     filter(trial==trial_val)
+#   
+#   reg_data <- bind_rows(tmp1 %>% select(data) %>% 
+#                           unnest(data) %>% 
+#                           mutate(miss=TRUE),
+#                         tmp1 %>% select(boot_sample) %>% 
+#                           unnest(boot_sample) %>% 
+#                           mutate(miss=FALSE))  %>% 
+#     inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+#      filter(year > 2001) %>% 
+#     mutate(year = as.factor(year),
+#            month = factor(month, levels = 1:12)) %>% 
+#     filter(source == "medicaid") %>% 
+#     select(miss, inpatient, age_cat, female, rural, race, weekend, year, month,
+#            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp)
+#   
+#   
+#   fit <- glm(miss ~ .,
+#              family = "binomial", data=reg_data)
+#   
+#   broom::tidy(fit)
+#   
+#   
+# }
+# 
+# 
+# miss_opp_res_med_inpatient_ind  <- parallel::mclapply(1:max(full_reg_data$trial),
+#                                        function(x){get_miss_res_med_inpatient_ind(x)}, 
+#                                        mc.cores = num_cores)
+# 
+# miss_opp_res_med_inpatient_ind <- bind_rows(miss_opp_res_med_inpatient_ind) %>% 
+#   group_by(term) %>% 
+#   summarise(est = median(exp(estimate), na.rm = T),
+#             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+#             high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+# 
+# gc()
+# 
+# print("mod 4 finished")
 
 #### Delay duration All --------------------------------------------------------
 
@@ -524,11 +571,12 @@ get_dur_res <- function(trial_val){
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>% 
-    filter(year>2002) %>% 
+    filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(duration, age_cat, female, rural, source, oral_steroids_window, inhalers_window, year, month,
-           any_obesity, antiacid_ppi_drugs_window:cough_suppressant_drugs_window)
+    select(duration, age_cat, female, rural, source, year, month,
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
+           resp_antibiotic_drugs_window, inhalers_window)
   
   
   fit <- glm(duration~., family = "gaussian", data=reg_data)
@@ -553,30 +601,32 @@ miss_dur_res <- bind_rows(miss_dur_res) %>%
 
 gc()
 
-print("mod 5 finished")
+print("mod 3 finished")
 
-#### Delay duration Medicaid ---------------------------------------------------
 
-get_dur_res_med <- function(trial_val){
+# log normal model
+get_dur_res_log_normal <- function(trial_val){
   
   tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
   
   reg_data <- tmp1 %>% 
     select(boot_sample) %>% 
     unnest(boot_sample) %>% 
-    select(patient_id) %>%     
+    select(patient_id) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>% 
-    filter(source == "medicaid") %>% 
-    filter(year>2002) %>% 
+    mutate(duration = duration + 0.01) %>% 
+    mutate(log_duration = log(duration)) %>% 
+    filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(duration, age_cat, female, rural, race, oral_steroids_window, inhalers_window, year, month,
-           any_obesity, antiacid_ppi_drugs_window:cough_suppressant_drugs_window)
+    select(log_duration, age_cat, female, rural, source, year, month,
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
+           resp_antibiotic_drugs_window, inhalers_window)
   
   
-  fit <- glm(duration~., family = "gaussian", data=reg_data)
+  fit <- glm(log_duration ~., family = "gaussian", data=reg_data)
   
   broom::tidy(fit)
   
@@ -584,20 +634,114 @@ get_dur_res_med <- function(trial_val){
 }
 
 
-miss_dur_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
-                                   function(x){get_dur_res_med(x)}, 
+miss_dur_res_log_normal <- parallel::mclapply(1:max(full_reg_data$trial),
+                                   function(x){get_dur_res_log_normal(x)}, 
                                    mc.cores = num_cores)
 
 
-miss_dur_res_med <- bind_rows(miss_dur_res_med) %>% 
+miss_dur_res_log_normal <- bind_rows(miss_dur_res_log_normal) %>% 
   group_by(term) %>% 
-  summarise(est = median(estimate, na.rm = T),
-            low = quantile(estimate ,probs = c(0.025), na.rm = T),
-            high = quantile(estimate ,probs = c(0.975), na.rm = T))
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate), probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate), probs = c(0.975), na.rm = T))
+
 
 gc()
 
-print("mod 6 finished")
+print("mod 4 finished")
+
+# weibul model
+library(survival)
+get_dur_res_weibull <- function(trial_val){
+  
+  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  
+  reg_data <- tmp1 %>% 
+    select(boot_sample) %>% 
+    unnest(boot_sample) %>% 
+    select(patient_id) %>% 
+    inner_join(reg_demo, by = "patient_id") %>% 
+    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+    mutate(duration = replace_na(duration,0L)) %>% 
+    mutate(duration = duration + 0.1) %>% 
+    filter(year > 2001) %>% 
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>% 
+    mutate(delta = 1) %>% 
+    select(duration, delta, age_cat, female, rural, source, year, month,
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
+           resp_antibiotic_drugs_window, inhalers_window)
+  
+  
+  fit <- survreg(Surv(duration, delta) ~., dist = "weibull", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+
+miss_dur_res_weibull <- parallel::mclapply(1:max(full_reg_data$trial),
+                                   function(x){get_dur_res_weibull(x)}, 
+                                   mc.cores = num_cores)
+
+
+miss_dur_res_weibull <- bind_rows(miss_dur_res_weibull) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate), probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate), probs = c(0.975), na.rm = T))
+
+
+gc()
+
+print("mod 5 finished")
+
+# #### Delay duration Medicaid ---------------------------------------------------
+# 
+# get_dur_res_med <- function(trial_val){
+#   
+#   tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+#   
+#   reg_data <- tmp1 %>% 
+#     select(boot_sample) %>% 
+#     unnest(boot_sample) %>% 
+#     select(patient_id) %>%     
+#     inner_join(reg_demo, by = "patient_id") %>% 
+#     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+#     mutate(duration = replace_na(duration,0L)) %>% 
+#     filter(source == "medicaid") %>% 
+#     filter(year > 2001) %>% 
+#     mutate(year = as.factor(year),
+#            month = factor(month, levels = 1:12)) %>% 
+#     select(duration, age_cat, female, rural, race, year, month,
+#            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp,
+#            resp_antibiotic_drugs_window, inhalers_window)
+#   
+#   
+#   fit <- glm(duration~., family = "gaussian", data=reg_data)
+#   
+#   broom::tidy(fit)
+#   
+#   
+# }
+# 
+# 
+# miss_dur_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
+#                                    function(x){get_dur_res_med(x)}, 
+#                                    mc.cores = num_cores)
+# 
+# 
+# miss_dur_res_med <- bind_rows(miss_dur_res_med) %>% 
+#   group_by(term) %>% 
+#   summarise(est = median(estimate, na.rm = T),
+#             low = quantile(estimate ,probs = c(0.025), na.rm = T),
+#             high = quantile(estimate ,probs = c(0.975), na.rm = T))
+# 
+# gc()
+# 
+# print("mod 6 finished")
+
 
 #### Delay Patient All ---------------------------------------------------------
 
@@ -614,11 +758,12 @@ get_delay_pat_res <- function(trial_val){
     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
     mutate(duration = replace_na(duration,0L)) %>%  
     mutate(miss = duration>0) %>% 
-    filter(year>2002) %>% 
+    filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, source, oral_steroids_window, inhalers_window, year, month,
-           any_obesity, antiacid_ppi_drugs_window:cough_suppressant_drugs_window)
+    select(miss, age_cat, female, rural, source, year, month,
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
+           resp_antibiotic_drugs_window, inhalers_window)
   
   
   
@@ -642,125 +787,53 @@ miss_delay_pat_res <- bind_rows(miss_delay_pat_res) %>%
 
 gc()
 
-print("mod 7 finished")
+print("mod 6 finished")
 
-#### Delay Patient Medicaid ----------------------------------------------------
-
-
-get_delay_pat_res_med <- function(trial_val){
-
-  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
-  
-  reg_data <- tmp1 %>% 
-    select(boot_sample) %>% 
-    unnest(boot_sample) %>% 
-    select(patient_id) %>%     
-    inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>%  
-    mutate(miss = duration>0) %>% 
-    filter(source == "medicaid") %>% 
-    filter(year>2002) %>% 
-    mutate(year = as.factor(year),
-           month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, race, oral_steroids_window, inhalers_window, year, month,
-           any_obesity, antiacid_ppi_drugs_window:cough_suppressant_drugs_window)
-  
-  
-  fit <- glm(miss~., family = "binomial", data=reg_data)
-  
-  broom::tidy(fit)
-  
-  
-}
-
-miss_delay_pat_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
-                                         function(x){get_delay_pat_res_med(x)}, 
-                                         mc.cores = num_cores)
-
-miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>% 
-  group_by(term) %>% 
-  summarise(est = median(exp(estimate), na.rm = T),
-            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
-
-
-gc()
-
-print("mod 8 finished")
-
-### Alternative missed visits --------------------------------------------------
+# #### Delay Patient Medicaid ----------------------------------------------------
 # 
-# obs_locations2 <- tm %>% 
-#   left_join(sim_obs,by = c("patient_id", "days_since_index")) %>% 
-#   filter(!is.na(obs)) %>% 
-#   filter(setting_type !=4) %>%
-#   distinct(patient_id,obs,setting_type,admdate) %>% 
-#   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
-#   mutate(dow=weekdays(as_date(admdate))) %>% 
-#   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-#   select(patient_id,obs,setting,dow,weekend) 
 # 
-# index_locations2 <- tm %>% 
-#   filter(days_since_index==0) %>% 
-#   filter(setting_type !=4) %>%
-#   distinct(patient_id,setting_type,admdate) %>% 
-#   mutate(setting=smallDB::setting_type_labels(setting_type)) %>%
-#   mutate(dow=weekdays(as_date(admdate))) %>% 
-#   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
-#   select(patient_id,setting,weekend,dow) 
+# get_delay_pat_res_med <- function(trial_val){
 # 
-# sim_res_ssd <- sim_res_ssd %>% 
-#   select(obs,trial) %>% 
-#   inner_join(obs_locations2)
-# 
-# get_miss_res2 <- function(trial_val){
+#   tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
 #   
-#   # trial_val <- 1
+#   reg_data <- tmp1 %>% 
+#     select(boot_sample) %>% 
+#     unnest(boot_sample) %>% 
+#     select(patient_id) %>%     
+#     inner_join(reg_demo, by = "patient_id") %>% 
+#     left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+#     mutate(duration = replace_na(duration,0L)) %>%  
+#     mutate(miss = duration>0) %>% 
+#     filter(year > 2001) %>% 
+#     filter(source == "medicaid") %>% 
+#     mutate(year = as.factor(year),
+#            month = factor(month, levels = 1:12)) %>% 
+#     select(miss, age_cat, female, rural, race, year, month,
+#            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp,
+#            resp_antibiotic_drugs_window, inhalers_window)
 #   
-#   tmp1 <- sim_res_ssd %>% 
-#     filter(trial==trial_val)
 #   
-#   reg_data <- bind_rows(tmp1 %>% 
-#                           mutate(miss=TRUE),
-#                         index_locations2 %>% 
-#                           mutate(miss=FALSE)) %>% 
-#     inner_join(reg_demo, by = "patient_id")
-#   
-#   
-#   fit <- glm(miss~setting + age_cat + female + rural + source + weekend, family = "binomial", data=reg_data)
+#   fit <- glm(miss~., family = "binomial", data=reg_data)
 #   
 #   broom::tidy(fit)
 #   
 #   
 # }
 # 
-# get_miss_res2(10)
+# miss_delay_pat_res_med <- parallel::mclapply(1:max(full_reg_data$trial),
+#                                          function(x){get_delay_pat_res_med(x)}, 
+#                                          mc.cores = num_cores)
 # 
-# cluster <- parallel::makeCluster(num_cores)
-# # cluster <- parallel::makeCluster(6)
-# 
-# parallel::clusterCall(cluster, function() library(tidyverse))
-# parallel::clusterExport(cluster,c("sim_res_ssd","get_miss_res2","index_locations2","reg_demo"),
-#                         envir=environment())
-# 
-# 
-# miss_opp_res2 <- parallel::parLapply(cl = cluster,
-#                                     1:max(sim_res_ssd$trial),
-#                                     function(x){get_miss_res2(x)})
-# 
-# 
-# parallel::stopCluster(cluster)
-# 
-# miss_opp_res2 <- bind_rows(miss_opp_res2) %>% 
+# miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>% 
 #   group_by(term) %>% 
-#   summarise(est = mean(exp(estimate)),
-#             low = quantile(exp(estimate),probs = c(0.025)),
-#             high = quantile(exp(estimate),probs = c(0.975)))
+#   summarise(est = median(exp(estimate), na.rm = T),
+#             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+#             high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
 # 
 # 
-# miss_opp_res2
-# miss_opp_res
+# gc()
+# 
+# print("mod 8 finished")
 
 ########################
 ##### Save Results #####
@@ -768,12 +841,15 @@ print("mod 8 finished")
 
 ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res,
                              miss_opp_res_inpatient_ind = miss_opp_res_inpatient_ind,
-                             miss_opp_res_med = miss_opp_res_med,
-                             miss_opp_res_med_inpatient_ind = miss_opp_res_med_inpatient_ind,
+                             # miss_opp_res_med = miss_opp_res_med,
+                             # miss_opp_res_med_inpatient_ind = miss_opp_res_med_inpatient_ind,
                              miss_dur_res = miss_dur_res,
-                             miss_dur_res_med = miss_dur_res_med,
-                             miss_delay_pat_res = miss_delay_pat_res,
-                             miss_delay_pat_res_med = miss_delay_pat_res_med)
+                             miss_dur_res_log_normal = miss_dur_res_log_normal,
+                             miss_dur_res_weibull = miss_dur_res_weibull,
+                             # miss_dur_res_med = miss_dur_res_med,
+                             miss_delay_pat_res = miss_delay_pat_res
+                             # miss_delay_pat_res_med = miss_delay_pat_res_med
+                             )
 
 
 save(ssd_miss_risk_models, index_locations, file = paste0(out_path,"ssd_miss_risk_models.RData"))
