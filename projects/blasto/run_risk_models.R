@@ -358,7 +358,7 @@ print("dataset ready")
 #### Regression Models ####
 ###########################
 
-# exldude year 2001 due to sparsity
+# exclude year 2001 due to sparsity
 
 #### Missed opportunities All --------------------------------------------------
 library(logistf)
@@ -569,8 +569,9 @@ get_dur_res <- function(trial_val){
     unnest(boot_sample) %>% 
     select(patient_id) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>% 
+    inner_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # mutate(duration = replace_na(duration,0L)) %>% 
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
@@ -614,9 +615,9 @@ get_dur_res_log_normal <- function(trial_val){
     unnest(boot_sample) %>% 
     select(patient_id) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>% 
-    mutate(duration = duration + 0.01) %>% 
+    inner_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # mutate(duration = replace_na(duration,0L)) %>% 
     mutate(log_duration = log(duration)) %>% 
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
@@ -661,9 +662,9 @@ get_dur_res_weibull <- function(trial_val){
     unnest(boot_sample) %>% 
     select(patient_id) %>% 
     inner_join(reg_demo, by = "patient_id") %>% 
-    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
-    mutate(duration = replace_na(duration,0L)) %>% 
-    mutate(duration = duration + 0.1) %>% 
+    inner_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>%
+    # mutate(duration = replace_na(duration,0L)) %>% 
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 

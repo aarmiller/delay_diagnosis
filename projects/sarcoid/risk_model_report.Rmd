@@ -244,13 +244,13 @@ ssd_miss_risk_models$miss_delay_pat_res_med %>%
 ```
 
 
-### Delay Duration
+### Delay Duration: Linear Regression Model
 
-The following tables depict results for the  models estimating the duration 
+The following table presents results for the model estimating the duration 
 of delays. In each model patients were assigned an integer value based on days 
-between index and their earliest missed opportunity. If no delay occured the 
-duration was 0 days. For these results a linear model was used to estimate the 
-days of duration
+between index and their earliest missed opportunity. Patients without a missed opportunity in a given trial were excluded from the analysis.
+**This analysis utilizes a linear regression model with duration 
+of delay as the outcome.**
 
 Note: All models were adjusted for year and month of the index visit.
 
@@ -289,3 +289,108 @@ ssd_miss_risk_models$miss_dur_res_med %>%
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
+
+
+### Delay Duration: Log-normal AFT Model
+
+The following table presents results for the model estimating the duration 
+of delays. In each model patients were assigned an integer value based on days 
+between index and their earliest missed opportunity. Patients without a missed opportunity in a given trial were excluded from the analysis.
+**This analysis utilizes a Log-normal accelerated failure time model.
+Since there is no censoring in our case, this model is simply a linear regression model with 
+the log transformed duration of delay as the outcome**. 
+
+**Interpretation of estimate: The estimate from this model is interpreted as a multiplicative effect on the
+median duration of delay. E.g. if the estimate for a dichotomous risk factor A is 1.6, we would
+interpret this as: the median duration of delay for those exposed to risk factor A is 1.6 times the median duration 
+of delay for those not expose to risk factor A (or the median duration of delay is 60% greater among those exposed to risk factor A).**
+
+Note: All models were adjusted for year and month of the index visit.
+
+*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res_log_normal %>% 
+  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>%
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+*The following risk model pertains to Medicaid patients*
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res_log_normal_med %>% 
+  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
+  inner_join(better_labels) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>%
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+### Delay Duration: Weibull AFT Model
+
+The following table presents results for the model estimating the duration 
+of delays. In each model patients were assigned an integer value based on days 
+between index and their earliest missed opportunity. Patients without a missed opportunity in a given trial were excluded from the analysis.
+**This analysis utilizes a Weibull accelerated failure time model with no censoring.** 
+
+**Interpretation of estimate: The estimate from this model is interpreted as a multiplicative effect on the 
+time to the earliest missed opportunity., which can also be interpreted as the duration of delay. E.g. if the estimate for a dichotomous risk factor A is 1.6, we would
+interpret this as: those exposed to risk factor A are estimated to have longer times to the earliest missed opportunity (or longer delays) than those not exposed
+by a multiplicative factor of 1.6. 
+
+Note: All models were adjusted for year and month of the index visit.
+
+*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res_weibull %>% 
+  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>%
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+*The following risk model pertains to Medicaid patients*
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_dur_res_weibull_med %>% 
+  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                                    " (",
+                                    formatC(low, digits = 3, format = "g", flag= "#"),
+                                    "-",
+                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
+  inner_join(better_labels) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>%
+  select(label, `Estimate (Days)`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
