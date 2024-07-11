@@ -320,7 +320,7 @@ ssd_miss_risk_models$miss_dur_res_log_normal %>%
   inner_join(better_labels) %>% 
   filter(!str_detect(term, 'year')) %>% 
   filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate (Days)`) %>% 
+  select(label, `Estimate`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
@@ -338,7 +338,7 @@ ssd_miss_risk_models$miss_dur_res_log_normal_med %>%
   inner_join(better_labels) %>% 
   filter(!str_detect(term, 'year')) %>% 
   filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate (Days)`) %>% 
+  select(label, `Estimate`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
@@ -354,7 +354,7 @@ between index and their earliest missed opportunity. Patients without a missed o
 **Interpretation of estimate: The estimate from this model is interpreted as a multiplicative effect on the 
 time to the earliest missed opportunity., which can also be interpreted as the duration of delay. E.g. if the estimate for a dichotomous risk factor A is 1.6, we would
 interpret this as: those exposed to risk factor A are estimated to have longer times to the earliest missed opportunity (or longer delays) than those not exposed
-by a multiplicative factor of 1.6. 
+by a multiplicative factor of 1.6.** 
 
 Note: All models were adjusted for year and month of the index visit.
 
@@ -371,7 +371,7 @@ ssd_miss_risk_models$miss_dur_res_weibull %>%
   inner_join(better_labels) %>% 
   filter(!str_detect(term, 'year')) %>% 
   filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate (Days)`) %>% 
+  select(label, `Estimate`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
@@ -389,7 +389,7 @@ ssd_miss_risk_models$miss_dur_res_weibull_med %>%
   inner_join(better_labels) %>% 
   filter(!str_detect(term, 'year')) %>% 
   filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate (Days)`) %>% 
+  select(label, `Estimate`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
