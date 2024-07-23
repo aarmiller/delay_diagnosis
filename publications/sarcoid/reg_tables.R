@@ -113,7 +113,7 @@ write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_r
 ## Table 3 ##
 #############
 
-data <- ssd_miss_risk_models$miss_dur_res
+data <- ssd_miss_risk_models$miss_dur_res_weibull
 
 miss_dur_res <- left_join(master_table, data) %>% 
   filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
