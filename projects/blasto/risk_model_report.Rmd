@@ -59,37 +59,14 @@ better_labels <- tribble(~term,~label,
                          'raceHispanic', 'Hispanic race',
                          'raceMissing/Unknown', 'Missing/Unknown race',
                          'raceOther', 'Other race',
-                         "abx", "Antibiotic rx during visit",
-                         "opioid", "Opioid rx during visit",
-                         "oral_steroids", "Oral steroid rx during visit",
-                         "inhalers", "Inhaler rx during visit",
-                         "diuretic", "Diuretic rx during visit",
-                         "antibiotic", "Antibiotic rx during visit",
-                         "antihistamine", "Antihistamine rx during visit",
-                         "antiinflammatory", "Anti-inflammatory rx during visit",
-                         "antiacid", "Antiacid rx during visit",
-                         "nasal_spray", "Nasal spray rx during visit",
-                         "cough_suppressant", "Cough suppressant rx during visit",
-                         "ppi", "PPI rx during visit",
-                         "antiacid_ppi", "Antiacid/ppi rx during visit",
-                         "antifungal", "Antifungal rx during visit",
-                         "abx_window", "Antibiotic rx during delay window",
-                         "opioid_window", "Opioid rx during delay window",
-                         "oral_steroids_window", "Oral steroid rx during delay window",
-                         "inhalers_window", "Inhaler rx during delay window",
-                         "diuretic_drugs_window", "Diuretic rx during delay window",
-                         "antibiotic_drugs_window", "Antibiotic rx during delay window",
-                         "antihistamine_drugs_window", "Antihistamine rx during delay window",
-                         "antiinflammatory_drugs_window", "Anti-inflammatory rx during delay window",
-                         "antiacid_drugs_window", "Antiacid rx during delay window",
-                         "nasal_spray_drugs_window", "Nasal spray rx during delay window",
-                         "cough_suppressant_drugs_window", "Cough suppressant rx during delay window",
-                         "ppi_drugs_window", "PPI rx during delay window",
-                         "antiacid_ppi_drugs_window", "Antiacid/ppi rx during delay window",
-                         "antifungal_drugs_window", "Antifungal rx during delay window",
-                         "ID_consult", "ID consult during visit",
-                         "any_obesity", "Any obesity dx prior to index",
-                         "morbid_obesity", "Morbid obesity dx prior to index")
+                         'asthma_prior_cp', 'Asthma dx prior to change point',
+                         'copd_prior_cp', 'COPD dx prior to change point',
+                         'IPD_prior_cp', 'IPD dx prior to change point',
+                         'chest_ct_prior_cp', 'Chest CT dx prior to change point',
+                         'chest_xray_prior_cp', 'Chest x-ray dx prior to change point',
+                         'top2_high_inc_state_baddley', 'Residing in state with incidence >= 1.38',
+                         'resp_antibiotic_drugs_window', 'Respiratory abx rx during delay window',
+                         'inhalers_window', 'Inhaler rx during delay window')
 
 better_labels <- better_labels %>% 
   bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
@@ -101,7 +78,7 @@ better_labels <- better_labels %>%
 
 # Delay Risk Factor Report for `r params$cond`
 
-### Note: The year 2001 and 2002 were excluded from the analyses below as no index cases occured in those years. This has to do with the 730 day enrollment requirement.
+### Note: The year 2001 were excluded from the analyses below as no index visits occured during that year. This has to do with the 365 day enrollment requirement.
 
 ```{r, echo = FALSE}
 index_locations %>% count(year) %>%
@@ -162,45 +139,9 @@ ssd_miss_risk_models$miss_opp_res_inpatient_ind %>%
 ```
 
 
-*The following risk model pertains to Medicaid patients*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_opp_res_med %>% 
-  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                               " (",
-                               formatC(low, digits = 3, format = "g", flag= "#"),
-                               "-",
-                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>% 
-  select(label, `Odds Ratio`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-*The following risk model pertains to Medicaid patients with an any inpatient indicator instead*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_opp_res_med_inpatient_ind %>% 
-  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                               " (",
-                               formatC(low, digits = 3, format = "g", flag= "#"),
-                               "-",
-                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>% 
-  select(label, `Odds Ratio`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
 ### Missed Patients
 
-The following tables depict results for the risk models estimating the likelihood
+The following table presents results for the risk model estimating the likelihood
 a given patient would experience a missed opportunity. Each patient is assigned 
 an outcome of 1 if they were missed (in a particular simulation) and 0 if they 
 were not missed.
@@ -225,26 +166,9 @@ ssd_miss_risk_models$miss_delay_pat_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*The following risk model pertains to Medicaid patients*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_delay_pat_res_med %>% 
-  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                               " (",
-                               formatC(low, digits = 3, format = "g", flag= "#"),
-                               "-",
-                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>%
-  select(label, `Odds Ratio`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
 
 
-### Delay Duration: Linear Regression Model
+### Delay Duration
 
 The following table presents results for the model estimating the duration 
 of delays. In each model patients were assigned an integer value based on days 
@@ -272,33 +196,13 @@ ssd_miss_risk_models$miss_dur_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*The following risk model pertains to Medicaid patients*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_dur_res_med %>% 
-  mutate(`Estimate (Days)` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                                    " (",
-                                    formatC(low, digits = 3, format = "g", flag= "#"),
-                                    "-",
-                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate (Days)`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-
-### Delay Duration: Log-normal AFT Model
-
 The following table presents results for the model estimating the duration 
 of delays. In each model patients were assigned an integer value based on days 
 between index and their earliest missed opportunity. Patients without a missed opportunity in a given trial were excluded from the analysis.
 **This analysis utilizes a Log-normal accelerated failure time model.
 Since there is no censoring in our case, this model is simply a linear regression model with 
 the log transformed duration of delay as the outcome**. 
+
 
 **Interpretation of estimate: The estimate from this model is interpreted as a multiplicative effect on the
 median duration of delay. E.g. if the estimate for a dichotomous risk factor A is 1.6, we would
@@ -325,26 +229,6 @@ ssd_miss_risk_models$miss_dur_res_log_normal %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*The following risk model pertains to Medicaid patients*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_dur_res_log_normal_med %>% 
-  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                                    " (",
-                                    formatC(low, digits = 3, format = "g", flag= "#"),
-                                    "-",
-                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-
-### Delay Duration: Weibull AFT Model
 
 The following table presents results for the model estimating the duration 
 of delays. In each model patients were assigned an integer value based on days 
@@ -354,11 +238,12 @@ between index and their earliest missed opportunity. Patients without a missed o
 **Interpretation of estimate: The estimate from this model is interpreted as a multiplicative effect on the 
 time to the earliest missed opportunity., which can also be interpreted as the duration of delay. E.g. if the estimate for a dichotomous risk factor A is 1.6, we would
 interpret this as: those exposed to risk factor A are estimated to have longer times to the earliest missed opportunity (or longer delays) than those not exposed
-by a multiplicative factor of 1.6.** 
+by a multiplicative factor of 1.6.**
 
 Note: All models were adjusted for year and month of the index visit.
 
 *The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+
 
 ```{r, echo = FALSE}
 
@@ -368,24 +253,6 @@ ssd_miss_risk_models$miss_dur_res_weibull %>%
                                     formatC(low, digits = 3, format = "g", flag= "#"),
                                     "-",
                                     formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
-  inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) %>%
-  select(label, `Estimate`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-*The following risk model pertains to Medicaid patients*
-
-```{r, echo = FALSE}
-
-ssd_miss_risk_models$miss_dur_res_weibull_med %>% 
-  mutate(`Estimate` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
-                                    " (",
-                                    formatC(low, digits = 3, format = "g", flag= "#"),
-                                    "-",
-                                    formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%   
   inner_join(better_labels) %>% 
   filter(!str_detect(term, 'year')) %>% 
   filter(!str_detect(term, 'month')) %>%
