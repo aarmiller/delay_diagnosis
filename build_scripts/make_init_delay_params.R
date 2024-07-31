@@ -161,6 +161,16 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                                       miss_bins = c(1,2,3,4,5),
                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)),
                          
+                         tb = list(path = "/Shared/AML/truven_extracts/small_dbs/tb/",
+                                        cp = 90,
+                                        cp_lower = NA,
+                                        cp_upper = NA,
+                                        upper_bound = 365,
+                                        final_model = "quadratic",
+                                        periodicity = TRUE,
+                                        miss_bins = c(1,2,3,4,5),
+                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)),
+                         
                          pertussis = list(path = "/Shared/AML/truven_extracts/small_dbs/pertussis/",
                                         cp = 21,
                                         cp_lower = NA,
