@@ -255,12 +255,13 @@ reg_demo <- reg_demo %>%
 
 ## Prepare prior geography  ----------------------------------------------------
 source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
-load(paste0(delay_params$out_path, "egeoloc_labels.RData"))
+load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
 
 enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = reg_demo %>% distinct(patient_id) %>% .$patient_id,
                                                     vars = "egeoloc",
                                                     db_path =  paste0(delay_params$small_db_path,"blasto.db"),
-                                                    num_cores=10)
+                                                    num_cores=10,
+                                                    collect_tab = collect_table(year = 1:22))
 
 #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3322071/
 enroll_collapsed_temp2 <- enroll_collapsed_temp %>% 
@@ -268,20 +269,61 @@ enroll_collapsed_temp2 <- enroll_collapsed_temp %>%
   mutate(state_abb=ifelse(location== "washington, dc" & is.na(state_abb), "DC", state_abb)) %>% 
   inner_join(select(demo1,patient_id,index_date)) %>% 
   filter(index_date<=dtend & index_date>=dtstart) %>% 
-  distinct() %>% 
-  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ND", "MN",
-                                                               "WI", "IL",
-                                                               "TN", "AL",
-                                                               "MS", "LA"), 1L, 0L)) %>% 
-  filter(top2_high_inc_state_baddley == 1) %>% 
-  distinct(patient_id) %>% 
-  mutate(top2_high_inc_state_baddley = 1L)
+  distinct() 
+# only 3,567 out of 3,825 have location information
 
 # top2_high_inc_state_baddley baddely states with incidence >= 1.38
 
+location_ind <- enroll_collapsed_temp2 %>%  
+  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ND", "MN",
+                                                               "WI", "IL",
+                                                               "TN", "AL",
+                                                               "MS", "LA"), 1L, ifelse(is.na(state_abb), NA, 0))) %>% 
+  select(patient_id, location:state_abb, top2_high_inc_state_baddley) %>% 
+  distinct()
+# location_ind %>% filter(top2_high_inc_state_baddley == 1) %>% distinct(state_abb) #check coding
+# 3,387 of the  3,567 with location info have non missing state
+
 reg_demo <- reg_demo %>%
-  left_join(enroll_collapsed_temp2) %>% 
-  mutate_at(vars(top2_high_inc_state_baddley),~replace_na(.,0L))
+  left_join(location_ind) 
+
+  # need to keep NAs, either medicaid or those with no state info
+  # mutate(top2_high_inc_state_baddley = ifelse(source!="medicaid" & is.na(top2_high_inc_state_baddley), 0L, top2_high_inc_state_baddley))
+  # mutate_at(vars(top2_high_inc_state_baddley),~replace_na(.,0L)) # need to keep NAs for medicaid
+
+## SAVE COUNTS
+index_state_counts <- reg_demo %>% 
+  group_by(location, state_name, state_abb) %>% 
+  summarise(n = n()) %>%
+  ungroup() %>% 
+  mutate(percent = n/sum(n)*100) %>% 
+  arrange(desc(n)) 
+write_csv(index_state_counts, file = paste0(out_path,"index_counts_by_state.csv"))  
+
+index_top2_high_inc_state_baddley_count <- reg_demo %>% 
+  count(top2_high_inc_state_baddley) %>% 
+  mutate(percent = n/sum(n)*100) %>% 
+  arrange(desc(n)) 
+write_csv(index_top2_high_inc_state_baddley_count, file = paste0(out_path,"index_top2_high_inc_state_baddley_count.csv"))  
+
+index_WI_MN_count <- reg_demo %>% 
+  mutate(WI_MN = ifelse(is.na(state_abb), NA, (state_abb %in% c("WI", "MN")) *1.0)) %>% 
+  count(WI_MN) %>% 
+  mutate(percent = n/sum(n)*100) %>% 
+  arrange(desc(n)) 
+write_csv(index_WI_MN_count, file = paste0(out_path,"index_WI_MN_count.csv"))  
+
+west_states <- c("WA", "OR", "CA",
+                "ID", "NV", "AZ",
+                "MT", "WY", "CO",
+                "UT", "NM")
+
+index_west_states_count <- reg_demo %>% 
+  mutate(west_states = ifelse(is.na(state_abb), NA, (state_abb %in% west_states)*1.0)) %>%
+  count(west_states) %>% 
+  mutate(percent = n/sum(n)*100) %>% 
+  arrange(desc(n)) 
+write_csv(index_west_states_count, file = paste0(out_path,"index_west_states_count.csv"))  
 
 
 ############################
@@ -380,7 +422,8 @@ get_miss_res <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     select(miss, setting_label, age_cat, female, rural, source, weekend, year, month,
-           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley)
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   
   # 
   # fit <- glm(miss ~ .,
@@ -434,7 +477,8 @@ get_miss_res_inpatient_ind <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     select(miss, inpatient, age_cat, female, rural, source, weekend, year, month,
-           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley)
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   
   
   fit <- glm(miss ~ .,
@@ -577,7 +621,9 @@ get_dur_res <- function(trial_val){
            month = factor(month, levels = 1:12)) %>% 
     select(duration, age_cat, female, rural, source, year, month,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
-           resp_antibiotic_drugs_window, inhalers_window)
+           resp_antibiotic_drugs_window, inhalers_window) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
   
   
   fit <- glm(duration~., family = "gaussian", data=reg_data)
@@ -624,7 +670,9 @@ get_dur_res_log_normal <- function(trial_val){
            month = factor(month, levels = 1:12)) %>% 
     select(log_duration, age_cat, female, rural, source, year, month,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
-           resp_antibiotic_drugs_window, inhalers_window)
+           resp_antibiotic_drugs_window, inhalers_window) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
   
   
   fit <- glm(log_duration ~., family = "gaussian", data=reg_data)
@@ -671,7 +719,9 @@ get_dur_res_weibull <- function(trial_val){
     mutate(delta = 1) %>% 
     select(duration, delta, age_cat, female, rural, source, year, month,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
-           resp_antibiotic_drugs_window, inhalers_window)
+           resp_antibiotic_drugs_window, inhalers_window)%>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
   
   
   fit <- survreg(Surv(duration, delta) ~., dist = "weibull", data=reg_data)
@@ -764,7 +814,9 @@ get_delay_pat_res <- function(trial_val){
            month = factor(month, levels = 1:12)) %>% 
     select(miss, age_cat, female, rural, source, year, month,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
-           resp_antibiotic_drugs_window, inhalers_window)
+           resp_antibiotic_drugs_window, inhalers_window) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
   
   
   
