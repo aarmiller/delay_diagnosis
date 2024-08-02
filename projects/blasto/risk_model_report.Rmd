@@ -102,7 +102,7 @@ diagnoses.
 
 Note: All models below were adjusted for year and month of visit
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
 
 ```{r, echo = FALSE}
 
@@ -120,7 +120,7 @@ ssd_miss_risk_models$miss_opp_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid) with an any inpatient indicator instead*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info) with an any inpatient indicator instead*
 
 ```{r, echo = FALSE}
 
@@ -148,7 +148,7 @@ were not missed.
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
 
 ```{r, echo = FALSE}
 
@@ -178,7 +178,7 @@ of delay as the outcome.**
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
 
 ```{r, echo = FALSE}
 
@@ -211,7 +211,7 @@ of delay for those not expose to risk factor A (or the median duration of delay 
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
 
 ```{r, echo = FALSE}
 
@@ -242,7 +242,7 @@ by a multiplicative factor of 1.6.**
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE, MDCR and Medicaid)*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
 
 
 ```{r, echo = FALSE}

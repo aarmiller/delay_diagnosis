@@ -719,10 +719,10 @@ get_dur_res_weibull <- function(trial_val){
     mutate(delta = 1) %>% 
     select(duration, delta, age_cat, female, rural, source, year, month,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley,
-           resp_antibiotic_drugs_window, inhalers_window)%>% 
-    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
-  
-  
+           resp_antibiotic_drugs_window, inhalers_window) %>% 
+    drop_na() %>%  # have to do at the end as obs not in bootsample and boot_id not in data
+    mutate(source = as.factor(as.character(source))) # for some reason survreg will not drop the missing factor level medicaid
+                                       # and when your run summary fit the NA coef will be given a value of 0
   
   fit <- survreg(Surv(duration, delta) ~., dist = "weibull", data=reg_data)
   
