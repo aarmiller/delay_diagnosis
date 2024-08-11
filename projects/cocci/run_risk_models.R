@@ -7,7 +7,7 @@ library(smallDB)
 print("started")
 
 # name of condition
-proj_name <- "blasto"
+proj_name <- "cocci"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -30,7 +30,7 @@ con <- DBI::dbConnect(RSQLite::SQLite(),
 ### Load index cases
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
-num_cores <- 50
+num_cores <- 5
 cp_selected <- delay_params$cp
 
 #update demo1 and demo2
@@ -259,7 +259,7 @@ load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 
 
 enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = reg_demo %>% distinct(patient_id) %>% .$patient_id,
                                                     vars = "egeoloc",
-                                                    db_path =  paste0(delay_params$small_db_path,"blasto.db"),
+                                                    db_path =  paste0(delay_params$small_db_path,"cocci.db"),
                                                     num_cores=10,
                                                     collect_tab = collect_table(year = 1:22))
 
@@ -270,19 +270,22 @@ enroll_collapsed_temp2 <- enroll_collapsed_temp %>%
   inner_join(select(demo1,patient_id,index_date)) %>% 
   filter(index_date<=dtend & index_date>=dtstart) %>% 
   distinct() 
-# only 3,567 out of 3,825 have location information
+# only 26,378 out of 26,905  have location information
 
-# top2_high_inc_state_baddley baddely states with incidence >= 1.38
+# top2_high_inc_state_baddley baddely states with incidence >= 3.97
 
 location_ind <- enroll_collapsed_temp2 %>%  
-  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ND", "MN",
-                                                               "WI", "IL",
-                                                               "TN", "AL",
-                                                               "MS", "LA"), 1L, ifelse(is.na(state_abb), NA, 0))) %>% 
+  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ID", "WY",
+                                                               "CA", "NV",
+                                                               "UT", "AZ",
+                                                               "NM", "ND",
+                                                               "MN", "IA",
+                                                               "AR", "NH",
+                                                               "AK"), 1L, ifelse(is.na(state_abb), NA, 0))) %>% 
   select(patient_id, location:state_abb, top2_high_inc_state_baddley) %>% 
   distinct()
 # location_ind %>% filter(top2_high_inc_state_baddley == 1) %>% distinct(state_abb) #check coding
-# 3,387 of the  3,567 with location info have non missing state
+# 26,048 of the 26,378 with location info have non missing state
 
 reg_demo <- reg_demo %>%
   left_join(location_ind) 
@@ -305,13 +308,6 @@ index_top2_high_inc_state_baddley_count <- reg_demo %>%
   mutate(percent = n/sum(n)*100) %>% 
   arrange(desc(n)) 
 write_csv(index_top2_high_inc_state_baddley_count, file = paste0(out_path,"index_top2_high_inc_state_baddley_count.csv"))  
-
-index_WI_MN_count <- reg_demo %>% 
-  mutate(WI_MN = ifelse(is.na(state_abb), NA, (state_abb %in% c("WI", "MN")) *1.0)) %>% 
-  count(WI_MN) %>% 
-  mutate(percent = n/sum(n)*100) %>% 
-  arrange(desc(n)) 
-write_csv(index_WI_MN_count, file = paste0(out_path,"index_WI_MN_count.csv"))  
 
 west_states <- c("WA", "OR", "CA",
                 "ID", "NV", "AZ",
@@ -450,7 +446,9 @@ miss_opp_res <- bind_rows(miss_opp_res) %>%
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T),
+            low_90 = quantile(exp(estimate), probs = c(0.05), na.rm = T),
+            high_90 = quantile(exp(estimate), probs = c(0.95), na.rm = T))
 
 # rm(cluster)
 gc()
@@ -498,7 +496,9 @@ miss_opp_res_inpatient_ind <- bind_rows(miss_opp_res_inpatient_ind) %>%
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T),
+            low_90 = quantile(exp(estimate), probs = c(0.05), na.rm = T),
+            high_90 = quantile(exp(estimate), probs = c(0.95), na.rm = T))
 
 # rm(cluster)
 gc()
@@ -694,7 +694,9 @@ miss_dur_res_log_normal <- bind_rows(miss_dur_res_log_normal) %>%
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate), probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate), probs = c(0.975), na.rm = T))
+            high = quantile(exp(estimate), probs = c(0.975), na.rm = T),
+            low_90 = quantile(exp(estimate), probs = c(0.05), na.rm = T),
+            high_90 = quantile(exp(estimate), probs = c(0.95), na.rm = T))
 
 
 gc()
@@ -743,7 +745,9 @@ miss_dur_res_weibull <- bind_rows(miss_dur_res_weibull) %>%
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate), probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate), probs = c(0.975), na.rm = T))
+            high = quantile(exp(estimate), probs = c(0.975), na.rm = T),
+            low_90 = quantile(exp(estimate), probs = c(0.05), na.rm = T),
+            high_90 = quantile(exp(estimate), probs = c(0.95), na.rm = T))
 
 
 gc()
@@ -838,7 +842,9 @@ miss_delay_pat_res <- bind_rows(miss_delay_pat_res) %>%
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
-            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T),
+            low_90 = quantile(exp(estimate), probs = c(0.05), na.rm = T),
+            high_90 = quantile(exp(estimate), probs = c(0.95), na.rm = T))
 
 gc()
 
@@ -916,3 +922,15 @@ rmarkdown::render(input = paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_d
                   output_dir = out_path,
                   output_file = paste0(proj_name, "_risk_model_report_", lubridate::today() %>% format('%m-%d-%Y')))
 
+
+### run explore_ssd_locations
+
+source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/cocci/explore_ssd_locations.R")
+
+### run explore_LMM_GLMM_models
+
+source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/cocci/explore_LMM_GLMM_models.R")
+
+### run ssd_curve_by_loc.R
+
+source("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/cocci/ssd_curve_by_loc.R")

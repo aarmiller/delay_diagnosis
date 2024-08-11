@@ -10,7 +10,7 @@ library(tidyverse)
 library(bit64)
 
 # load final delay param
-cond_name <- "blasto"
+cond_name <- "cocci"
 load("/Shared/AML/params/final_delay_params.RData")
 delay_params <- final_delay_params[[cond_name]]
 
@@ -19,7 +19,7 @@ if (!dir.exists(delay_params$out_path)) {
 }
 
 ## Build the primary index_dx_visits -------------------------------------------
-# Connect to blasto DB
+# Connect to cocci DB
 db <- src_sqlite(paste0(delay_params$small_db_path, cond_name, ".db"))
 
 # Collect index dates
