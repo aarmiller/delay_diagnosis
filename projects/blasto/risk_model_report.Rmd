@@ -78,7 +78,7 @@ better_labels <- better_labels %>%
 
 # Delay Risk Factor Report for `r params$cond`
 
-### Note: The year 2001 were excluded from the analyses below as no index visits occured during that year. This has to do with the 365 day enrollment requirement.
+### Note: The year 2001 was excluded from the analyses below as no index visits occured during that year. This has to do with the 365 day enrollment requirement.
 
 ```{r, echo = FALSE}
 index_locations %>% count(year) %>%
