@@ -105,7 +105,7 @@ diagnoses.
 
 Note: All models below were adjusted for year and month of visit
 
-*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
+*The following risk model pertains to all observations*
 
 ```{r, echo = FALSE}
 
@@ -123,77 +123,23 @@ ssd_miss_risk_models$miss_opp_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*Including interaction between high incidence state and ID consult*
+*The following risk model pertains to all observations with an any inpatient indicator instead*
+
 ```{r, echo = FALSE}
-temp <- ssd_miss_risk_models$miss_opp_res_interaction %>% 
+
+ssd_miss_risk_models$miss_opp_res_inpatient_ind %>% 
   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
                                " (",
                                formatC(low, digits = 3, format = "g", flag= "#"),
                                "-",
                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) 
-
-temp %>% 
   inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'Est')) %>% 
-  select(label, `Odds Ratio`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-
-temp %>% 
-  filter(str_detect(term, 'Est')) %>% 
-  mutate(label = stringr::str_replace_all(term, "Est", "OR:")) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
-
-<!-- *The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info) with an any inpatient indicator instead* -->
-
-<!-- ```{r, echo = FALSE} -->
-
-<!-- ssd_miss_risk_models$miss_opp_res_inpatient_ind %>%  -->
-<!--   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"), -->
-<!--                                " (", -->
-<!--                                formatC(low, digits = 3, format = "g", flag= "#"), -->
-<!--                                "-", -->
-<!--                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%  -->
-<!--   inner_join(better_labels) %>%  -->
-<!--   filter(!str_detect(term, 'year')) %>%  -->
-<!--   filter(!str_detect(term, 'month')) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
-
-<!-- *Including interaction between high incidence state and ID consult* -->
-
-<!-- ```{r, echo = FALSE} -->
-<!-- temp <- ssd_miss_risk_models$miss_opp_res_inpatient_ind_interaction %>%  -->
-<!--   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"), -->
-<!--                                " (", -->
-<!--                                formatC(low, digits = 3, format = "g", flag= "#"), -->
-<!--                                "-", -->
-<!--                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%  -->
-<!--   filter(!str_detect(term, 'year')) %>%  -->
-<!--   filter(!str_detect(term, 'month'))  -->
-
-<!-- temp %>%  -->
-<!--   inner_join(better_labels) %>%  -->
-<!--   filter(!str_detect(term, 'Est')) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-
-<!-- temp %>%  -->
-<!--   filter(str_detect(term, 'Est')) %>%  -->
-<!--   mutate(label = stringr::str_replace_all(term, "Est", "OR:")) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
-
 
 ### Missed Patients
 
@@ -204,7 +150,7 @@ were not missed.
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
+*The following risk model pertains to all observations*
 
 ```{r, echo = FALSE}
 
@@ -234,7 +180,7 @@ of delay as the outcome.**
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
+*The following risk model pertains to all observations*
 
 ```{r, echo = FALSE}
 
@@ -267,7 +213,7 @@ of delay for those not expose to risk factor A (or the median duration of delay 
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
+*The following risk model pertains to all observations*
 
 ```{r, echo = FALSE}
 
@@ -298,7 +244,7 @@ by a multiplicative factor of 1.6.**
 
 Note: All models were adjusted for year and month of the index visit.
 
-*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info)*
+*The following risk model pertains to all observations*
 
 
 ```{r, echo = FALSE}

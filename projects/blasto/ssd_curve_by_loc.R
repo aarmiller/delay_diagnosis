@@ -57,8 +57,9 @@ location_ind <- enroll_collapsed_temp2 %>%
 # 3,387 of the  3,567 with location info have non missing state
 
 loc_index_cases <- index_cases %>% select(patient_id) %>% 
-  left_join(location_ind) %>% 
-  count(top2_high_inc_state_baddley)
+  left_join(location_ind) 
+#loc_index_cases %>% 
+#   count(top2_high_inc_state_baddley)
 
 
 # update all_dx_visits

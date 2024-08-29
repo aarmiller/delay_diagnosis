@@ -348,6 +348,56 @@ full_reg_data <- full_reg_data %>%
 #### Regression Models ####
 ###########################
 
+
+#### Missed opportunities All (no setting risk factor > 2001) -------------------------
+
+get_miss_res_no_setting <- function(trial_val){
+  
+  # trial_val <- 1
+  
+  tmp1 <- full_reg_data %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
+                          unnest(data) %>% 
+                          mutate(miss=TRUE),
+                        tmp1 %>% select(boot_sample) %>% 
+                          unnest(boot_sample) %>% 
+                          mutate(miss=FALSE)) %>% 
+    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+    # mutate(year = factor(year,
+    #                      levels = paste0("20", str_pad(1:21, width = 2, side = "left", pad = "0"))),
+    #        month = factor(month, levels = 1:12))
+    filter(year > 2001) %>%
+    mutate(year = factor(year,
+                         levels = paste0("20", str_pad(2:21, width = 2, side = "left", pad = "0"))),
+           month = factor(month, levels = 1:12))
+  
+  fit <- glm(miss~ age_cat + female + source + weekend + abx + opioid + ID_consult + year + month, 
+             family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+
+miss_opp_res_no_setting <- parallel::mclapply(1:max(full_reg_data$trial),
+                                   function(x){get_miss_res_no_setting(x)}, 
+                                   mc.cores = num_cores)
+
+gc()
+
+miss_opp_res_no_setting <- bind_rows(miss_opp_res_no_setting) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+
+save(miss_opp_res_no_setting, file = paste0(out_path, "reg_data/no_setting_g_2001.RData"))
+
+
 #### Missed opportunities All (only main effect for inpatient > 2001) -------------------------
 
 get_miss_res <- function(trial_val){
@@ -508,9 +558,9 @@ save(all_but_setting_vars,
 
 
 ##### Table 4
-load(paste0(out_path, "reg_data/inpatient_ind_only_g_2001.RData"))
+load(paste0(out_path, "reg_data/no_setting_g_2001.RData"))
 
-table4 <- inpatient_ind_only %>% mutate(across(est:high, ~format(round(., 2), nsmall = 2))) %>% 
+table4 <- miss_opp_res_no_setting %>% mutate(across(est:high, ~format(round(., 2), nsmall = 2))) %>% 
   mutate(OR_CI = paste0(trimws(est), " (", trimws(low), "-", trimws(high), ")"))
 
 write_csv(table4, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table4.csv"))

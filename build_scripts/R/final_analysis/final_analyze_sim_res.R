@@ -361,7 +361,7 @@ sim_res <- list(sim_res_obs= sim_res_ssd %>% mutate(trial = row_number()) %>%
                   distinct(trial))
 
 setting_counts_ssd <- generate_setting_counts_2(obs_tm = obs_tm,
-                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_ssd),
+                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_ssd, potential_miss_setting = potential_miss_setting_ssd),
                                                 sim_res = sim_res,
                                                 tm_stdplac = tm_stdplac)
 
@@ -371,7 +371,7 @@ sim_res <- list(sim_res_obs= sim_res_all %>% mutate(trial = row_number()) %>%
                   distinct(trial))
 
 setting_counts_all <- generate_setting_counts_2(obs_tm = obs_tm,
-                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_all),
+                                                bootstrap_data = boot_data %>% select(boot_trial, n_miss = n_miss_all, potential_miss_setting = potential_miss_setting_all),
                                                 sim_res = sim_res,
                                                 tm_stdplac = tm_stdplac)
 

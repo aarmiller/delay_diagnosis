@@ -156,6 +156,46 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          miss_bins = c(1,2,3,4,5),
                                          duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
                            
+                           blasto_top2_baddley = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                                      base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
+                                                      out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_top2_baddley/",   # path to output delay new results
+                                                      ssd_name = "blasto",
+                                                      cp = 92,
+                                                      upper_bound = 365,
+                                                      final_model = "cubic",
+                                                      periodicity = TRUE,
+                                                      boot_trials = 100,
+                                                      sim_trials = 100,
+                                                      miss_bins = c(1,2,3,4,5),
+                                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
+                           
+                           blasto_not_top2_baddley = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                                      base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
+                                                      out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_not_top2_baddley/",   # path to output delay new results
+                                                      ssd_name = "blasto",
+                                                      cp = 92,
+                                                      upper_bound = 365,
+                                                      final_model = "cubic",
+                                                      periodicity = TRUE,
+                                                      boot_trials = 100,
+                                                      sim_trials = 100,
+                                                      miss_bins = c(1,2,3,4,5),
+                                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
+                           blasto_NA_state = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
+                                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
+                                                          out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_NA_state/",   # path to output delay new results
+                                                          ssd_name = "blasto",
+                                                          cp = 92,
+                                                          upper_bound = 365,
+                                                          final_model = "cubic",
+                                                          periodicity = TRUE,
+                                                          boot_trials = 100,
+                                                          sim_trials = 100,
+                                                          miss_bins = c(1,2,3,4,5),
+                                                          duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
                            cocci = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/cocci/",
                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/cocci/",  # base path to original prelim extract results
                                          out_path = "/Shared/Statepi_Diagnosis/projects/cocci/",   # path to output delay new results

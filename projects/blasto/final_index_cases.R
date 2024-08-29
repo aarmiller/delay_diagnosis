@@ -39,3 +39,81 @@ index_cases <- enrolid_crosswalk %>%
   mutate(shift=0L)
 
 save(index_cases, file = paste0(delay_params$out, "index_cases.RData"))
+
+
+## Get location info and build nested cohorts ----------------------------------
+
+source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
+load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
+
+enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = index_cases %>% distinct(patient_id) %>% .$patient_id,
+                                                    vars = "egeoloc",
+                                                    db_path =  paste0(delay_params$small_db_path,"blasto.db"),
+                                                    num_cores=10,
+                                                    collect_tab = collect_table(year = 1:22))
+
+#https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3322071/
+enroll_collapsed_temp2 <- enroll_collapsed_temp %>% 
+  inner_join(egeoloc_labels %>% select(egeoloc, location, state_name, state_abb)) %>% 
+  mutate(state_abb=ifelse(location== "washington, dc" & is.na(state_abb), "DC", state_abb)) %>% 
+  inner_join(select(index_cases,patient_id,index_date)) %>% 
+  filter(index_date<=dtend & index_date>=dtstart) %>% 
+  distinct() 
+# only 3,567 out of 3,825 have location information
+
+# top2_high_inc_state_baddley baddely states with incidence >= 1.38
+
+location_ind <- enroll_collapsed_temp2 %>%  
+  mutate(top2_high_inc_state_baddley = ifelse(state_abb %in% c("ND", "MN",
+                                                               "WI", "IL",
+                                                               "TN", "AL",
+                                                               "MS", "LA"), 1L, ifelse(is.na(state_abb), NA, 0))) %>% 
+  select(patient_id, location:state_abb, top2_high_inc_state_baddley) %>% 
+  distinct()
+# location_ind %>% filter(top2_high_inc_state_baddley == 1) %>% distinct(state_abb) #check coding
+# 3,387 of the  3,567 with location info have non missing state
+
+index_cases_w_loc <- index_cases %>%
+  left_join(location_ind %>% select(patient_id, top2_high_inc_state_baddley)) 
+
+### Build the index_cases for the blasto_top2_baddley cohort
+cond_name <- "blasto_top2_baddley"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_w_loc %>%
+  filter(top2_high_inc_state_baddley == 1) %>% 
+  select(-top2_high_inc_state_baddley)
+  
+save(index_cases,  file = paste0(delay_params$out, "index_cases.RData"))
+
+### Build the index_cases for the blasto_not_top2_baddley cohort
+cond_name <- "blasto_not_top2_baddley"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_w_loc %>%
+  filter(top2_high_inc_state_baddley == 0) %>% 
+  select(-top2_high_inc_state_baddley)
+
+save(index_cases,  file = paste0(delay_params$out, "index_cases.RData"))
+
+### Build the index_cases for the blasto_NA_state cohort
+cond_name <- "blasto_NA_state"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_w_loc %>%
+  filter(is.na(top2_high_inc_state_baddley)) %>% 
+  select(-top2_high_inc_state_baddley)
+
+save(index_cases,  file = paste0(delay_params$out, "index_cases.RData"))

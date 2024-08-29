@@ -324,6 +324,24 @@ generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res, tm_stdpla
     # select(setting_type,n,pct,everything())
     select(setting_type, everything())
   
+  setting_type_res_p2 <- tmp2 %>%
+    left_join(tmp_fill,.,by = c("setting_type", "trial")) %>%
+    mutate(n=replace_na(n,0)) %>% 
+    inner_join(sim_res$sim_res_obs %>% distinct(boot_trial, trial) %>% 
+                 inner_join(bootstrap_data, by = "boot_trial") %>% 
+                 distinct(trial, potential_miss_setting) %>% 
+                 unnest(potential_miss_setting), by = c("trial", "setting_type")) %>% 
+    mutate(pct_potential_miss_vis_days_setting = n/n_potential_miss*100) %>% 
+    group_by(setting_type) %>%
+    summarise(n_mean_potential_miss_vis_days_setting = mean(n_potential_miss),
+              n_potential_miss_vis_days_setting_low = quantile(n_potential_miss,probs = 0.025),
+              n_potential_miss_vis_days_setting_high = quantile(n_potential_miss,probs = 0.975),
+              pct_mean_potential_miss_vis_days_setting = mean(pct_potential_miss_vis_days_setting),
+              pct_potential_miss_vis_days_setting_low = quantile(pct_potential_miss_vis_days_setting,probs = 0.025),
+              pct_potential_miss_vis_days_setting_high = quantile(pct_potential_miss_vis_days_setting,probs = 0.975)) 
+  
+  setting_type_res <- setting_type_res %>% inner_join(setting_type_res_p2)
+  
   return(list(stdplac_res = stdplac_res,
               setting_type_res = setting_type_res))
 }

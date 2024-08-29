@@ -212,16 +212,87 @@ tmp <- tmp %>%
 # compute number missed
 tmp <- tmp %>% 
   mutate(n_miss_all = map(all_vis_count,
-                          ~summarise(.,n_miss_all = sum(round(num_miss,0),na.rm = T)))) %>% 
+                          ~filter(., period<delay_params$cp) %>%  
+                          summarise(.,n_miss_all = sum(round(num_miss,0),na.rm = T)))) %>% 
   unnest(n_miss_all) %>% 
   mutate(n_miss_ssd = map(ssd_vis_count,
-                          ~summarise(.,n_miss_ssd = sum(round(num_miss,0),na.rm = T)))) %>% 
-  unnest(n_miss_ssd)
+                          ~filter(., period<delay_params$cp) %>%  
+                          summarise(.,n_miss_ssd = sum(round(num_miss,0),na.rm = T)))) %>% 
+  unnest(n_miss_ssd) %>% 
+  mutate(n_expected_all =  map(all_vis_count,
+                               ~filter(., period<delay_params$cp) %>%  
+                               summarise(.,n_expected_all = sum(round(pred,0),na.rm = T)))) %>% 
+  unnest(n_expected_all) %>% 
+  mutate(n_expected_ssd =  map(ssd_vis_count,
+                               ~filter(., period<delay_params$cp) %>%  
+                               summarise(.,n_expected_ssd = sum(round(pred,0),na.rm = T)))) %>% 
+  unnest(n_expected_ssd)  %>% 
+  mutate(n_total_all =  map(all_vis_count,
+                            ~filter(., period<delay_params$cp) %>%  
+                            summarise(.,n_total_all = sum(round(n,0),na.rm = T)))) %>% 
+  unnest(n_total_all) %>% 
+  mutate(n_total_ssd =  map(ssd_vis_count,
+                            ~filter(., period<delay_params$cp) %>%  
+                            summarise(.,n_total_ssd = sum(round(n,0),na.rm = T)))) %>% 
+  unnest(n_total_ssd) 
+
+
+## Potential Miss by Setting ---------------------------------------------------
+ssd_tm_for_setting <- all_dx_visits %>% 
+  inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%  
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(tm %>% 
+               inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+               mutate(days_since_index = days_since_index - shift) %>% 
+               select(-shift) %>%
+               filter(days_since_index<=0) %>% 
+               select(patient_id, days_since_index, outpatient:inpatient),
+             by = c("patient_id", "days_since_index"))
+
+all_vis_tm_for_setting <- all_dx_visits %>% 
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(tm %>% 
+               inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+               mutate(days_since_index = days_since_index - shift) %>% 
+               select(-shift) %>%
+               filter(days_since_index<=0) %>% 
+               select(patient_id, days_since_index, outpatient:inpatient),
+             by = c("patient_id", "days_since_index"))
+
+tmp <- tmp %>% 
+  mutate(potential_miss_setting_ssd = map(boot_sample, 
+                              ~inner_join(., ssd_tm_for_setting, by = "patient_id",
+                                          relationship = "many-to-many") %>% 
+                                select(-patient_id) %>% 
+                                distinct() %>% 
+                                summarise(outpatient = sum(outpatient),
+                                          inpatient = sum(inpatient),
+                                          ed = sum(ed),
+                                          obs_stay = sum(obs_stay)) %>% 
+                                pivot_longer(cols = outpatient:obs_stay, names_to = "setting_type", values_to = "n_potential_miss")))
+
+tmp <- tmp %>% 
+  mutate(potential_miss_setting_all = map(boot_sample, 
+                                      ~inner_join(., all_vis_tm_for_setting, by = "patient_id",
+                                                  relationship = "many-to-many") %>% 
+                                        select(-patient_id) %>% 
+                                        distinct() %>% 
+                                        summarise(outpatient = sum(outpatient),
+                                                  inpatient = sum(inpatient),
+                                                  ed = sum(ed),
+                                                  obs_stay = sum(obs_stay)) %>% 
+                                        pivot_longer(cols = outpatient:obs_stay, names_to = "setting_type", values_to = "n_potential_miss")))
+
 
 #### finalize and save data for bootstrapping ----------------------------------
 boot_data <- tmp
 rm(tmp)
-n_miss_boot_data <- boot_data %>% select(boot_trial, n_miss_all, n_miss_ssd)
+n_miss_boot_data <- boot_data %>% select(boot_trial, n_miss_all, n_miss_ssd,
+                                         n_expected_all, n_expected_ssd,
+                                         n_total_all, n_total_ssd, 
+                                         potential_miss_setting_ssd, potential_miss_setting_all)
 
 # save bootstrap data
 save(boot_data,file = paste0(sim_out_path,"boot_data.RData"))

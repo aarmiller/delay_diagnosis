@@ -58,6 +58,7 @@ sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 load(paste0(delay_params$out_path,"index_cases.RData"))
 
 load(paste0(delay_base_path,"all_dx_visits.RData"))
+load(paste0(delay_base_path,"delay_tm.RData"))
 rm(visit_counts, sim_obs, index_dx_dates)
 
 # update all_dx_visits
@@ -105,6 +106,30 @@ total_ssd_visit_days_in_window <- all_dx_visits %>%
   filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
   distinct(patient_id,days_since_index) %>% 
   nrow()
+
+
+## Potential Miss by Setting --------------------------------------------------
+# update time map
+tm <- tm %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>%
+  filter(days_since_index<=0)
+
+potential_miss_by_setting <- all_dx_visits %>% 
+  inner_join(ssd_codes) %>% 
+  # filter(between(days_since_index,-delay_params$cp,-1)) %>%   
+  filter(days_since_index>-delay_params$cp & days_since_index < 0) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(tm %>% select(patient_id, days_since_index, outpatient:inpatient),
+             by = c("patient_id", "days_since_index")) %>% 
+  distinct() %>% 
+  summarise(outpatient = sum(outpatient),
+            inpatient = sum(inpatient),
+            ed = sum(ed),
+            obs_stay = sum(obs_stay)) %>% 
+  pivot_longer(cols = outpatient:obs_stay, names_to = "setting_type", values_to = "n_potential_miss")
+
 
 total_ssd_visit_days_in_study_period <- all_dx_visits %>% 
   inner_join(ssd_codes) %>% 
@@ -199,7 +224,7 @@ The following figure depicts the estimated trends in the number of expected visi
 knitr::include_graphics(paste0(sim_in_path, "visit_trends.jpeg"))
 ```
 
-The following table summarizes the observed and expected number of visits and the estimated number of missed opportunities using the final model plotted above:
+The following table summarizes the observed and expected number of visits and the estimated number of missed opportunities during the delay window using the final model plotted above:
 
 ```{r, echo = FALSE}
 load(paste0(sim_in_path,"fit_trends.RData"))
@@ -213,6 +238,27 @@ CI_n_missed <- n_miss_boot_data %>%
                         upper_CI  = quantile(n_miss_ssd, probs = 0.975)) %>% 
               mutate(vis = "SSD Visits")
   )
+
+CI_n_expected <- n_miss_boot_data %>%
+  summarise(lower_CI  = quantile(n_expected_all, probs = 0.025),
+            upper_CI  = quantile(n_expected_all, probs = 0.975)) %>% 
+  mutate(vis = "ALL Visits") %>% 
+  bind_rows(n_miss_boot_data %>%
+              summarise(lower_CI  = quantile(n_expected_ssd, probs = 0.025),
+                        upper_CI  = quantile(n_expected_ssd, probs = 0.975)) %>% 
+              mutate(vis = "SSD Visits")
+  )
+
+CI_n_total <- n_miss_boot_data %>%
+  summarise(lower_CI  = quantile(n_total_all, probs = 0.025),
+            upper_CI  = quantile(n_total_all, probs = 0.975)) %>% 
+  mutate(vis = "ALL Visits") %>% 
+  bind_rows(n_miss_boot_data %>%
+              summarise(lower_CI  = quantile(n_total_ssd, probs = 0.025),
+                        upper_CI  = quantile(n_total_ssd, probs = 0.975)) %>% 
+              mutate(vis = "SSD Visits")
+  )
+
 # Remove below once we can save fit_trends
 # 
 # ### Compute visit counts -------------------------------------------------------
@@ -275,7 +321,14 @@ pred_table <- bind_rows(pred_table_ssd %>% mutate(vis = "SSD Visits"),
   dplyr::select(vis, everything()) %>% 
   inner_join(CI_n_missed, by = "vis") %>% 
   mutate(`Number Missed (95%CI)` = paste0(`Number Missed`, " (", gsub(" ", "", round(lower_CI)), "-", gsub(" ", "", round(upper_CI)), ")")) %>% 
-  select("vis", "Total Visits", "Expected Visits",  "Number Missed (95%CI)")
+  select(-lower_CI, -upper_CI) %>% 
+  inner_join(CI_n_expected, by = "vis") %>% 
+  mutate(`Expected Visits (95%CI)` = paste0(`Expected Visits`, " (", gsub(" ", "", round(lower_CI)), "-", gsub(" ", "", round(upper_CI)), ")")) %>% 
+  select(-lower_CI, -upper_CI) %>% 
+  inner_join(CI_n_total, by = "vis") %>% 
+  mutate(`Total Visits (95%CI)` = paste0(`Total Visits`, " (", gsub(" ", "", round(lower_CI)), "-", gsub(" ", "", round(upper_CI)), ")")) %>% 
+  select(-lower_CI, -upper_CI) %>% 
+  select("vis", "Total Visits (95%CI)", "Expected Visits (95%CI)",  "Number Missed (95%CI)")
   
 pred_table %>% 
   kableExtra::kable(col.names = c("", names(pred_table)[-1]),
@@ -361,7 +414,8 @@ miss_bins_ssd %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-The following table summarizes the basic types of settings where missed opportunities occurred:
+
+The following table summarizes the basic types of settings where missed opportunities occurred (Note: “% Missed Opportunity Visit Days”  refers to the total SSD-related visit days during the delay window by setting and “% of Potential Missed Opportunity Visit Days" is simply the % of potential missed opportunity visit days deemed to be missed opportunities by setting. Furthermore, “% of Missed Visit Days” is simply the % of all missed visit days during the delay window [i.e., observed - expected] days deemed to be missed opportunities [here the denominator is the same across settings and since patients can encounter more than one setting in a given day, these %’s will sum up to >= 100%]):
 
 ```{r, echo = FALSE}
 # setting_counts_ssd$setting_type_res %>%
@@ -370,8 +424,7 @@ The following table summarizes the basic types of settings where missed opportun
 #          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_ssd$`Number Missed` *100, 2), nsmall = 2))) %>% 
 #   mutate(pct_vis_days = paste0(per_mean_by_vis_days, " (", per_low_by_vis_days, "-", per_high_by_vis_days, ")" )) %>% 
 
-
-setting_counts_ssd$setting_type_res %>% 
+temp_p1 <- setting_counts_ssd$setting_type_res %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
 mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
@@ -379,8 +432,21 @@ mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
        pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
-         `Percent of Missed opportunities` = pct,
-         `Percent of Missed Visit Days` = pct_vis_days) %>%
+         `% of Missed opportunities` = pct,
+         `% of Missed Visit Days` = pct_vis_days)
+
+temp_p2 <- setting_counts_ssd$setting_type_res %>% 
+  select(setting_type, n_mean_potential_miss_vis_days_setting:pct_potential_miss_vis_days_setting_high) %>% 
+   mutate(across(n_mean_potential_miss_vis_days_setting:n_potential_miss_vis_days_setting_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean_potential_miss_vis_days_setting:pct_potential_miss_vis_days_setting_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean_potential_miss_vis_days_setting," (",n_potential_miss_vis_days_setting_low,"-",n_potential_miss_vis_days_setting_high,")"),
+         pct = paste0(pct_mean_potential_miss_vis_days_setting," (",pct_potential_miss_vis_days_setting_low,"-",pct_potential_miss_vis_days_setting_high,")"))%>%
+  select(`Setting Type` = setting_type,
+         `Potential Missed Opportunity Visit Days` = n,
+         `% of Potential Missed Opportunity Visit Days` = pct)
+
+temp_p1 %>% inner_join(temp_p2) %>% 
+  select(1,5,2,3,4,6) %>%
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -450,7 +516,7 @@ setting_counts_index_by_stdplac %>%
 The following table summarizes the types of settings where missed opportunities occurred relative to the index diagnosis. Specifically, this table provides a rough sense of the likelihood that a diagnosis would occur in a given setting when a patient presented with symptoms.
 
 ```{r, echo = FALSE}
-setting_counts_index_by_setting %>%
+temp_p1 <- setting_counts_index_by_setting %>%
   select(Setting,n_mean:pct_opp_missed_high) %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(total_opps_mean:total_opps_high, ~ceiling(.))) %>% 
@@ -461,11 +527,14 @@ setting_counts_index_by_setting %>%
          total_opp = paste0(total_opps_mean," (",total_opps_low,"-",total_opps_high,")"),
          pct_opp_missed = paste0(pct_opp_missed_mean," (",pct_opp_missed_low,"-",pct_opp_missed_high,")"),
          dur = paste0(dur_mean," (",dur_low,"-",dur_high,")")) %>%
-  select(setting = Setting, `Missed Opportunities`=n,
+  select(Setting, `Missed Opportunities`=n,
          `% Missed Opp. In Setting`=pct_opp,
          `Total Opp In Setting`= total_opp,
          `% of Opportunities Missed`=pct_opp_missed,
-         `Mean time before for Misses`=dur) %>%
+         `Mean time before for Misses`=dur) 
+  
+temp_p1 %>% inner_join(temp_p2 %>% rename(Setting = `Setting Type`)) %>% 
+  select(1,7,2, 3,8,4,5,6) %>% 
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
@@ -574,16 +643,29 @@ The following table summarizes the basic types of settings where missed opportun
 #          per_low_by_vis_days = gsub(" ", "", format(round(n_low/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2)),
 #          per_high_by_vis_days = gsub(" ", "", format(round(n_high/pred_table_all_vis$`Number Missed` *100, 2), nsmall = 2))) %>% 
 
-setting_counts_all$setting_type_res %>% 
+temp_p1 <- setting_counts_all$setting_type_res %>% 
   mutate(across(n_mean:n_high, ~ceiling(.))) %>% 
   mutate(across(pct_mean:pct_vis_days_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
-  mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
-         pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
-         pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
+mutate(n = paste0(n_mean," (",n_low,"-",n_high,")"),
+       pct = paste0(pct_mean," (",pct_low,"-",pct_high,")"),
+       pct_vis_days = paste0(pct_mean_vis_days," (",pct_vis_days_low,"-",pct_vis_days_high,")")) %>%
   select(`Setting Type` = setting_type,
          `Number of Missed Opportunities` = n,
-         `Percent of Missed opportunities` = pct,
-         `Percent of Missed Visit Days` = pct_vis_days) %>%
+         `% of Missed opportunities` = pct,
+         `% of Missed Visit Days` = pct_vis_days)
+
+temp_p2 <- setting_counts_all$setting_type_res %>% 
+  select(setting_type, n_mean_potential_miss_vis_days_setting:pct_potential_miss_vis_days_setting_high) %>% 
+   mutate(across(n_mean_potential_miss_vis_days_setting:n_potential_miss_vis_days_setting_high, ~ceiling(.))) %>% 
+  mutate(across(pct_mean_potential_miss_vis_days_setting:pct_potential_miss_vis_days_setting_high, ~trimws(format(round(.,2), nsmall = 2)))) %>% 
+  mutate(n = paste0(n_mean_potential_miss_vis_days_setting," (",n_potential_miss_vis_days_setting_low,"-",n_potential_miss_vis_days_setting_high,")"),
+         pct = paste0(pct_mean_potential_miss_vis_days_setting," (",pct_potential_miss_vis_days_setting_low,"-",pct_potential_miss_vis_days_setting_high,")"))%>%
+  select(`Setting Type` = setting_type,
+         `Potential Missed Opportunity Visit Days` = n,
+         `% of Potential Missed Opportunity Visit Days` = pct)
+
+temp_p1 %>% inner_join(temp_p2) %>% 
+  select(1,5,2,3,4,6) %>%
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```

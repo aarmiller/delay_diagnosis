@@ -64,7 +64,11 @@ miss_delay_dur_LMM_FE <- FE %>%
 
 miss_delay_dur_LMM_RE <- RE %>% 
   group_by(state_abb) %>% 
-  summarise(intercept_est = median(intercept, na.rm = T))
+  summarise(intercept_est = median(intercept, na.rm = T),
+            low = quantile(intercept, probs = c(0.025), na.rm = T),
+            high = quantile(intercept, probs = c(0.975), na.rm = T),
+            low_90 = quantile(intercept, probs = c(0.05), na.rm = T),
+            high_90 = quantile(intercept, probs = c(0.95), na.rm = T))
 
 save(miss_delay_dur_LMM_FE, miss_delay_dur_LMM_RE, file = paste0(out_path,"LMM_state_data.RData"))
 print("LMM finished")
@@ -131,7 +135,11 @@ miss_opp_GLMM_FE <- FE %>%
 
 miss_opp_GLMM_RE <- RE %>% 
   group_by(state_abb) %>% 
-  summarise(intercept_est = median(intercept, na.rm = T))
+  summarise(intercept_est = median(intercept, na.rm = T),
+            low = quantile(intercept, probs = c(0.025), na.rm = T),
+            high = quantile(intercept, probs = c(0.975), na.rm = T),
+            low_90 = quantile(intercept, probs = c(0.05), na.rm = T),
+            high_90 = quantile(intercept, probs = c(0.95), na.rm = T))
 
 save(miss_opp_GLMM_FE, miss_opp_GLMM_RE, file = paste0(out_path,"GLMM_state_data.RData"))
 print("GLMM finished")

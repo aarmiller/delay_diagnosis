@@ -414,6 +414,54 @@ gc()
 
 print("mod 2 finished")
 
+
+#### Missed opportunities All - NO SETTING RISK FACTOR  -------------------------
+
+get_miss_res_no_setting <- function(trial_val){
+  
+  # trial_val <- 1
+  
+  tmp1 <- full_reg_data %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
+                          unnest(data) %>% 
+                          mutate(miss=TRUE),
+                        tmp1 %>% select(boot_sample) %>% 
+                          unnest(boot_sample) %>% 
+                          mutate(miss=FALSE)) %>% 
+    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+    filter(year>2002) %>% 
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>% 
+    select(miss, age_cat, female, rural, source, weekend, year, month,
+           any_obesity)
+  
+  
+  fit <- glm(miss ~ .,
+             family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+miss_opp_res_no_setting <- parallel::mclapply(1:max(full_reg_data$trial),
+                                                 function(x){get_miss_res_no_setting(x)}, 
+                                                 mc.cores = num_cores)
+
+
+miss_opp_res_no_setting <- bind_rows(miss_opp_res_no_setting) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+# rm(cluster)
+gc()
+
+print("mod 3 finished")
+
 #### Missed opportunities Medicaid ---------------------------------------------
 
 get_miss_res_med <- function(trial_val){
@@ -457,7 +505,7 @@ miss_opp_res_med <- bind_rows(miss_opp_res_med) %>%
 
 gc()
 
-print("mod 3 finished")
+print("mod 4 finished")
 
 #### Missed opportunities Medicaid - Inpatient_only ---------------------------------------------
 
@@ -502,7 +550,53 @@ miss_opp_res_med_inpatient_ind <- bind_rows(miss_opp_res_med_inpatient_ind) %>%
 
 gc()
 
-print("mod 4 finished")
+print("mod 5 finished")
+
+
+#### Missed opportunities Medicaid - NO SETTING RISK FACTOR ---------------------------------------------
+
+get_miss_res_med_no_setting <- function(trial_val){
+  
+  tmp1 <- full_reg_data %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% select(data) %>% 
+                          unnest(data) %>% 
+                          mutate(miss=TRUE),
+                        tmp1 %>% select(boot_sample) %>% 
+                          unnest(boot_sample) %>% 
+                          mutate(miss=FALSE))  %>% 
+    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+    filter(year>2002) %>% 
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>% 
+    filter(source == "medicaid") %>% 
+    select(miss, age_cat, female, rural, race, weekend, year, month,
+           any_obesity)
+  
+  
+  fit <- glm(miss ~ .,
+             family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+
+miss_opp_res_med_no_setting  <- parallel::mclapply(1:max(full_reg_data$trial),
+                                                      function(x){get_miss_res_med_no_setting(x)}, 
+                                                      mc.cores = num_cores)
+
+miss_opp_res_med_no_setting <- bind_rows(miss_opp_res_med_no_setting) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+gc()
+
+print("mod 6 finished")
 
 # compute duration by simulation (note this will be used in the next step)
 full_reg_data_dur <- full_reg_data %>% 
@@ -555,7 +649,7 @@ miss_dur_res <- bind_rows(miss_dur_res) %>%
 
 gc()
 
-print("mod 5 finished")
+print("mod 7 finished")
 
 
 #### Delay duration All - log-normal --------------------------------------------------------
@@ -602,7 +696,7 @@ miss_dur_res_log_normal <- bind_rows(miss_dur_res_log_normal) %>%
 
 gc()
 
-print("mod 6 finished")
+print("mod 8 finished")
 
 
 #### Delay duration All - weibull --------------------------------------------------------
@@ -650,7 +744,7 @@ miss_dur_res_weibull <- bind_rows(miss_dur_res_weibull) %>%
 
 gc()
 
-print("mod 7 finished")
+print("mod 9 finished")
 
 #### Delay duration Medicaid ---------------------------------------------------
 
@@ -695,7 +789,7 @@ miss_dur_res_med <- bind_rows(miss_dur_res_med) %>%
 
 gc()
 
-print("mod 8 finished")
+print("mod 10 finished")
 
 
 #### Delay duration Medicaid -log normal ---------------------------------------------------
@@ -743,7 +837,7 @@ miss_dur_res_log_normal_med <- bind_rows(miss_dur_res_log_normal_med) %>%
 
 gc()
 
-print("mod 9 finished")
+print("mod 11 finished")
 
 
 #### Delay duration Medicaid -weibull ---------------------------------------------------
@@ -791,7 +885,7 @@ miss_dur_res_weibull_med <- bind_rows(miss_dur_res_weibull_med) %>%
 
 gc()
 
-print("mod 10 finished")
+print("mod 12 finished")
 
 #### Delay Patient All ---------------------------------------------------------
 
@@ -836,7 +930,7 @@ miss_delay_pat_res <- bind_rows(miss_delay_pat_res) %>%
 
 gc()
 
-print("mod 11 finished")
+print("mod 13 finished")
 
 #### Delay Patient Medicaid ----------------------------------------------------
 
@@ -881,7 +975,7 @@ miss_delay_pat_res_med <- bind_rows(miss_delay_pat_res_med) %>%
 
 gc()
 
-print("mod 12 finished")
+print("mod 14 finished")
 
 ### Alternative missed visits --------------------------------------------------
 # 
@@ -971,7 +1065,9 @@ ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res,
                              miss_dur_res_log_normal_med = miss_dur_res_log_normal_med,
                              miss_dur_res_weibull_med = miss_dur_res_weibull_med,
                              miss_delay_pat_res = miss_delay_pat_res,
-                             miss_delay_pat_res_med = miss_delay_pat_res_med)
+                             miss_delay_pat_res_med = miss_delay_pat_res_med,
+                             miss_opp_res_med_no_setting = miss_opp_res_med_no_setting,
+                             miss_opp_res_no_setting = miss_opp_res_no_setting)
 
 save(ssd_miss_risk_models, index_locations, file = paste0(out_path,"ssd_miss_risk_models.RData"))
 # load(paste0(out_path,"ssd_miss_risk_models.RData"))
