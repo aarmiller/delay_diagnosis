@@ -1,0 +1,514 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Change-point report},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Change-point report}
+\author{}
+\date{\vspace{-2.5em}July 31, 2024}
+
+\begin{document}
+\maketitle
+
+This document provides a summary of the change-point analysis for AMI,
+broken down by men and women
+
+\hypertarget{male-visits}{%
+\section{Male visits}\label{male-visits}}
+
+The following section summarizes change-point analysis for trends in the
+number of SSD-related visits prior to the index diagnosis for men
+
+\hypertarget{results}{%
+\subsection{Results}\label{results}}
+
+The following summarizes the results across the various change-point
+approaches applied to trends in SSD-related visits.
+
+\hypertarget{optimal-change-points}{%
+\paragraph{Optimal Change-point(s)}\label{optimal-change-points}}
+
+The optimal model was CUSUM quad w/ periodicity
+
+The following is a summary of the \emph{estimated} (from given method)
+and \emph{implied} (from prediction-bound) change-points for the optimal
+model, along with the corresponding number of missed opportunities:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP \# Miss & PB CP \# Miss\\
+\hline
+CUSUM quad w/ periodicity & 126 & 56 & 151548.2 & 135361.6\\
+\hline
+\end{tabular}
+\end{table}
+
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+\hypertarget{change-point-summary}{%
+\paragraph{Change-point summary}\label{change-point-summary}}
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP \# Miss  & PB CP \# Miss\\
+\hline
+Piecewise lm w/ periodicity & 25 & 48 & 114269.06 & 130062.82\\
+\hline
+Piecewise lm & 25 & 42 & 113846.50 & 129184.93\\
+\hline
+Piecewise quad w/ periodicity & 29 & 41 & 103934.61 & 108175.70\\
+\hline
+Piecewise quad & 29 & 38 & 103915.11 & 107486.89\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 38 & 101006.38 & 102724.10\\
+\hline
+Piecewise cubic & 31 & 36 & 99280.84 & 101408.12\\
+\hline
+Piecewise exp w/ periodicity & 29 & 35 & 56166.59 & 56722.45\\
+\hline
+Piecewise exp & 31 & 29 & 56358.16 & 56358.16\\
+\hline
+CUSUM lm w/ periodicity & 126 & 130 & 206596.15 & 207227.99\\
+\hline
+CUSUM lm & 126 & 126 & 207527.07 & 207527.07\\
+\hline
+CUSUM quad w/ periodicity & 126 & 56 & 151548.21 & 135361.57\\
+\hline
+CUSUM quad & 126 & 56 & 153423.77 & 135999.46\\
+\hline
+CUSUM cubic w/ periodicity & 126 & 48 & 137567.50 & 124726.85\\
+\hline
+CUSUM cubic & 126 & 50 & 151005.40 & 133573.71\\
+\hline
+CUSUM exp w/ periodicity & 126 & 29 & 53775.98 & 49154.39\\
+\hline
+CUSUM exp & 126 & 21 & 57994.83 & 47855.85\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{performance-summary}{%
+\paragraph{Performance Summary}\label{performance-summary}}
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP Consisency & MSE & MSE 7-day & MSE 14-day\\
+\hline
+Piecewise lm w/ periodicity & 25 & 48 & -92.000000 & 96735.78 & 1917241.27 & 1265024.24\\
+\hline
+Piecewise lm & 25 & 42 & -68.000000 & 125041.20 & 1998359.75 & 1338050.22\\
+\hline
+Piecewise quad w/ periodicity & 29 & 41 & -41.379310 & 19474.79 & 315928.45 & 177335.07\\
+\hline
+Piecewise quad & 29 & 38 & -31.034483 & 44100.23 & 342296.00 & 204645.31\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 38 & -18.750000 & 14236.17 & 126434.44 & 79456.91\\
+\hline
+Piecewise cubic & 31 & 36 & -16.129032 & 40803.54 & 195225.07 & 137627.56\\
+\hline
+Piecewise exp w/ periodicity & 29 & 35 & -20.689655 & 17422.02 & 17596.17 & 25244.05\\
+\hline
+Piecewise exp & 31 & 29 & 6.451613 & 43018.21 & 67213.30 & 86729.13\\
+\hline
+CUSUM lm w/ periodicity & 126 & 130 & -3.174603 & 12810.38 & 37176.77 & 28286.41\\
+\hline
+CUSUM lm & 126 & 126 & 0.000000 & 33254.69 & 32423.74 & 39070.96\\
+\hline
+CUSUM quad w/ periodicity & 126 & 56 & 55.555556 & 8324.76 & 16568.38 & 12610.99\\
+\hline
+CUSUM quad & 126 & 56 & 55.555556 & 29514.42 & 14959.71 & 25780.06\\
+\hline
+CUSUM cubic w/ periodicity & 126 & 48 & 61.904762 & 7614.82 & 18727.83 & 13291.49\\
+\hline
+CUSUM cubic & 126 & 50 & 60.317460 & 29516.65 & 14957.02 & 25807.31\\
+\hline
+CUSUM exp w/ periodicity & 126 & 29 & 76.984127 & 7104.09 & 18598.18 & 12999.44\\
+\hline
+CUSUM exp & 126 & 21 & 83.333333 & 29641.08 & 15795.11 & 26753.58\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{change-point-rankings}{%
+\paragraph{Change-point rankings}\label{change-point-rankings}}
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & Average Rank & consistency\_rank & mse\_rank & mse7\_rank & mse14\_rank\\
+\hline
+CUSUM quad w/ periodicity & 126 & 56 & 4.25 & 9 & 3 & 4 & 1\\
+\hline
+Piecewise exp w/ periodicity & 29 & 35 & 5.25 & 6 & 6 & 5 & 4\\
+\hline
+CUSUM exp w/ periodicity & 126 & 29 & 5.50 & 13 & 1 & 6 & 2\\
+\hline
+CUSUM lm w/ periodicity & 126 & 130 & 5.75 & 2 & 4 & 9 & 8\\
+\hline
+CUSUM cubic w/ periodicity & 126 & 48 & 5.75 & 11 & 2 & 7 & 3\\
+\hline
+CUSUM quad & 126 & 56 & 6.00 & 9 & 8 & 2 & 5\\
+\hline
+CUSUM cubic & 126 & 50 & 6.50 & 10 & 9 & 1 & 6\\
+\hline
+CUSUM lm & 126 & 126 & 7.25 & 1 & 11 & 8 & 9\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 38 & 7.75 & 5 & 5 & 11 & 10\\
+\hline
+CUSUM exp & 126 & 21 & 8.50 & 14 & 10 & 3 & 7\\
+\hline
+Piecewise exp & 31 & 29 & 9.25 & 3 & 13 & 10 & 11\\
+\hline
+Piecewise cubic & 31 & 36 & 10.00 & 4 & 12 & 12 & 12\\
+\hline
+Piecewise quad w/ periodicity & 29 & 41 & 10.25 & 8 & 7 & 13 & 13\\
+\hline
+Piecewise quad & 29 & 38 & 12.25 & 7 & 14 & 14 & 14\\
+\hline
+Piecewise lm w/ periodicity & 25 & 48 & 15.00 & 15 & 15 & 15 & 15\\
+\hline
+Piecewise lm & 25 & 42 & 15.00 & 12 & 16 & 16 & 16\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{plots}{%
+\subsection{Plots}\label{plots}}
+
+\hypertarget{piecewise-models-with-periodicity}{%
+\subsubsection{Piecewise models with
+periodicity}\label{piecewise-models-with-periodicity}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-8-1.pdf}
+
+\hypertarget{piecewise-models-without-periodicity}{%
+\subsubsection{Piecewise models without
+periodicity}\label{piecewise-models-without-periodicity}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-9-1.pdf}
+
+\hypertarget{cusum-models-with-periodicity}{%
+\subsubsection{CUSUM models with
+periodicity}\label{cusum-models-with-periodicity}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-10-1.pdf}
+
+\hypertarget{cusum-models-without-periodicity}{%
+\subsubsection{CUSUM models without
+periodicity}\label{cusum-models-without-periodicity}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-11-1.pdf}
+
+\hypertarget{female-visits}{%
+\section{Female Visits}\label{female-visits}}
+
+The following section summarizes change-point analysis for trends in the
+number of SSD visits for women prior to the index diagnosis
+
+\hypertarget{results-1}{%
+\subsection{Results}\label{results-1}}
+
+The following summarizes the results across the various change-point
+approaches applied to trends in SSD-related visits.
+
+\hypertarget{optimal-change-points-1}{%
+\paragraph{Optimal Change-point(s)}\label{optimal-change-points-1}}
+
+The optimal model was CUSUM lm w/ periodicity
+
+The following is a summary of the \emph{estimated} (from given method)
+and \emph{implied} (from prediction-bound) change-points for the optimal
+model, along with the corresponding number of missed opportunities:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP \# Miss & PB CP \# Miss\\
+\hline
+CUSUM lm w/ periodicity & 146 & 155 & 163729 & 164829.9\\
+\hline
+\end{tabular}
+\end{table}
+
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-15-1.pdf}
+
+\hypertarget{change-point-summary-1}{%
+\paragraph{Change-point summary}\label{change-point-summary-1}}
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP \# Miss  & PB CP \# Miss\\
+\hline
+Piecewise lm w/ periodicity & 26 & 42 & 83999.30 & 92108.88\\
+\hline
+Piecewise lm & 26 & 35 & 83710.02 & 90119.72\\
+\hline
+Piecewise quad w/ periodicity & 29 & 35 & 75884.69 & 77666.33\\
+\hline
+Piecewise quad & 29 & 35 & 75814.28 & 77808.47\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 41 & 81127.04 & 82875.05\\
+\hline
+Piecewise cubic & 31 & 35 & 79596.74 & 81261.82\\
+\hline
+Piecewise exp w/ periodicity & 60 & 14 & 13940.90 & 13880.67\\
+\hline
+Piecewise exp & 60 & 14 & 14072.87 & 13845.23\\
+\hline
+CUSUM lm w/ periodicity & 146 & 155 & 163729.05 & 164829.91\\
+\hline
+CUSUM lm & 146 & 56 & 164135.80 & 123993.22\\
+\hline
+CUSUM quad w/ periodicity & 146 & 42 & 95656.29 & 83618.12\\
+\hline
+CUSUM quad & 146 & 35 & 96005.59 & 81241.70\\
+\hline
+CUSUM cubic w/ periodicity & 146 & 48 & 117497.40 & 98755.66\\
+\hline
+CUSUM cubic & 146 & 42 & 122576.11 & 100487.98\\
+\hline
+CUSUM exp w/ periodicity & 146 & 13 & 15162.79 & 10934.36\\
+\hline
+CUSUM exp & 146 & 9 & 18503.06 & 10249.04\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{performance-summary-1}{%
+\paragraph{Performance Summary}\label{performance-summary-1}}
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & CP Consisency & MSE & MSE 7-day & MSE 14-day\\
+\hline
+Piecewise lm w/ periodicity & 26 & 42 & -61.538461 & 45126.25 & 714233.25 & 434075.30\\
+\hline
+Piecewise lm & 26 & 35 & -34.615385 & 68757.99 & 773174.85 & 492460.77\\
+\hline
+Piecewise quad w/ periodicity & 29 & 35 & -20.689655 & 16674.44 & 118100.95 & 64510.82\\
+\hline
+Piecewise quad & 29 & 35 & -20.689655 & 38923.99 & 131133.49 & 92153.29\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 41 & -28.125000 & 14588.03 & 78579.17 & 52435.98\\
+\hline
+Piecewise cubic & 31 & 35 & -12.903226 & 38078.44 & 137151.45 & 111773.10\\
+\hline
+Piecewise exp w/ periodicity & 60 & 14 & 76.666667 & 12041.36 & 125268.15 & 80361.12\\
+\hline
+Piecewise exp & 60 & 14 & 76.666667 & 32317.12 & 150383.18 & 103000.00\\
+\hline
+CUSUM lm w/ periodicity & 146 & 155 & -6.164384 & 10678.09 & 25962.51 & 18374.92\\
+\hline
+CUSUM lm & 146 & 56 & 61.643836 & 27112.26 & 51558.96 & 44634.12\\
+\hline
+CUSUM quad w/ periodicity & 146 & 42 & 71.232877 & 7322.11 & 4092.46 & 4090.85\\
+\hline
+CUSUM quad & 146 & 35 & 76.027397 & 23935.85 & 29441.45 & 30183.40\\
+\hline
+CUSUM cubic w/ periodicity & 146 & 48 & 67.123288 & 6947.28 & 4521.53 & 4013.36\\
+\hline
+CUSUM cubic & 146 & 42 & 71.232877 & 23814.40 & 30767.77 & 30773.90\\
+\hline
+CUSUM exp w/ periodicity & 146 & 13 & 91.095890 & 7155.50 & 3191.16 & 3346.60\\
+\hline
+CUSUM exp & 146 & 9 & 93.835616 & 24213.21 & 29361.29 & 30050.49\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{change-point-rankings-1}{%
+\paragraph{Change-point rankings}\label{change-point-rankings-1}}
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+\begin{table}
+\centering
+\begin{tabular}{l|r|r|r|r|r|r|r}
+\hline
+label & Change Point & Pred. Bound CP & Average Rank & consistency\_rank & mse\_rank & mse7\_rank & mse14\_rank\\
+\hline
+CUSUM lm w/ periodicity & 146 & 155 & 3.25 & 1 & 4 & 4 & 4\\
+\hline
+CUSUM cubic w/ periodicity & 146 & 48 & 3.50 & 8 & 1 & 3 & 2\\
+\hline
+CUSUM exp w/ periodicity & 146 & 13 & 4.00 & 12 & 2 & 1 & 1\\
+\hline
+CUSUM quad w/ periodicity & 146 & 42 & 4.25 & 9 & 3 & 2 & 3\\
+\hline
+Piecewise cubic w/ periodicity & 32 & 41 & 7.00 & 4 & 6 & 9 & 9\\
+\hline
+Piecewise quad w/ periodicity & 29 & 35 & 7.50 & 3 & 7 & 10 & 10\\
+\hline
+CUSUM quad & 146 & 35 & 7.75 & 10 & 9 & 6 & 6\\
+\hline
+CUSUM cubic & 146 & 42 & 7.75 & 9 & 8 & 7 & 7\\
+\hline
+CUSUM exp & 146 & 9 & 8.25 & 13 & 10 & 5 & 5\\
+\hline
+CUSUM lm & 146 & 56 & 8.50 & 7 & 11 & 8 & 8\\
+\hline
+Piecewise exp w/ periodicity & 60 & 14 & 9.50 & 11 & 5 & 11 & 11\\
+\hline
+Piecewise quad & 29 & 35 & 10.25 & 3 & 14 & 12 & 12\\
+\hline
+Piecewise cubic & 31 & 35 & 10.50 & 2 & 13 & 13 & 14\\
+\hline
+Piecewise exp & 60 & 14 & 12.50 & 11 & 12 & 14 & 13\\
+\hline
+Piecewise lm w/ periodicity & 26 & 42 & 12.75 & 6 & 15 & 15 & 15\\
+\hline
+Piecewise lm & 26 & 35 & 13.25 & 5 & 16 & 16 & 16\\
+\hline
+\end{tabular}
+\end{table}
+
+\hypertarget{plots-1}{%
+\subsection{Plots}\label{plots-1}}
+
+\hypertarget{piecewise-models-with-periodicity-1}{%
+\subsubsection{Piecewise models with
+periodicity}\label{piecewise-models-with-periodicity-1}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-19-1.pdf}
+
+\hypertarget{piecewise-models-without-periodicity-1}{%
+\subsubsection{Piecewise models without
+periodicity}\label{piecewise-models-without-periodicity-1}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-20-1.pdf}
+
+\hypertarget{cusum-models-with-periodicity-1}{%
+\subsubsection{CUSUM models with
+periodicity}\label{cusum-models-with-periodicity-1}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-21-1.pdf}
+
+\hypertarget{cusum-models-without-periodicity-1}{%
+\subsubsection{CUSUM models without
+periodicity}\label{cusum-models-without-periodicity-1}}
+
+\includegraphics{change_point_report_files/figure-latex/unnamed-chunk-22-1.pdf}
+
+\end{document}
