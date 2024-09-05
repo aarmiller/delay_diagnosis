@@ -415,7 +415,7 @@ miss_bins_ssd %>%
 ```
 
 
-The following table summarizes the basic types of settings where missed opportunities occurred (Note: “% Missed Opportunity Visit Days”  refers to the total SSD-related visit days during the delay window by setting and “% of Potential Missed Opportunity Visit Days" is simply the % of potential missed opportunity visit days deemed to be missed opportunities by setting. Furthermore, “% of Missed Visit Days” is simply the % of all missed visit days during the delay window [i.e., observed - expected] days deemed to be missed opportunities [here the denominator is the same across settings and since patients can encounter more than one setting in a given day, these %’s will sum up to >= 100%]):
+The following table summarizes the basic types of settings where missed opportunities occurred (Note: “% of Missed Opportunities” refers to the % of all missed opportunities by setting (here the %'s will sum to 100) and “% of Potential Missed Opportunity Visit Days" is simply the % of potential missed opportunity visit days deemed to be missed opportunities by setting. Furthermore, “% of Missed Visit Days” is simply the % of all missed visit days during the delay window [i.e., observed - expected] days deemed to be missed opportunities [here the denominator is the same across settings and since patients can encounter more than one setting in a given day, these %’s will sum up to >= 100%]):
 
 ```{r, echo = FALSE}
 # setting_counts_ssd$setting_type_res %>%
