@@ -42,7 +42,7 @@ save(index_cases, file = paste0(delay_params$out_path, "index_cases.RData"))
 
 index_cases_main <- index_cases
 
-## Build the sarcoid_lung index_dx_visits_validated ----------------------------
+## Build the sarcoid_lung index_dx_visits --------------------------------------
 
 load("/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/sarcoid_lung_patids.RData")
 
@@ -58,7 +58,7 @@ index_cases <- index_cases_main %>%
 
 save(index_cases, file = paste0(delay_params$out_path, "index_cases.RData"))
 
-## Build the sarcoid_skin index_dx_visits_validated ----------------------------
+## Build the sarcoid_skin index_dx_visits --------------------------------------
 
 load("/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/sarcoid_skin_patids.RData")
 

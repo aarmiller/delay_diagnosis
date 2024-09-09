@@ -73,7 +73,7 @@ master_table <- bind_rows(better_labels, month, year)
 ## Table 1 ##
 #############
 
-data <- ssd_miss_risk_models$miss_opp_res_inpatient_ind
+data <- ssd_miss_risk_models$miss_opp_res_no_setting
 
 miss_opp_table <- left_join(master_table, data) %>% 
   filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 

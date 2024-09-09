@@ -40,7 +40,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                            sarcoid_lung = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/",   # path to output delay new results
-                                               ssd_name = "sarcoid_lung",
+                                               ssd_name = "sarcoid", # as per Aaron  9/05/2024
                                                cp = 128,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
@@ -53,7 +53,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                            sarcoid_skin = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/",   # path to output delay new results
-                                               ssd_name = "sarcoid_skin",
+                                               ssd_name = "sarcoid", # as per Aaron  9/05/2024
                                                cp = 128,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
