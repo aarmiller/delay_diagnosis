@@ -30,8 +30,6 @@ out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
 con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 # con <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db"))
 
-con %>% DBI::dbListTables()
-
 #### Add output folders ---------------------------------------------------------
 
 sim_out_path <- paste0(out_path,"/delay_results")
@@ -145,7 +143,10 @@ tmp <- all_dx_visits %>%
 visit_counts <- bind_rows(tmp,visit_counts %>%
             filter(days_since_index<=0))
 
-
+save(index_dx_dates,file = paste0(sim_out_path,"/index_dx_dates.RData"))
+save(sim_obs,file = paste0(sim_out_path,"/sim_obs.RData"))
+save(visit_counts,file = paste0(sim_out_path,"/visit_counts.RData"))
+save(all_dx_visits,file = paste0(sim_out_path,"/dx_visits.RData"))
 save(all_dx_visits,visit_counts,index_dx_dates,sim_obs,file = paste0(sim_out_path,"/all_dx_visits.RData"))
 # load(paste0(sim_out_path,"/all_dx_visits.RData"))
 
@@ -261,4 +262,23 @@ tm_svcscat <- select(tm,patient_id,svcdate,days_since_index) %>%
 save(tm_stdplac,tm_stdprov,tm_svcscat, file = paste0(sim_out_path,"/visit_info.RData"))
 
 
+######################
+#### Pull Caseids ####
+######################
 
+caseids <- con %>% 
+  tbl("tm_full") %>% 
+  filter(!is.na(caseid)) %>% 
+  select(patient_id,svcdate,caseid,admdate,disdate) %>% 
+  collect() 
+
+caseids <- caseids %>% 
+  distinct(patient_id,date=svcdate,caseid) %>% 
+  inner_join(select(index_dx_dates,patient_id,index_date)) %>% 
+  mutate(days_since_index = date-index_date) %>% 
+  filter(between(days_since_index,-delay_params$upper_bound,0)) %>% 
+  left_join(sim_obs,by = join_by(patient_id, days_since_index)) %>% 
+  distinct(patient_id,date,caseid,days_since_index,obs)
+
+save(caseids, file = paste0(sim_out_path,"/caseids.RData"))  
+  
