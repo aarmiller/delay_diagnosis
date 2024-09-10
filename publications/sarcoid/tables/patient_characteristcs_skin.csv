@@ -1,0 +1,23 @@
+Characteristic,Total Patients (% of patients)
+Age at diagnosis,
+" (-1,17]",46 (1.4%)
+" (17,34]",215 (6.6%)
+" (34,44]",470 (14.4%)
+" (44,54]",986 (30.2%)
+" (54,64]","1,067 (32.7%)"
+" (64,130]",483 (14.8%)
+ Mean (SD),52.9 (13.0)
+ Median (IQR),54.0 (16.0)
+Sex,
+ Male,"1,075 (32.9%)"
+ Female,"2,192 (67.1%)"
+Database Source,
+ Commercial,"2,762 (84.5%)"
+ Supplemental Medicare,436 (13.3%)
+ Medicaid,69 (2.1%)
+Enrollment time prior to index (years),
+ Mean (SD),5.4 (3.2)
+ Median (IQR),4.3 (3.8)
+ Count <= 2 years,3 (0.1%)
+ Count <= 3 years,837 (25.6%)
+ Count > 3 years,"2,430 (74.4%)"

@@ -19,7 +19,7 @@ if (!dir.exists(delay_params$out_path)) {
 }
 
 ## Build the primary index_dx_visits -------------------------------------------
-# Connect to dengue DB
+# Connect to sarcoid DB
 db <- src_sqlite(paste0(delay_params$small_db_path, cond_name, ".db"))
 
 # Collect index dates
@@ -38,4 +38,38 @@ index_cases <- enrolid_crosswalk %>%
   select(patient_id,enrolid,index_date) %>% 
   mutate(shift=0L)
 
-save(index_cases, file = paste0(delay_params$out, "index_cases.RData"))
+save(index_cases, file = paste0(delay_params$out_path, "index_cases.RData"))
+
+index_cases_main <- index_cases
+
+## Build the sarcoid_lung index_dx_visits --------------------------------------
+
+load("/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/sarcoid_lung_patids.RData")
+
+cond_name <- "sarcoid_lung"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_main %>% 
+  inner_join(sarcoid_lung, by = "patient_id")
+
+save(index_cases, file = paste0(delay_params$out_path, "index_cases.RData"))
+
+## Build the sarcoid_skin index_dx_visits --------------------------------------
+
+load("/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/sarcoid_skin_patids.RData")
+
+cond_name <- "sarcoid_skin"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_main %>% 
+  inner_join(sarcoid_skin, by = "patient_id")
+
+save(index_cases, file = paste0(delay_params$out_path, "index_cases.RData"))

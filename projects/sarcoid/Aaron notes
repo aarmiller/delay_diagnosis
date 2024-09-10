@@ -26,3 +26,23 @@ Combine Antiacids and PPIs into a single indicator - these medications treat the
 Remove morbid obesity as a separate indicator and just have a single "any obesity indicator" - obesity codes already lack sensitivity and specificity to a degree and we can't really be confident we can distinguish the two, so a single indicator is probably best
 For the missed opportunity model, run two models: one with the various setting types broken out like the current model, another where we just have a single indicator for inpatient stay on a given day.
 Let me know if you have any questions. Thanks.
+
+
+
+
+09/05/2024
+
+ALAN: so the ssds for sarcoid_lung and sarcoid_skin in codeBuildr are the same. However, they are different than sarcoid. There are 22 additional dx codes in the sarcoid list (see below for more details)
+12:55
+library(tidyverse)
+all.equal(codeBuildr::load_ssd_codes(“sarcoid_lung”), codeBuildr::load_ssd_codes(“sarcoid_skin”))
+all.equal(codeBuildr::load_ssd_codes(“sarcoid_lung”), codeBuildr::load_ssd_codes(“sarcoid”))
+dplyr::anti_join(codeBuildr::load_ssd_codes(“sarcoid”), codeBuildr::load_ssd_codes(“sarcoid_lung”)) %>%
+  dplyr::inner_join(codeBuildr::all_icd_labels %>%
+                      mutate(type = paste0(“icd”,dx_ver)) %>%
+                      select(code = dx, desc, type))
+
+AARON: I think use the ones in the codeBuildr package. I put the ones in from the last round of review we did with them. I recall asking them if we really should use the same SSDs and they said yes. Doesn't make a lot of sense to me...but they are in charge of this one.
+
+ALAN: Oh ok so I will use the sarcoid ssds for both sarcoid_lung and sarcoid_skin then
+

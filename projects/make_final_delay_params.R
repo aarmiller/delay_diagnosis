@@ -40,28 +40,28 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                            sarcoid_lung = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_lung/",   # path to output delay new results
-                                               ssd_name = "sarcoid_lung",
-                                               cp = 180,
+                                               ssd_name = "sarcoid", # as per Aaron  9/05/2024
+                                               cp = 128,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
                                                periodicity = TRUE,
                                                boot_trials = 100,
                                                sim_trials = 100,
-                                               miss_bins = c(1,2,3,4,5,7,10),
-                                               duration_bins = c(3,7,14,21,30,60,90,120,150)),
+                                               miss_bins = c(1,2,3,4,5),
+                                               duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)),
                            
                            sarcoid_skin = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sarcoid/",
                                                base_path = "/Shared/Statepi_Diagnosis/prelim_results/sarcoid/",  # base path to original prelim extract results
                                                out_path = "/Shared/Statepi_Diagnosis/projects/sarcoid/sarcoid_skin/",   # path to output delay new results
-                                               ssd_name = "sarcoid_skin",
-                                               cp = 180,
+                                               ssd_name = "sarcoid", # as per Aaron  9/05/2024
+                                               cp = 128,
                                                upper_bound = 365*2,
                                                final_model = "cubic",
                                                periodicity = TRUE,
                                                boot_trials = 100,
                                                sim_trials = 100,
-                                               miss_bins = c(1,2,3,4,5,7,10),
-                                               duration_bins = c(3,7,14,21,30,60,90,120,150)),
+                                               miss_bins = c(1,2,3,4,5),
+                                               duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90,120,150,180)),
                            
                            sepsis_revised10 = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/sepsis_revised10/",
                                                    base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_revised10/",  # base path to original prelim extract results
