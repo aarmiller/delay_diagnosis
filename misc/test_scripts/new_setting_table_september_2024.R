@@ -2,31 +2,33 @@
 rm(list = ls())
 library(tidyverse)
 
-cond_name <- "dengue"
+cond_name <- "sarcoid"
 
 # define change_point
-cp <- 17
+cp <- 128
 
 ###################
 #### Load Data ####
 ###################
 
-load("/Shared/Statepi_Diagnosis/projects/dengue/sim_results/sim_res_ssd.RData")
+load(paste0("/Shared/Statepi_Diagnosis/projects/", cond_name, "/sim_results/sim_res_ssd.RData"))
 # sim_res_ssd
 
-load("/Shared/Statepi_Diagnosis/prelim_results/dengue/delay_results/sim_obs.RData")
+load(paste0("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/all_dx_visits.RData"))
+
+load("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/sim_obs.RData")
 # sim_obs
 
-load("/Shared/Statepi_Diagnosis/prelim_results/dengue/delay_results/delay_tm.RData")
+load(paste0("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/delay_tm.RData"))
 # tm
 
-load("/Shared/Statepi_Diagnosis/prelim_results/dengue/delay_results/caseids.RData")
+load("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/caseids.RData")
 # caseids
 
-load("/Shared/Statepi_Diagnosis/prelim_results/dengue/delay_results/delay_tm.RData")
+load("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/delay_tm.RData")
 # tm
 
-load("/Shared/Statepi_Diagnosis/prelim_results/dengue/delay_results/dx_visits.RData")
+load("/Shared/Statepi_Diagnosis/prelim_results/", cond_name, "/delay_results/dx_visits.RData")
 # all_dx_visits
 
 ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>% 
@@ -112,10 +114,14 @@ out1 <- setting_counts1 %>%
 
 # compute miss counts for inpatient visits
 
+sim_res_ssd$res[[1]] %>% 
+  inner_join(.,distinct(caseids,obs,caseid,patient_id),by = "obs") %>% 
+  distinct(sim_trial,boot_trial,patient_id,boot_id,caseid)
+
 # merge caseids into simulation results
 tmp <- sim_res_ssd %>% 
+  mutate(res = map(res,~inner_join(.,distinct(caseids,obs,caseid,patient_id),by = "obs"))) %>% 
   unnest(res) %>% 
-  inner_join(distinct(caseids,obs,caseid,patient_id), by = "obs") %>% 
   distinct(sim_trial,boot_trial,patient_id,boot_id,caseid)
 
 # compute counts for inpatient stays
@@ -161,3 +167,4 @@ out_table <- setting_table %>%
          `Miss Counts`, `Miss Percentage`) %>% 
   mutate(`Miss Percentage` = ifelse(Setting == "inpatient visit", "", `Miss Percentage`))
 
+write_csv(out_table, "/Shared/Statepi_Diagnosis/projects/sarcoid/updated_setting_table.csv")

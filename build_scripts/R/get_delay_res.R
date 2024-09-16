@@ -38,6 +38,7 @@ n_bootstraps <- 100
 #### Simulation Functions ####
 ##############################
 source("github/delay_diagnosis/build_scripts/R/functions/simulation_functions.R")
+source("github/delay_diagnosis/build_scripts/R/functions/trend_functions.R")
 # source("build_scripts/R/functions/simulation_functions.R")
 
 
@@ -148,6 +149,155 @@ p2 <- model_fits %>%
 
 ggsave(filename = paste0(sim_out_path,"/number_of_missed_opportunities.pdf"),
        plot = p2)
+
+
+
+################################
+#### Prepare Bootstrap Data ####
+################################
+
+if (is.na(delay_params$final_model)) {
+  selected_model <- mse_res %>%
+    filter(model!="exponential") %>%
+    filter(rmse ==min(rmse))
+} else {
+  selected_model <- mse_res %>%
+    filter(model==delay_params$final_model) %>% 
+    filter(rmse ==min(rmse))
+}
+
+# extract patient ids and number of patients
+patient_ids <- index_dx_dates %>% distinct(patient_id)
+
+# n_patients <- nrow(patient_ids)
+
+#### Setup outer bootstrap data ------------------------------------------------
+
+# sample overall set of patients for each bootstrap
+tmp <- tibble(boot_trial=1:n_bootstraps) %>% 
+  mutate(boot_sample = map(boot_trial,~tibble(patient_id = sample(patient_ids$patient_id, replace = TRUE)))) %>% 
+  mutate(boot_sample = map(boot_sample, ~mutate(.,boot_id = row_number())))
+
+# tmp$boot_sample[[1]]
+
+#### compute counts for all visits ---------------------------------------------
+# For each set of patients selected pull the time map visit counts
+tmp <- tmp %>% 
+  mutate(sim_tm = map(boot_sample,
+                      ~inner_join(.,all_dx_visits, by = "patient_id") %>%
+                        mutate(period = -days_since_index) %>%
+                        distinct(patient_id,period,days_since_index,boot_id) %>%
+                        inner_join(sim_obs,by = c("patient_id", "days_since_index"))))
+
+tmp <- tmp %>% 
+  mutate(all_vis_count = map(sim_tm,
+                             ~count(.,period) %>%
+                               filter(period>0) %>% 
+                               mutate(dow = as.factor(period %% 7))))
+
+#### compute counts for ssd visits ---------------------------------------------
+# for each set of patients pull the ssd counts
+tmp <- tmp %>% 
+  mutate(sim_tm = map(boot_sample,
+                      ~inner_join(.,all_dx_visits, by = "patient_id") %>%
+                        mutate(period = -days_since_index) %>%
+                        inner_join(ssd_codes,by = c("dx", "dx_ver")) %>%
+                        distinct(patient_id,period,days_since_index,boot_id) %>%
+                        inner_join(sim_obs,by = c("patient_id", "days_since_index"))))
+
+tmp <- tmp %>% 
+  mutate(ssd_vis_count = map(sim_tm,
+                             ~count(.,period) %>%
+                               filter(period>0) %>% 
+                               mutate(dow = as.factor(period %% 7))))
+
+# remove the sim_tm data (no longer needed)
+tmp <- tmp %>% 
+  select(boot_trial,boot_sample,all_vis_count,ssd_vis_count)
+
+### fit models -----------------------------------------------------------------
+
+# fit trends for both all visits and ssd visits
+tmp <- tmp %>% 
+  mutate(all_vis_count = map(all_vis_count,~return_fits(.,
+                                                        model = selected_model$model,
+                                                        cp = delay_params$cp,
+                                                        periodicity = delay_params$periodicity)),
+         ssd_vis_count = map(ssd_vis_count,~return_fits(.,
+                                                        model = selected_model$model,
+                                                        cp = delay_params$cp,
+                                                        periodicity = delay_params$periodicity)))
+# compute number missed
+tmp <- tmp %>% 
+  mutate(n_miss_all = map(all_vis_count,
+                          ~filter(., period<delay_params$cp) %>%  
+                            summarise(.,n_miss_all = sum(round(num_miss,0),na.rm = T)))) %>% 
+  unnest(n_miss_all) %>% 
+  mutate(n_miss_ssd = map(ssd_vis_count,
+                          ~filter(., period<delay_params$cp) %>%  
+                            summarise(.,n_miss_ssd = sum(round(num_miss,0),na.rm = T)))) %>% 
+  unnest(n_miss_ssd) %>% 
+  mutate(n_expected_all =  map(all_vis_count,
+                               ~filter(., period<delay_params$cp) %>%  
+                                 summarise(.,n_expected_all = sum(round(pred,0),na.rm = T)))) %>% 
+  unnest(n_expected_all) %>% 
+  mutate(n_expected_ssd =  map(ssd_vis_count,
+                               ~filter(., period<delay_params$cp) %>%  
+                                 summarise(.,n_expected_ssd = sum(round(pred,0),na.rm = T)))) %>% 
+  unnest(n_expected_ssd)  %>% 
+  mutate(n_total_all =  map(all_vis_count,
+                            ~filter(., period<delay_params$cp) %>%  
+                              summarise(.,n_total_all = sum(round(n,0),na.rm = T)))) %>% 
+  unnest(n_total_all) %>% 
+  mutate(n_total_ssd =  map(ssd_vis_count,
+                            ~filter(., period<delay_params$cp) %>%  
+                              summarise(.,n_total_ssd = sum(round(n,0),na.rm = T)))) %>% 
+  unnest(n_total_ssd) 
+
+boot_data <- tmp
+
+tmp$boot_sample[[1]]
+
+###########################################
+#### Run bootstrap simulation analysis ####
+###########################################
+
+cluster <- parallel::makeCluster(30)
+
+parallel::clusterCall(cluster, function() library(tidyverse))
+parallel::clusterCall(cluster, function() library(delaySim))
+parallel::clusterExport(cluster,c("run_boot_trials","boot_data","sim_tm_all","sim_tm_ssd","delay_params","n_patients"),
+                        envir=environment())
+
+set.seed(5678)
+sim_res_all <- parallel::parLapply(cl = cluster,
+                                   1:delay_params$boot_trials,
+                                   function(x){run_boot_trials(boot_ids = boot_data$boot_sample[[x]],
+                                                               tm_data = sim_tm_all,
+                                                               miss_bins = select(boot_data$all_vis_count[[x]],period,num_miss),
+                                                               delay_params = delay_params,
+                                                               n_patients = n_patients,
+                                                               n_trials = delay_params$sim_trials)})
+
+sim_res_all <- map2(sim_res_all,1:delay_params$boot_trials,~mutate(.x,boot_trial=.y)) %>% 
+  bind_rows()
+
+set.seed(5678)
+sim_res_ssd <- parallel::parLapply(cl = cluster,
+                                   1:delay_params$boot_trials,
+                                   function(x){run_boot_trials(boot_ids = boot_data$boot_sample[[x]],
+                                                               tm_data = sim_tm_ssd,
+                                                               miss_bins = select(boot_data$ssd_vis_count[[x]],period,num_miss),
+                                                               delay_params = delay_params,
+                                                               n_patients = n_patients,
+                                                               n_trials = delay_params$sim_trials)})
+
+sim_res_ssd <- map2(sim_res_ssd,1:delay_params$boot_trials,~mutate(.x,boot_trial=.y)) %>% 
+  bind_rows()
+
+parallel::stopCluster(cluster)
+
+rm(cluster)
 
 
 #################################
