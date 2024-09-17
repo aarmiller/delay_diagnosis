@@ -58,23 +58,28 @@ sim_obs <- sim_obs %>%
   filter(days_since_index<0)
 
 # load all ssds
-project_test <- codeBuildr::avail_ssd_codes() %>% 
-  filter(name == proj_name) %>% nrow()
+# project_test <- codeBuildr::avail_ssd_codes() %>% 
+#   filter(name == proj_name) %>% nrow()
+# 
+# if(project_test>0){
+# 
+#   ssd_codes <- codeBuildr::load_ssd_codes(proj_name) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+#   
+# } else {
+# 
+#   ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+# }
 
-if(project_test>0){
-
-  ssd_codes <- codeBuildr::load_ssd_codes(proj_name) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-  
-} else {
-
-  ssd_codes <- codeBuildr::load_ssd_codes(cond_name) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-}
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
 
 # extract patient ids and number of patients
 patient_ids <- index_cases %>% distinct(patient_id)

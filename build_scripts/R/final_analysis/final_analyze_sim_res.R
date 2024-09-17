@@ -470,6 +470,322 @@ location_counts <- msa_res %>%
   inner_join(rural_no_msa_res) %>% 
   rename(Measure = key)
 
+### New setting counts_ssd table -----------------------------------------------
+
+# define change_point
+cp <- delay_params$cp
+
+load(paste0(delay_params$base_path,"/delay_results/sim_obs.RData"))
+# sim_obs
+
+# update sim_obs
+sim_obs <- sim_obs %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<0)
+
+load(paste0(delay_params$base_path,"/delay_results/caseids.RData"))
+# caseids
+
+# update caseids
+caseids <- caseids %>%
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift) %>% 
+  filter(days_since_index<=0)
+
+#load ssd codes
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
+
+### Compute Index Setting Counts
+
+out_index_n <- tm %>% 
+  filter(days_since_index==0) %>% 
+  distinct(patient_id, outpatient,ed,inpatient,obs_stay) %>% 
+  gather(key = Setting, value = value, -patient_id) %>% 
+  group_by(Setting) %>% 
+  summarise(index_n = sum(value)) %>% 
+  mutate(percent_index = index_n/sum(index_n)*100)
+
+out_index_n <- bind_rows(out_index_n,
+                         filter(out_index_n,Setting=="inpatient") %>% 
+                           mutate(Setting = "inpatient visit"))
+
+### Compute Potential Opportunity Counts
+
+# Count for visit days
+out_pot_opps <- all_dx_visits %>% 
+  inner_join(ssd_codes,by = join_by(dx, dx_ver)) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(sim_obs,by = join_by(patient_id, days_since_index)) %>%
+  inner_join(tm,by = c("days_since_index", "patient_id")) %>%
+  filter(between(days_since_index,-cp+1,-1)) %>% 
+  distinct(obs,outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value, -obs) %>%
+  group_by(Setting) %>% 
+  summarise(potential_opps = sum(value))
+
+# build counts for inpatient stays
+tmp <- all_dx_visits %>% 
+  inner_join(ssd_codes,by = join_by(dx, dx_ver)) %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(sim_obs,by = join_by(patient_id, days_since_index)) %>% 
+  inner_join(distinct(caseids,obs,caseid,patient_id),by = join_by(patient_id, obs)) %>% 
+  filter(between(days_since_index,-cp+1,-1)) %>% 
+  distinct(patient_id,caseid) %>% 
+  count(name = "potential_opps") %>% 
+  mutate(Setting = "inpatient visit")
+
+# combine daily settings and inpatient visits
+out_pot_opps <- bind_rows(out_pot_opps,tmp)
+
+
+### Compute Setting Miss Counts 
+
+obs_tm <- sim_obs %>%
+  distinct(obs,days_since_index,patient_id) %>%
+  inner_join(tm,by = c("days_since_index", "patient_id")) %>%
+  distinct(obs,outpatient,ed,obs_stay,inpatient)
+
+# # merge observations into time map to extract visit types
+tmp <- sim_res_ssd %>% 
+  mutate(res = map(res,~inner_join(.,obs_tm,by = "obs")))
+
+# get setting counts for each trial
+setting_counts1 <- tmp %>% 
+  mutate(n = map_int(res,nrow)) %>% 
+  mutate(outpatient = map_int(res,~sum(.$outpatient))) %>% 
+  mutate(ed = map_int(res,~sum(.$ed))) %>% 
+  mutate(obs_stay = map_int(res,~sum(.$obs_stay))) %>% 
+  mutate(inpatient = map_int(res,~sum(.$inpatient))) %>% 
+  select(sim_trial,boot_trial,n:inpatient)
+
+# compute miss counts for outpatient, ed, inpatient days and obs_stay
+out1 <- setting_counts1 %>% 
+  select(-n) %>% 
+  gather(key = Setting, value = n, -sim_trial,-boot_trial) %>% 
+  group_by(Setting) %>% 
+  summarise(miss_mean = ceiling(mean(n)),
+            miss_median = ceiling(median(n)),
+            miss_low = ceiling(quantile(n,probs = 0.025)),
+            miss_high = ceiling(quantile(n,probs = 0.975)))
+
+# compute miss counts for inpatient visits
+
+# merge caseids into simulation results
+tmp <- sim_res_ssd %>% 
+  unnest(res) %>% 
+  inner_join(distinct(caseids,obs,caseid,patient_id), by = "obs") %>% 
+  distinct(sim_trial,boot_trial,patient_id,boot_id,caseid)
+
+# compute counts for inpatient stays
+out2 <- tmp %>% 
+  count(sim_trial,boot_trial) %>% 
+  summarise(miss_mean = ceiling(mean(n)),
+            miss_median = ceiling(median(n)),
+            miss_low = ceiling(quantile(n,probs = 0.025)),
+            miss_high = ceiling(quantile(n,probs = 0.975))) %>% 
+  mutate(`Setting`= "inpatient visit")
+
+out_miss_n <- bind_rows(out1,out2)
+
+
+# Compute Percentage Missed Visit Days (i.e. of all % of all missed visit days 
+# during the delay window [i.e., observed - expected] days deemed to be missed 
+# opportunities [here the denominator is the same across settings and since patients 
+# can encounter more than one setting in a given day, these %’s will sum up to >= 100%]): 
+
+out_miss_frac <- setting_counts1 %>% 
+  mutate_at(vars(outpatient,ed,obs_stay,inpatient),~100*./n) %>% 
+  select(outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value) %>% 
+  group_by(Setting) %>% 
+  summarise(frac_mean = mean(value),
+            frac_median = median(value),
+            frac_low = quantile(value,probs = 0.025),
+            frac_high = quantile(value,probs = 0.975))
+
+
+# Compute % of all missed opportunities by setting (here the %’s will sum to 100) 
+out_miss_frac_miss_opps <- setting_counts1 %>% 
+  select(-n) %>% 
+  mutate(n = outpatient+ed+obs_stay+inpatient) %>% 
+  mutate_at(vars(outpatient,ed,obs_stay,inpatient),~100*./n) %>% 
+  select(outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value) %>% 
+  group_by(Setting) %>% 
+  summarise(frac_mean_all_miss_opp = mean(value),
+            frac_median_all_miss_opp = median(value),
+            frac_low_all_miss_opp = quantile(value,probs = 0.025),
+            frac_high_all_miss_opp = quantile(value,probs = 0.975))
+
+
+### Assemble table
+# Final Setting Count Table
+setting_table_new_raw_ssd <- tibble(Setting = c("outpatient","ed","obs_stay","inpatient","inpatient visit")) %>% 
+  left_join(out_index_n, by = "Setting") %>% 
+  left_join(out_pot_opps, by = "Setting") %>% 
+  left_join(out_miss_n, by = "Setting") %>% 
+  left_join(out_miss_frac, by = "Setting") %>% 
+  left_join(out_miss_frac_miss_opps, by = "Setting")
+
+# Output Table for Reporting
+setting_counts_index_by_setting_ssd_new <- setting_table_new_raw_ssd %>% 
+  mutate(`% of all Index Locations` = round(percent_index, 2)) %>% 
+  mutate(`Number of Missed Opportunities` = paste0(miss_mean, " (", miss_low, "-", miss_high, ")")) %>% 
+  mutate(`% of Missed opportunities` = paste0(round(frac_mean_all_miss_opp,2), " (", round(frac_low_all_miss_opp,2), "-", round(frac_high_all_miss_opp,2), ")")) %>% 
+  mutate(`% of Missed Visit Days` = paste0(round(frac_mean,2), " (", round(frac_low,2), "-", round(frac_high,2), ")")) %>% 
+  select(Setting,
+         `Index Count`=index_n, 
+         `% of all Index Locations`,
+         `Potential Missed Opportunity Visit Days`=potential_opps,
+         `Number of Missed Opportunities`, 
+         `% of Missed opportunities`,
+         `% of Missed Visit Days`) %>% 
+  mutate(`% of Missed Visit Days` = ifelse(Setting == "inpatient visit", "", `% of Missed Visit Days`),
+         `% of Missed opportunities` = ifelse(Setting == "inpatient visit", "", `% of Missed opportunities`))
+
+
+### New setting counts_all_visits table -----------------------------------------------
+
+### Compute Potential Opportunity Counts
+
+# Count for visit days
+out_pot_opps <- all_dx_visits %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(sim_obs,by = join_by(patient_id, days_since_index)) %>%
+  inner_join(tm,by = c("days_since_index", "patient_id")) %>%
+  filter(between(days_since_index,-cp+1,-1)) %>% 
+  distinct(obs,outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value, -obs) %>%
+  group_by(Setting) %>% 
+  summarise(potential_opps = sum(value))
+
+# build counts for inpatient stays
+tmp <- all_dx_visits %>% 
+  distinct(patient_id,days_since_index) %>% 
+  inner_join(sim_obs,by = join_by(patient_id, days_since_index)) %>% 
+  inner_join(distinct(caseids,obs,caseid,patient_id),by = join_by(patient_id, obs)) %>% 
+  filter(between(days_since_index,-cp+1,-1)) %>% 
+  distinct(patient_id,caseid) %>% 
+  count(name = "potential_opps") %>% 
+  mutate(Setting = "inpatient visit")
+
+# combine daily settings and inpatient visits
+out_pot_opps <- bind_rows(out_pot_opps,tmp)
+
+
+### Compute Setting Miss Counts 
+
+obs_tm <- sim_obs %>%
+  distinct(obs,days_since_index,patient_id) %>%
+  inner_join(tm,by = c("days_since_index", "patient_id")) %>%
+  distinct(obs,outpatient,ed,obs_stay,inpatient)
+
+# # merge observations into time map to extract visit types
+tmp <- sim_res_all %>% 
+  mutate(res = map(res,~inner_join(.,obs_tm,by = "obs")))
+
+# get setting counts for each trial
+setting_counts1 <- tmp %>% 
+  mutate(n = map_int(res,nrow)) %>% 
+  mutate(outpatient = map_int(res,~sum(.$outpatient))) %>% 
+  mutate(ed = map_int(res,~sum(.$ed))) %>% 
+  mutate(obs_stay = map_int(res,~sum(.$obs_stay))) %>% 
+  mutate(inpatient = map_int(res,~sum(.$inpatient))) %>% 
+  select(sim_trial,boot_trial,n:inpatient)
+
+# compute miss counts for outpatient, ed, inpatient days and obs_stay
+out1 <- setting_counts1 %>% 
+  select(-n) %>% 
+  gather(key = Setting, value = n, -sim_trial,-boot_trial) %>% 
+  group_by(Setting) %>% 
+  summarise(miss_mean = ceiling(mean(n)),
+            miss_median = ceiling(median(n)),
+            miss_low = ceiling(quantile(n,probs = 0.025)),
+            miss_high = ceiling(quantile(n,probs = 0.975)))
+
+# compute miss counts for inpatient visits
+
+# merge caseids into simulation results
+tmp <- sim_res_all %>% 
+  unnest(res) %>% 
+  inner_join(distinct(caseids,obs,caseid,patient_id), by = "obs") %>% 
+  distinct(sim_trial,boot_trial,patient_id,boot_id,caseid)
+
+# compute counts for inpatient stays
+out2 <- tmp %>% 
+  count(sim_trial,boot_trial) %>% 
+  summarise(miss_mean = ceiling(mean(n)),
+            miss_median = ceiling(median(n)),
+            miss_low = ceiling(quantile(n,probs = 0.025)),
+            miss_high = ceiling(quantile(n,probs = 0.975))) %>% 
+  mutate(`Setting`= "inpatient visit")
+
+out_miss_n <- bind_rows(out1,out2)
+
+
+# Compute Percentage Missed Visit Days (i.e. of all % of all missed visit days 
+# during the delay window [i.e., observed - expected] days deemed to be missed 
+# opportunities [here the denominator is the same across settings and since patients 
+# can encounter more than one setting in a given day, these %’s will sum up to >= 100%]): 
+
+out_miss_frac <- setting_counts1 %>% 
+  mutate_at(vars(outpatient,ed,obs_stay,inpatient),~100*./n) %>% 
+  select(outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value) %>% 
+  group_by(Setting) %>% 
+  summarise(frac_mean = mean(value),
+            frac_median = median(value),
+            frac_low = quantile(value,probs = 0.025),
+            frac_high = quantile(value,probs = 0.975))
+
+
+# Compute % of all missed opportunities by setting (here the %’s will sum to 100) 
+out_miss_frac_miss_opps <- setting_counts1 %>% 
+  select(-n) %>% 
+  mutate(n = outpatient+ed+obs_stay+inpatient) %>% 
+  mutate_at(vars(outpatient,ed,obs_stay,inpatient),~100*./n) %>% 
+  select(outpatient,ed,obs_stay,inpatient) %>% 
+  gather(key = Setting, value = value) %>% 
+  group_by(Setting) %>% 
+  summarise(frac_mean_all_miss_opp = mean(value),
+            frac_median_all_miss_opp = median(value),
+            frac_low_all_miss_opp = quantile(value,probs = 0.025),
+            frac_high_all_miss_opp = quantile(value,probs = 0.975))
+
+
+### Assemble table
+# Final Setting Count Table
+setting_table_new_raw_all <- tibble(Setting = c("outpatient","ed","obs_stay","inpatient","inpatient visit")) %>% 
+  left_join(out_index_n, by = "Setting") %>% 
+  left_join(out_pot_opps, by = "Setting") %>% 
+  left_join(out_miss_n, by = "Setting") %>% 
+  left_join(out_miss_frac, by = "Setting") %>% 
+  left_join(out_miss_frac_miss_opps, by = "Setting")
+
+# Output Table for Reporting
+setting_counts_index_by_setting_all_new <- setting_table_new_raw_all %>% 
+  mutate(`% of all Index Locations` = round(percent_index, 2)) %>% 
+  mutate(`Number of Missed Opportunities` = paste0(miss_mean, " (", miss_low, "-", miss_high, ")")) %>% 
+  mutate(`% of Missed opportunities` = paste0(round(frac_mean_all_miss_opp,2), " (", round(frac_low_all_miss_opp,2), "-", round(frac_high_all_miss_opp,2), ")")) %>% 
+  mutate(`% of Missed Visit Days` = paste0(round(frac_mean,2), " (", round(frac_low,2), "-", round(frac_high,2), ")")) %>% 
+  select(Setting,
+         `Index Count`=index_n, 
+         `% of all Index Locations`,
+         `Potential Missed Opportunity Visit Days`=potential_opps,
+         `Number of Missed Opportunities`, 
+         `% of Missed opportunities`,
+         `% of Missed Visit Days`) %>% 
+  mutate(`% of Missed Visit Days` = ifelse(Setting == "inpatient visit", "", `% of Missed Visit Days`),
+         `% of Missed opportunities` = ifelse(Setting == "inpatient visit", "", `% of Missed opportunities`))
+
+
+
 ### Save Output ----------------------------------------------------------------
 
 save(agg_stats_all, agg_stats_ssd,
@@ -478,5 +794,9 @@ save(agg_stats_all, agg_stats_ssd,
      setting_counts_ssd, setting_counts_all,
      setting_counts_index_by_stdplac,
      setting_counts_index_by_setting,
+     setting_counts_index_by_setting_ssd_new,
+     setting_counts_index_by_setting_all_new,
+     setting_table_new_raw_ssd,
+     setting_table_new_raw_all,
      location_counts,
      file = paste0(sim_out_path,"aggregated_sim_results.RData"))

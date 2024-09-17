@@ -30,30 +30,36 @@ load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[params$proj]]
 
-project_test <- codeBuildr::avail_ssd_codes() %>% 
-  filter(name == params$proj) %>% nrow()
+# project_test <- codeBuildr::avail_ssd_codes() %>% 
+#   filter(name == params$proj) %>% nrow()
+# 
+# if(project_test>0){
+#   
+#   cond_label <- codeBuildr::avail_ssd_codes() %>% 
+#     filter(name == params$proj) %>% 
+#     .$description
+#   
+#   ssd_codes <- codeBuildr::load_ssd_codes(params$proj) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+#   
+# } else {
+#   cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
+#   
+#   ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+# }
 
-if(project_test>0){
-  
-  cond_label <- codeBuildr::avail_ssd_codes() %>% 
-    filter(name == params$proj) %>% 
-    .$description
-  
-  ssd_codes <- codeBuildr::load_ssd_codes(params$proj) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-  
-} else {
-  cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
-  
-  ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-}
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
 
-cond_name <- cond_label
+# cond_name <- cond_label
+cond_name <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
 
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 
@@ -307,12 +313,12 @@ ssd_res_out <- bind_rows(mutate(ssd_res1,
                                  label = paste0("CUSUM ", model, tmp))) %>% 
   select(label,cp,pred_bound_cp,pred) %>% 
   mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
-  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
   unnest(cp_n_miss) %>% 
-  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
   unnest(pb_cp_n_miss) %>% 
   mutate(mse = map2(pred,cp,
-                    ~filter(.x, period>.y) %>% 
+                    ~filter(.x, period>=.y) %>% 
                       summarise(mse = mean((n-pred1)^2)))) %>%
   unnest(mse) %>% 
   mutate(mse7 = map2(pred,cp,

@@ -27,29 +27,36 @@ load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[params$proj]]
 
-project_test <- codeBuildr::avail_ssd_codes() %>% 
-  filter(name == params$proj) %>% nrow()
+# project_test <- codeBuildr::avail_ssd_codes() %>% 
+#   filter(name == params$proj) %>% nrow()
+# 
+# if(project_test>0){
+#   
+#   cond_label <- codeBuildr::avail_ssd_codes() %>% 
+#     filter(name == params$proj) %>% 
+#     .$description
+#   
+#   ssd_codes <- codeBuildr::load_ssd_codes(params$proj) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+#   
+# } else {
+#   cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
+#   
+#   ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
+#     filter(type %in% c("icd9","icd10")) %>% 
+#     mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+#     select(dx = code,dx_ver)
+# }
 
-if(project_test>0){
-  
-  cond_label <- codeBuildr::avail_ssd_codes() %>% 
-    filter(name == params$proj) %>% 
-    .$description
-  
-  ssd_codes <- codeBuildr::load_ssd_codes(params$proj) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-  
-} else {
-  cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
-  
-  ssd_codes <- codeBuildr::load_ssd_codes(stringr::str_split(params$proj, "_")[[1]][1]) %>% 
-    filter(type %in% c("icd9","icd10")) %>% 
-    mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
-    select(dx = code,dx_ver)
-}
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9",9L,10L)) %>% 
+  select(dx = code,dx_ver)
 
+cond_label <- stringr::str_to_title(stringr::str_replace(params$proj, "_", " "))
+  
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
@@ -177,7 +184,7 @@ percent_patient_ssd_vis_in_window <- gsub(" ", "", format(round(total_patient_ss
 
 There were `r total_patients` enrollees diagnosed with `r cond_label`.
 
-The diagnostic opportunity window (i.e., time period before diagnosis where diagnostic opportunities may occur) was set between 1 and `r delay_params$cp` days before diagnosis.
+The diagnostic opportunity window (i.e., time period before diagnosis where diagnostic opportunities may occur) was set between 1 and `r delay_params$cp-1` days before diagnosis.
 
 ### Visit Trends
 
@@ -451,6 +458,14 @@ temp_p1 %>% inner_join(temp_p2) %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
+The following is the new table, it is similar to the one above. Note: the "Potential Missed Opportunity Visit Days" don't exactly match as the above uses estimates from the bootstrapped distribution and here we just use the observed data. Same logic for the index visits.
+
+```{r, echo = FALSE}
+setting_counts_index_by_setting_ssd_new %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
+
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
 ```{r, echo = FALSE}
@@ -669,6 +684,15 @@ temp_p1 %>% inner_join(temp_p2) %>%
   kableExtra::kable() %>%
   kableExtra::kable_styling(full_width = F)
 ```
+
+The following is the new table, it is similar to the one above. Note: the "Potential Missed Opportunity Visit Days" don't exactly match as the above uses estimates from the bootstrapped distribution and here we just use the observed data. Same logic for the index visits.
+
+```{r, echo = FALSE}
+setting_counts_index_by_setting_all_new %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+```
+
 
 The following table provides a more detailed summary of all the specific types of locations where missed opportunities occurred:
 
