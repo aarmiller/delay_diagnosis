@@ -147,7 +147,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
                                          out_path = "/Shared/Statepi_Diagnosis/projects/blasto/",   # path to output delay new results
                                          ssd_name = "blasto",
-                                         cp = 92,
+                                         cp = 93,
                                          upper_bound = 365,
                                          final_model = "cubic",
                                          periodicity = TRUE,
@@ -160,7 +160,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                       base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
                                                       out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_top2_baddley/",   # path to output delay new results
                                                       ssd_name = "blasto",
-                                                      cp = 92,
+                                                      cp = 93,
                                                       upper_bound = 365,
                                                       final_model = "cubic",
                                                       periodicity = TRUE,
@@ -174,7 +174,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                       base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
                                                       out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_not_top2_baddley/",   # path to output delay new results
                                                       ssd_name = "blasto",
-                                                      cp = 92,
+                                                      cp = 93,
                                                       upper_bound = 365,
                                                       final_model = "cubic",
                                                       periodicity = TRUE,
@@ -187,7 +187,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                           base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
                                                           out_path = "/Shared/Statepi_Diagnosis/projects/blasto/blasto_NA_state/",   # path to output delay new results
                                                           ssd_name = "blasto",
-                                                          cp = 92,
+                                                          cp = 93,
                                                           upper_bound = 365,
                                                           final_model = "cubic",
                                                           periodicity = TRUE,
