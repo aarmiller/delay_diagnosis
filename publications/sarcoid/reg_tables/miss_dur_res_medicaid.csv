@@ -1,0 +1,45 @@
+label,Estimate (95%CI)
+Age,
+  Age < 18,REF
+  Age 18-34,1.08 (0.93-1.28)
+  Age 35-44,1.12 (0.95-1.33)
+  Age 45-54,1.16 (1.00-1.37)
+  Age 55-64,1.22 (1.04-1.43)
+  Age >= 65,1.27 (1.09-1.51)
+Race,
+  White,REF
+  Black,0.96 (0.92-1.00)
+  Hispanic,1.05 (0.89-1.21)
+  Other,0.99 (0.83-1.17)
+  Missing/Unknown,0.97 (0.89-1.05)
+Female,1.00 (0.95-1.05)
+Any obesity dx prior to index,1.08 (1.03-1.13)
+Rural location,1.02 (0.94-1.10)
+Antacid/PPI rx during delay window,1.08 (1.03-1.14)
+Antibiotic rx during delay window,1.03 (0.97-1.08)
+Antihistamine rx during delay window,1.00 (0.91-1.08)
+Cough suppressant rx during delay window,1.07 (0.85-1.28)
+Diuretic rx during delay window,1.06 (0.99-1.12)
+Inhaler rx during delay window,1.07 (1.02-1.13)
+Nasal spray rx during delay window,0.95 (0.88-1.03)
+Oral steroid rx during delay window,1.04 (0.98-1.10)
+Month,
+  January,REF
+  February,0.96 (0.87-1.06)
+  March,0.98 (0.88-1.09)
+  April,0.96 (0.87-1.07)
+  May,0.98 (0.89-1.08)
+  June,1.01 (0.90-1.11)
+  July,1.03 (0.93-1.14)
+  August,1.00 (0.90-1.11)
+  September,1.00 (0.90-1.11)
+  October,0.98 (0.88-1.09)
+  November,0.99 (0.90-1.10)
+  December,0.99 (0.89-1.10)
+Year,
+  /n2016,REF
+  /n2017,1.02 (0.95-1.10)
+  /n2018,1.03 (0.96-1.12)
+  /n2019,1.04 (0.96-1.11)
+  /n2020,1.02 (0.94-1.10)
+  /n2021,0.99 (0.92-1.06)

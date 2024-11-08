@@ -286,38 +286,59 @@ table1_skin <- table1_fun(reg_demo)
 write_csv(table1_skin, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "sarcoid", "/tables/patient_characteristcs_skin.csv"))
 
 # Table 2 ----------------------------------------------------------------------
+
+
 load(paste0(sim_in_path,"aggregated_sim_results.RData"))
 
-index <- setting_counts_index_by_setting %>%
-  select(Setting,index_count_mean:index_pct2_upperCI) %>% 
-  mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
-         index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
-  select(setting = Setting,`Index Visits`=index_count,
-         `% of all Index Locations`=index_pct1)
+# index <- setting_counts_index_by_setting %>%
+#   select(Setting,index_count_mean:index_pct2_upperCI) %>% 
+#   mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
+#          index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
+#   select(setting = Setting,`Index Visits`=index_count,
+#          `% of all Index Locations`=index_pct1)
+# 
+# 
+# misses <- setting_counts_index_by_setting %>%
+#   select(Setting,n_mean:pct_opp_missed_high) %>% 
+#   mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
+#   mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
+#          pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
+#          total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
+#          pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
+#   select(setting = Setting, 
+#          `Missed Opportunities`=n,
+#          `% Missed Opp. In Setting`=pct_opp,
+#          'Total Diagnostic Opportunities' =total_opp,
+#          `% of Opportunities Missed`=pct_opp_missed)
+# 
+# table2 <- inner_join(index, misses) %>% 
+#   mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
+#                           labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
+#   arrange(setting)
 
-
-misses <- setting_counts_index_by_setting %>%
-  select(Setting,n_mean:pct_opp_missed_high) %>% 
-  mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
-  mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
-         pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
-         total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
-         pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
-  select(setting = Setting, 
-         `Missed Opportunities`=n,
-         `% Missed Opp. In Setting`=pct_opp,
-         'Total Diagnostic Opportunities' =total_opp,
-         `% of Opportunities Missed`=pct_opp_missed)
-
-table2 <- inner_join(index, misses) %>% 
-  mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
-                          labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
-  arrange(setting)
+table2 <- setting_table_new_raw_ssd %>% 
+  mutate(`% of all Index Locations` = format(round(percent_index, 1), nsmall = 1)) %>% 
+  mutate(`Number of Missed Opportunities` = paste0(miss_mean, "\n(", miss_low, "-", miss_high, ")")) %>% 
+  mutate(`% of Missed opportunities` = paste0(format(round(frac_mean_all_miss_opp, 1), nsmall = 1), 
+                                              "\n(", format(round(frac_low_all_miss_opp, 1), nsmall = 1), "-", format(round(frac_high_all_miss_opp, 1), nsmall = 1), ")")) %>% 
+  mutate(`% of Missed Visit Days` = paste0(format(round(frac_mean, 1), nsmall = 1), "\n(", format(round(frac_low, 1), nsmall = 1), "-", 
+                                           format(round(frac_high, 1), nsmall = 1), ")")) %>% 
+  select(Setting,
+         `Index Count`=index_n, 
+         `% of all Index Locations`,
+         `Potential Missed Opportunity Visit Days`=potential_opps,
+         `Number of Missed Opportunities`, 
+         `% of Missed opportunities`,
+         `% of Missed Visit Days`) %>% 
+  mutate(`% of Missed Visit Days` = ifelse(Setting == "inpatient visit", "", `% of Missed Visit Days`),
+         `% of Missed opportunities` = ifelse(Setting == "inpatient visit", "", `% of Missed opportunities`)) %>% 
+  select(1,4,2,3,5,6) %>% 
+  mutate(across(where(is.integer), ~ formatC(.x,  big.mark = ",")))
 
 write_csv(table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table2.csv"))
 
@@ -415,36 +436,55 @@ sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
 load(paste0(sim_in_path,"aggregated_sim_results.RData"))
 
-index <- setting_counts_index_by_setting %>%
-  select(Setting,index_count_mean:index_pct2_upperCI) %>% 
-  mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
-         index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
-  select(setting = Setting,`Index Visits`=index_count,
-         `% of all Index Locations`=index_pct1)
+# index <- setting_counts_index_by_setting %>%
+#   select(Setting,index_count_mean:index_pct2_upperCI) %>% 
+#   mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
+#          index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
+#   select(setting = Setting,`Index Visits`=index_count,
+#          `% of all Index Locations`=index_pct1)
+# 
+# 
+# misses <- setting_counts_index_by_setting %>%
+#   select(Setting,n_mean:pct_opp_missed_high) %>% 
+#   mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
+#   mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
+#          pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
+#          total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
+#          pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
+#   select(setting = Setting, 
+#          `Missed Opportunities`=n,
+#          `% Missed Opp. In Setting`=pct_opp,
+#          'Total Diagnostic Opportunities' =total_opp,
+#          `% of Opportunities Missed`=pct_opp_missed)
+# 
+# table2 <- inner_join(index, misses) %>% 
+#   mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
+#                           labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
+#   arrange(setting)
 
-
-misses <- setting_counts_index_by_setting %>%
-  select(Setting,n_mean:pct_opp_missed_high) %>% 
-  mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
-  mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
-         pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
-         total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
-         pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
-  select(setting = Setting, 
-         `Missed Opportunities`=n,
-         `% Missed Opp. In Setting`=pct_opp,
-         'Total Diagnostic Opportunities' =total_opp,
-         `% of Opportunities Missed`=pct_opp_missed)
-
-table2 <- inner_join(index, misses) %>% 
-  mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
-                          labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
-  arrange(setting)
+table2 <- setting_table_new_raw_ssd %>% 
+  mutate(`% of all Index Locations` = format(round(percent_index, 1), nsmall = 1)) %>% 
+  mutate(`Number of Missed Opportunities` = paste0(miss_mean, "\n(", miss_low, "-", miss_high, ")")) %>% 
+  mutate(`% of Missed opportunities` = paste0(format(round(frac_mean_all_miss_opp, 1), nsmall = 1), 
+                                              "\n(", format(round(frac_low_all_miss_opp, 1), nsmall = 1), "-", format(round(frac_high_all_miss_opp, 1), nsmall = 1), ")")) %>% 
+  mutate(`% of Missed Visit Days` = paste0(format(round(frac_mean, 1), nsmall = 1), "\n(", format(round(frac_low, 1), nsmall = 1), "-", 
+                                           format(round(frac_high, 1), nsmall = 1), ")")) %>% 
+  select(Setting,
+         `Index Count`=index_n, 
+         `% of all Index Locations`,
+         `Potential Missed Opportunity Visit Days`=potential_opps,
+         `Number of Missed Opportunities`, 
+         `% of Missed opportunities`,
+         `% of Missed Visit Days`) %>% 
+  mutate(`% of Missed Visit Days` = ifelse(Setting == "inpatient visit", "", `% of Missed Visit Days`),
+         `% of Missed opportunities` = ifelse(Setting == "inpatient visit", "", `% of Missed opportunities`)) %>% 
+  select(1,4,2,3,5,6) %>% 
+  mutate(across(where(is.integer), ~ formatC(.x,  big.mark = ",")))
 
 write_csv(table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "sarcoid", "/tables/miss_opp_setting_lung.csv"))
 
@@ -541,36 +581,55 @@ sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
 load(paste0(sim_in_path,"aggregated_sim_results.RData"))
 
-index <- setting_counts_index_by_setting %>%
-  select(Setting,index_count_mean:index_pct2_upperCI) %>% 
-  mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
-         index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
-  select(setting = Setting,`Index Visits`=index_count,
-         `% of all Index Locations`=index_pct1)
+# index <- setting_counts_index_by_setting %>%
+#   select(Setting,index_count_mean:index_pct2_upperCI) %>% 
+#   mutate(across(index_count_mean:index_count_upperCI, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(index_pct1_mean:index_pct2_upperCI, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(index_count = paste0(index_count_mean,"\n(",index_count_lowerCI,"-",index_count_upperCI,")"),
+#          index_pct1 = paste0(index_pct1_mean," \n(",index_pct1_lowerCI,"-",index_pct1_upperCI,")")) %>% 
+#   select(setting = Setting,`Index Visits`=index_count,
+#          `% of all Index Locations`=index_pct1)
+# 
+# 
+# misses <- setting_counts_index_by_setting %>%
+#   select(Setting,n_mean:pct_opp_missed_high) %>% 
+#   mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
+#   mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
+#   mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
+#   mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
+#          pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
+#          total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
+#          pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
+#   select(setting = Setting, 
+#          `Missed Opportunities`=n,
+#          `% Missed Opp. In Setting`=pct_opp,
+#          'Total Diagnostic Opportunities' =total_opp,
+#          `% of Opportunities Missed`=pct_opp_missed)
+# 
+# table2 <- inner_join(index, misses) %>% 
+#   mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
+#                           labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
+#   arrange(setting)
 
-
-misses <- setting_counts_index_by_setting %>%
-  select(Setting,n_mean:pct_opp_missed_high) %>% 
-  mutate(across(n_mean:n_high, ~formatC(ceiling(.), big.mark = ",", format = "d")))%>% 
-  mutate(across(total_opps_mean:total_opps_high, ~formatC(ceiling(.), big.mark = ",", format = "d"))) %>% 
-  mutate(across(pct_opp_mean:pct_opp_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(across(pct_opp_missed_mean:pct_opp_missed_high, ~trimws(format(round(.,1), nsmall = 1)))) %>% 
-  mutate(n = paste0(n_mean,"\n(",n_low,"-",n_high,")"),
-         pct_opp = paste0(pct_opp_mean," \n(",pct_opp_low,"-",pct_opp_high,")"),
-         total_opp = paste0(total_opps_mean,"\n(",total_opps_low,"-",total_opps_high,")"),
-         pct_opp_missed = paste0(pct_opp_missed_mean,"\n(",pct_opp_missed_low,"-",pct_opp_missed_high,")"),) %>%
-  select(setting = Setting, 
-         `Missed Opportunities`=n,
-         `% Missed Opp. In Setting`=pct_opp,
-         'Total Diagnostic Opportunities' =total_opp,
-         `% of Opportunities Missed`=pct_opp_missed)
-
-table2 <- inner_join(index, misses) %>% 
-  mutate(setting = factor(setting, levels = c("outpatient", "inpatient", "ed", "obs_stay"),
-                          labels = c("Outpatient", "Inpatient", "ED", "Observational Stay"))) %>% 
-  arrange(setting)
+table2 <- setting_table_new_raw_ssd %>% 
+  mutate(`% of all Index Locations` = format(round(percent_index, 1), nsmall = 1)) %>% 
+  mutate(`Number of Missed Opportunities` = paste0(miss_mean, "\n(", miss_low, "-", miss_high, ")")) %>% 
+  mutate(`% of Missed opportunities` = paste0(format(round(frac_mean_all_miss_opp, 1), nsmall = 1), 
+                                              "\n(", format(round(frac_low_all_miss_opp, 1), nsmall = 1), "-", format(round(frac_high_all_miss_opp, 1), nsmall = 1), ")")) %>% 
+  mutate(`% of Missed Visit Days` = paste0(format(round(frac_mean, 1), nsmall = 1), "\n(", format(round(frac_low, 1), nsmall = 1), "-", 
+                                           format(round(frac_high, 1), nsmall = 1), ")")) %>% 
+  select(Setting,
+         `Index Count`=index_n, 
+         `% of all Index Locations`,
+         `Potential Missed Opportunity Visit Days`=potential_opps,
+         `Number of Missed Opportunities`, 
+         `% of Missed opportunities`,
+         `% of Missed Visit Days`) %>% 
+  mutate(`% of Missed Visit Days` = ifelse(Setting == "inpatient visit", "", `% of Missed Visit Days`),
+         `% of Missed opportunities` = ifelse(Setting == "inpatient visit", "", `% of Missed opportunities`)) %>% 
+  select(1,4,2,3,5,6) %>% 
+  mutate(across(where(is.integer), ~ formatC(.x,  big.mark = ",")))
 
 write_csv(table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "sarcoid", "/tables/miss_opp_setting_skin.csv"))
 

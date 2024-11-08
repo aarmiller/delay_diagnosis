@@ -1,5 +1,15 @@
-setting,Index Visits,% of all Index Locations,Missed Opportunities,% Missed Opp. In Setting,Total Diagnostic Opportunities,% of Opportunities Missed
-Outpatient,"5,170 (5,130-5,219)",73.7 (72.7-74.6),"1,768 (1,544-1,947)",67.7 (65.6-69.6),"6,938 (6,715-7,132)",25.5 (23.1-27.4)
-Inpatient,"1,109 (1,056-1,158)",15.8 (15.1-16.5),308 (230-390),11.7 (9.5-14.1),"1,416 (1,324-1,527)",21.6 (17.1-26.2)
-ED,680 (634-717),9.7 (9.1-10.2),500 (437-560),19.1 (17.7-20.9),"1,179 (1,098-1,247)",42.3 (39.0-45.6)
-Observational Stay,60 (46-75),0.8 (0.7-1.1),37 (25-51),1.4 (1.0-1.9),96 (78-117),38.2 (27.5-48.6)
+Setting,Potential Missed Opportunity Visit Days,Index Count,% of all Index Locations,Number of Missed Opportunities,% of Missed opportunities
+outpatient,"2,809","5,166",73.6,"1755
+(1557-1951)","67.7
+(65.5-69.7)"
+ed,756,685, 9.8,"494
+(430-565)","19.0
+(17.4-20.7)"
+obs_stay,64,59, 0.8,"38
+(24-54)"," 1.4
+( 0.9- 2.0)"
+inpatient,591,"1,109",15.8,"307
+(231-380)","11.8
+( 9.5-14.0)"
+inpatient visit,196,"1,109",15.8,"161
+(132-188)",
