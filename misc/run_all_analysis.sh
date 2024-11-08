@@ -429,3 +429,29 @@ qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh tb
 
 # qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh lung_cancer
 # qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh pe
+
+# Run on 9/16/24
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh blasto
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh cocci
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sarcoid
+
+
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh hiv
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh bronchiectasis
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh pcp
+
+
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh hiv
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh bronchiectasis
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh pcp
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh hiv
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh bronchiectasis
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh pcp
+
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh hiv
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh bronchiectasis
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pcp

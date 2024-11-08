@@ -1,0 +1,198 @@
+---
+title: "Delay Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+params <- list()
+params$cond <- "dengue"
+
+
+# !!!!!note need to fix header to pull in params
+
+# source additional functions
+# source("~/github/delay_diagnosis/build_scripts/R/functions/sim_report_functions.R")
+
+# load delay_parms
+# load("/Shared/AML/params/delay_any_params.RData")
+load("/Volumes/AML/params/delay_any_params.RData")
+
+delay_params <- delay_any_params[[params$cond]]
+
+cond_label <- codeBuildr::avail_ssd_codes() %>% 
+  filter(name == params$cond) %>% 
+  .$description
+
+# sim_in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/")
+sim_in_path <- paste0("/Volumes/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results/sim_results/")
+
+load(paste0(sim_in_path,"sim_results_output.RData"))
+
+```
+
+# Delay Report for `r cond_label`
+
+There were `r sim_results_output$n_patients` enrollees diagnosed with `r cond_label`.
+
+The diagnostic opportunity window (i.e., time period before diagnosis where diagnostic opportunities may occur) was set between 1 and `r sim_results_output$cp` days before diagnosis.
+
+### Visit Trends
+
+*Potential diagnostic opportunities:* During the diagnostic opportunity window there were `r sim_results_output$pot_opps_any` total patient visit days (i.e., days when a patient encountered the healthcare system), and of these visit days `r sim_results_output$pot_opps_ssd` represented SSD-visit days (i.e., days where a patient presented with signs, symptoms or symptomatically similar diseases to `r cond_label`).
+
+The following is a plot of all patient visits and SSD-related visits that occurred in the `r delay_params$upper_bound` days prior to the index `r cond_label` diagnosis.
+
+```{r, echo = FALSE}
+bind_rows(sim_results_output$model_fits_ssd %>% 
+            filter(model=="linear") %>% 
+            select(period,n) %>% 
+            mutate(group = "SSD Visits"),
+          sim_results_output$model_fits_any %>% 
+            filter(model=="linear") %>% 
+            select(period,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  ggplot(aes(period,n)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Visits") +
+  xlab("Days Before Diagnosis") +
+  geom_vline(aes(xintercept = delay_params$cp), linetype = 2) +
+  facet_wrap(~group, scales = "free_y")
+  
+
+```
+
+## SSD Visit Results
+
+### Expected Visit Trends
+
+The following figure depicts the estimated trends in the number of expected visit counts (red line) for SSD-related visits compared to the observed number (black line). The dashed line represents the start of the diagnostic opportunity window. Plots are presented using linear, quadratic, cubic and exponential models to fit the expected number of SSD-related visits each day before the diagnostic opportunity window.
+
+```{r, echo = FALSE}
+
+y_pos <- .9*max(sim_results_output$model_fits_ssd$n)
+x_pos <- .8*delay_params$upper_bound
+
+# pick the selected model: Note: currently omitting exponential
+p1 <- sim_results_output$model_fits_ssd %>%
+  ggplot(aes(period,n)) +
+  geom_line() +
+  scale_x_reverse() +
+  geom_line(aes(y = value), color = "red") +
+  facet_wrap(~model) +
+  geom_vline(aes(xintercept = delay_params$cp), linetype =2) +
+  theme_bw() +
+  geom_text(data = sim_results_output$mse_res_ssd,
+            mapping = aes(x = x_pos, y = y_pos, label = label))
+
+p2 <- sim_results_output$model_fits_ssd %>% 
+  filter(period<cp) %>% 
+  ggplot(aes(period,num_miss)) +
+  geom_histogram(stat = "identity") +
+  scale_x_reverse() +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Diagnosis") +
+  theme_bw() +
+  facet_wrap(~model) 
+
+p1
+
+```
+
+The following table summarizes the observed and expected number of visits and the estimated number of missed opportunities using each of the four different models plotted above:
+
+```{r, echo = FALSE}
+pred_table <- sim_results_output$model_fits_ssd %>%
+  filter(period<cp) %>%
+  group_by(model) %>%
+  summarise(`Total Visits` = round(sum(n)),
+            `Expected Visits` = round(sum(value)),
+            `Number Missed` = round(sum(num_miss)))
+
+selected_model_missed_opp <- as.integer(filter(pred_table,model==sim_results_output$selected_model_ssd$model)$`Number Missed`)
+
+pred_table %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The following plot describes the estimated number of missed opportunities each day before the index diagnosis using each of the four models described above:
+
+```{r, echo=FALSE}
+p2
+```
+
+The final selected model (based on model fit prior to the diagnostic opportunity window) was the `r sim_results_output$selected_model_ssd$model` model with an estimated number of missed opportunities of `r selected_model_missed_opp`
+
+### Bootstrapping Results
+
+The following section summarizes results of the bootstrapping analysis where the individual specific visits representing a diagnostic delay were repeatedly sampled. A total of `r sim_results_output$n_trials*sim_results_output$n_bootstraps` trials were run for this analysis (`r sim_results_output$n_bootstraps` outer bootstraps and `r sim_results_output$n_trials` trials inside each bootstrap sample)
+
+The following figure depicts the observed (black lines) and estimated expected (red lines) number of SSD visits each day before the index diagnosis across bootstap samples: 
+
+```{r, echo = FALSE}
+sim_results_output$boot_fits %>% 
+  select(boot_trial,ssd_vis_count) %>% 
+  unnest() %>% 
+  ggplot(aes(x = period,group = boot_trial)) +
+  geom_line(aes(y = pred), alpha = 0.15, color = "red") +
+  geom_line(aes(y = n), alpha = 0.15, color = "black") +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Patient Visit Days") +
+  xlab("Days Before Index Diagnosis") +
+  ggtitle("Observed (black) and expected (red) SSD-visits across bootstraps")
+```
+
+The following figure depicts the estimated number of SSD visits representing a missed opportunity each day before the index diagnosis across bootstap samples: 
+
+``` {r, echo = FALSE}
+sim_results_output$boot_fits %>% 
+  select(boot_trial,ssd_vis_count) %>% 
+  unnest() %>% 
+  filter(period<=delay_params$cp) %>% 
+  ggplot(aes(x = period,group = boot_trial)) +
+  geom_line(aes(y = num_miss), alpha = 0.15, color = "black") +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Diagnosis") +
+  ggtitle("Estimated number of missed opportunies across bootstraps")
+```
+
+
+The following table is an overall summary of the frequency and duration of missed opportunities:
+```{r, echo = FALSE}
+tmp <- filter(sim_results_output$agg_stats_ssd$main_stats,measure == "n_pat") %>% 
+  mutate_at(vars(mean:high),~round(100*./sim_results_output$n_patients,2)) %>% 
+  mutate(measure_out = paste0(mean, " (",low,"-",high,")")) %>% 
+  mutate(measure = "pct_miss")
+
+bind_rows(sim_results_output$agg_stats_ssd$main_stats,
+          tmp) %>% 
+  inner_join(tribble(~measure,~Measure,
+                     "n_pat","Number of Patients Missed",
+                     "pct_miss","Percent of Patients Missed",
+                     "mean_dur","Mean Duration of Delays (Days)",
+                     "median_dur","Median Duration of Delays (Days)",
+                     "mean_n_miss","Mean Number of Misses per patient delayed",
+                     "median_n_miss","Median Number of Misses per patient delayed"),.) %>% 
+  select(Measure, Value = measure_out) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```

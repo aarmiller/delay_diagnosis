@@ -15,7 +15,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "dengue"
+# cond_name <- "bronchiectasis"
 
 # Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
