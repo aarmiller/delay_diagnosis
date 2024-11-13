@@ -980,6 +980,52 @@ gc()
 
 print("mod 14 finished")
 
+#### Delay Patient Medicaid no cough----------------------------------------------------
+
+
+get_delay_pat_res_med_no_cough <- function(trial_val){
+  
+  tmp1 <- full_reg_data_dur %>% filter(trial==trial_val)
+  
+  reg_data <- tmp1 %>% 
+    select(boot_sample) %>% 
+    unnest(boot_sample) %>% 
+    select(patient_id) %>%     
+    inner_join(reg_demo, by = "patient_id") %>% 
+    left_join(tmp1 %>% select(data) %>% unnest(data), by = "patient_id") %>% 
+    mutate(duration = replace_na(duration,0L)) %>%  
+    mutate(miss = duration>0) %>% 
+    filter(source == "medicaid") %>% 
+    filter(year>2015) %>% 
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>% 
+    select(miss, age_cat, female, rural, race, oral_steroids_window, inhalers_window, year, month,
+           any_obesity, antiacid_ppi_drugs_window:cough_suppressant_drugs_window) %>% 
+    select(-cough_suppressant_drugs_window)
+  
+  
+  fit <- glm(miss~., family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+miss_delay_pat_res_med_no_cough <- parallel::mclapply(1:max(full_reg_data$trial),
+                                             function(x){get_delay_pat_res_med_no_cough(x)}, 
+                                             mc.cores = num_cores)
+
+miss_delay_pat_res_med_no_cough <- bind_rows(miss_delay_pat_res_med_no_cough) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+
+gc()
+
+print("mod 15 finished")
+
 ########################
 ##### Save Results #####
 ########################
@@ -1023,7 +1069,8 @@ ssd_miss_risk_models_med <- list(
   miss_dur_res_log_normal_med = miss_dur_res_log_normal_med,
   miss_dur_res_weibull_med = miss_dur_res_weibull_med,
   # miss_delay_pat_res = miss_delay_pat_res,
-  miss_delay_pat_res_med = miss_delay_pat_res_med
+  miss_delay_pat_res_med = miss_delay_pat_res_med,
+  miss_delay_pat_res_med_no_cough = miss_delay_pat_res_med_no_cough
 )
 
 save(ssd_miss_risk_models_med, file = paste0(out_path,"ssd_miss_risk_models_med.RData"))

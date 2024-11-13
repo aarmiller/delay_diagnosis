@@ -115,6 +115,21 @@ miss_delay_pat_res <- left_join(master_table, data) %>%
 write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res_medicaid.csv") )
 
 
+data <- ssd_miss_risk_models_med$miss_delay_pat_res_med_no_cough
+
+miss_delay_pat_res <- left_join(master_table, data) %>% 
+  filter(!is.na(est) | (term %in% c("Header", "REF", "cough_suppressant_drugs_window")) ) %>% 
+  mutate("OR (95%CI)" = ifelse(!is.na(est), paste0(trimws(format(round(est, 2), nsmall = 2)), 
+                                                   " (",
+                                                   trimws(format(round(low, 2), nsmall = 2)),
+                                                   "-",
+                                                   trimws(format(round(high, 2), nsmall = 2)),
+                                                   ")"),
+                               ifelse(term == "Header",  "", term))) %>% 
+  select(2, 6)
+
+write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res_medicaid_no_cough.csv") )
+
 #############
 ## Table 3 ##
 #############
