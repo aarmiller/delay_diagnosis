@@ -1,0 +1,321 @@
+---
+title: "Opportunity Window Report"
+author: ""
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+
+condition <- "blasto"
+
+load(paste0("/Volumes/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_eval_res.RData"))
+```
+
+## Diagnostic Opportunity Window Report
+
+This report summarizes the results of the bootstrapping change-point approach to 
+select the diagnostic opportunity window. For this report we analyzed opportunity 
+windows ranging from 10 to 100 days prior to the index diagnosis.
+
+The following figure depicts the number of patients with any visit or an SSD-related
+visit each day prior to diagnosis:
+```{r, echo = FALSE}
+visit_counts %>% 
+  mutate(label = paste0(code_set," Visits")) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point() +
+  scale_x_reverse() +
+  facet_wrap(~label, scale = "free_y") +
+  theme_bw() +
+  xlab("Days Before Diagnosis") +
+  ylab("Number of Patients")
+
+```
+
+## SSD Visits
+
+This section summarizes results using counts of SSD-related visits.
+
+The following figure depicts the in-sample and out-of-sample performance of various
+bounds on the opportunity window and different trends.
+```{r, echo = FALSE}
+inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd,by = join_by(cp, model)) %>%
+  gather(key = key, value = value, -model, -cp)  %>% 
+  mutate(label = ifelse(key == "in_mse", "In-Sample MSE", "Out-of-Sample MSE")) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  ggplot(aes(cp,value,color = model_lab)) +
+  geom_line() +
+  facet_wrap(~label,scale = "free_y") +
+  theme_bw() +
+  ylab("MSE") +
+  xlab("Opportunity Window Upper Bound") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+```
+
+The following table depicts the top 10 specifications based on out-of-sample performance
+```{r, echo = FALSE}
+out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F)
+```
+
+The following figure depicts the observed and expected trend for the top 4 models
+based on out-of-sample performance:
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_ssd,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+The following table depicts the 10 best models for each trend.
+```{r, echo = FALSE}
+tmp <- out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+### Linear Models
+
+The following figure depicts the top 4 performing linear models based on out-of-sample
+MSE
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="linear") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Linear: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+
+## All Visits
+
+This section summarizes results using counts of all visits.
+
+The following figure depicts the in-sample and out-of-sample performance of various
+bounds on the opportunity window and different trends.
+```{r, echo = FALSE}
+inner_join(in_sample_mse_all,out_of_sample_mse_all,by = join_by(cp, model)) %>%
+  gather(key = key, value = value, -model, -cp)  %>% 
+  mutate(label = ifelse(key == "in_mse", "In-Sample MSE", "Out-of-Sample MSE")) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  ggplot(aes(cp,value,color = model_lab)) +
+  geom_line() +
+  facet_wrap(~label,scale = "free_y") +
+  theme_bw() +
+  ylab("MSE") +
+  xlab("Opportunity Window Upper Bound") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+```
+
+The following table depicts the top 10 specifications based on out-of-sample performance
+```{r, echo = FALSE}
+out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F)
+```
+
+The following figure depicts the observed and expected trend for the top 4 models
+based on out-of-sample performance:
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_all,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+The following table depicts the 10 best models for each trend.
+```{r, echo = FALSE}
+tmp <- out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+### Linear Models
+
+The following figure depicts the top 4 performing linear models based on out-of-sample
+MSE
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="linear") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Linear: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+### Quadratic Models
+
+The following figure depicts the top 4 performing quadratic models based on out-of-sample
+MSE
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="quad") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Quadratic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+### Cubic Models
+
+The following figure depicts the top 4 performing cubic models based on out-of-sample
+MSE
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="cube") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Cubic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+

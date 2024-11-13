@@ -119,6 +119,32 @@ ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submission
 #        width = 4.5, height = 4)
 
 
+### Methods Graphic (Revisions) ------------------------------------------------
+
+trends_ssd %>%
+  filter(cp ==14) %>%  
+  filter(period<=75) %>% 
+  select(period,"Observed"=n,"Expected"=pred,cp)  %>% 
+  ggplot(aes(period,Observed)) +
+  geom_point(size = 2) +
+  geom_vline(aes(xintercept = cp), linetype =2) +
+  # geom_vline(aes(xintercept = 1), linetype =1) +
+  theme_bw() +
+  geom_ribbon(aes(ymin=0,ymax = Expected-425), fill = "blue", alpha = 0.5) +
+  geom_ribbon(aes(ymin=Expected,ymax = Observed), fill = "red", alpha = 0.5) +
+  scale_color_manual(values = c("red","black")) +
+  geom_line(aes(y = Expected), color = "blue", size = 1.2) +
+  ylab("Total SSD visits") +
+  xlab("Days Before Index Sepsis Diagnosis") +
+  scale_x_reverse(breaks = c(1,14,75),expand = c(0.014, 0)) +
+  scale_y_continuous(expand = c(0.021,0))
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/revisions/methods_ssd_fig.pdf",
+       width = 4.7, height = 3, dpi = 600)
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/revisions/methods_ssd_fig.jpg",
+       width = 4.7, height = 3, dpi = 600)
+
+
 ### Figure 2 -------------------------------------------------------------------
 
 
