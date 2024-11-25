@@ -9,15 +9,28 @@ library(codeBuildr)
 #### Initial Params ####
 ########################
 
-cp_range <- (-10):(-100)
+condition <- "cocci"
 
-upper_bound <- 365
+load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
+delay_params <- delay_any_params[[condition]]
 
-condition <- "blasto"
+# If change-point bounds are missing replace with default range from 10 to 100
+if (is.na(delay_params$cp_lower) | is.na(delay_params$cp_upper)){
+  cp_lower <- 10
+  cp_upper <- 100
+} else {
+  cp_lower <- delay_params$cp_lower
+  cp_upper <- delay_params$cp_upper
+}
 
-ssd_set <- load_ssd_codes("blasto") %>%
+cp_range <- (-cp_lower):(-cp_upper)
+
+ssd_set <- load_ssd_codes(condition) %>%
   mutate(dx_ver = ifelse(type == "icd9",9L,10L)) %>%
   select(dx = code, dx_ver)
+
+upper_bound <- delay_params$upper_bound
 
 
 ###################
@@ -31,14 +44,11 @@ ssd_set <- load_ssd_codes("blasto") %>%
 
 load(paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results/all_dx_visits.RData"))
 # load(paste0("/Volumes/Statepi_Diagnosis/prelim_results/",condition,"/delay_results/all_dx_visits.RData"))
-load(paste0("~/Data/Statepi_Diagnosis/prelim_results/blasto/delay_results/all_dx_visits.RData"))
 
 ## Compute visit counts for entire population ----------------------------------
 
 tmp1 <- all_dx_visits %>%
-  inner_join(load_ssd_codes("blasto") %>%
-               mutate(dx_ver = ifelse(type == "icd9",9L,10L)) %>%
-               select(dx = code, dx_ver),
+  inner_join(ssd_set,
              by = join_by(dx, dx_ver)) %>%
   distinct(patient_id,days_since_index) %>%
   count(days_since_index) %>%
@@ -237,9 +247,8 @@ boot_fits_ssd <- boot_counts_ssd %>%
 #   geom_line(aes(y = combined, group = cp)) +
 #   geom_point()
 
-save(boot_fits_all,boot_fits_ssd, file = paste0("/Volumes/Statepi_Diagnosis/prelim_results/blasto/change_point_results/cp_boot_fits.RData"))
+save(boot_fits_all,boot_fits_ssd, file = paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_fits.RData"))
 
-load("/Volumes/")
 
 ################################
 #### Evaluate Change-Points ####
@@ -273,9 +282,9 @@ inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd) %>%
   facet_wrap(~key,scale = "free_y")
 
 # Find Best Model
-out_of_sample_mse_ssd %>%
-  ungroup() %>%
-  arrange(out_mse)
+# out_of_sample_mse_ssd %>%
+#   ungroup() %>%
+#   arrange(out_mse)
 
 cp_fits_ssd <- tibble(cp = cp_range) %>%
   mutate(fits = map(cp,~assemble_cp_fit(select(filter(visit_counts,code_set=="SSD"),-code_set),cp = .))) %>%
@@ -302,58 +311,131 @@ out_of_sample_mse_all <- boot_fits_all %>%
   summarise(out_mse = mean(mse))
 
 # Plot results
-inner_join(in_sample_mse_all,out_of_sample_mse_all) %>%
-  gather(key = key, value = value, -model, -cp) %>%
-  ggplot(aes(cp,value,color = model)) +
-  geom_line() +
-  facet_wrap(~key,scale = "free_y")
+# inner_join(in_sample_mse_all,out_of_sample_mse_all) %>%
+#   gather(key = key, value = value, -model, -cp) %>%
+#   ggplot(aes(cp,value,color = model)) +
+#   geom_line() +
+#   facet_wrap(~key,scale = "free_y")
 
 # Find Best Model
-out_of_sample_mse_all %>%
-  ungroup() %>%
-  arrange(out_mse)
+# out_of_sample_mse_all %>%
+#   ungroup() %>%
+#   arrange(out_mse)
 
 cp_fits_all <- tibble(cp = cp_range) %>%
   mutate(fits = map(cp,~assemble_cp_fit(select(filter(visit_counts,code_set=="All"),-code_set),cp = .))) %>%
   unnest(fits)
 
+## Compute 100-fold boostrap CV of MSE across bootstraps -------------------------
+
+
+## SSD visits
+tmp <- boot_fits_ssd %>% 
+  unnest(fits) %>% 
+  select(bootstrap:days_since_index,n,combined)
+
+boot_obs <- tmp %>% 
+  distinct(bootstrap,days_since_index,n)
+
+
+mse_res <- list()
+
+for (i in 1:max(tmp$bootstrap)){
+  
+  print(i)
+  
+  tmp_mse <- tmp %>% 
+    filter(bootstrap==i) %>% 
+    select(days_since_index,cp,model,combined) %>% 
+    inner_join(filter(boot_obs,bootstrap!=i),by = join_by(days_since_index),relationship = "many-to-many") %>% 
+    group_by(bootstrap,model,cp) %>% 
+    summarise(mse = mean((combined-n)^2))
+  
+  mse_res[[i]] <- tmp_mse
+  
+}
+
+kfold_mse_ssd <- bind_rows(mse_res) %>% 
+  group_by(model,cp) %>% 
+  summarise(mean_mse = mean(mse),
+            median_mse = median(mse)) %>% 
+  ungroup()
+
+
+## ALL visits
+tmp <- boot_fits_all %>% 
+  unnest(fits) %>% 
+  select(bootstrap:days_since_index,n,combined)
+
+boot_obs <- tmp %>% 
+  distinct(bootstrap,days_since_index,n)
+
+
+mse_res <- list()
+
+for (i in 1:max(tmp$bootstrap)){
+  
+  print(i)
+  
+  tmp_mse <- tmp %>% 
+    filter(bootstrap==i) %>% 
+    select(days_since_index,cp,model,combined) %>% 
+    inner_join(filter(boot_obs,bootstrap!=i),by = join_by(days_since_index),relationship = "many-to-many") %>% 
+    group_by(bootstrap,model,cp) %>% 
+    summarise(mse = mean((combined-n)^2))
+  
+  mse_res[[i]] <- tmp_mse
+  
+}
+
+kfold_mse_all <- bind_rows(mse_res) %>% 
+  group_by(model,cp) %>% 
+  summarise(mean_mse = mean(mse),
+            median_mse = median(mse)) %>% 
+  ungroup()
+
+
 
 save(out_of_sample_mse_ssd,out_of_sample_mse_all,
      in_sample_mse_ssd, in_sample_mse_all,
+     kfold_mse_all,kfold_mse_ssd,
      cp_fits_all, cp_fits_ssd,
      visit_counts,
-     file = paste0("/Volumes/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_eval_res.RData"))
+     file = paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_eval_res.RData"))
+
+
+
 
 
 
 ## Out of Sample control-MSE ---------------------------------------------------
 
-# Out-of-sample MSE across bootstraps
-out_of_sample_control_mse_ssd <- boot_fits_ssd %>%
-  unnest(fits) %>%
-  select(bootstrap,cp,model,days_since_index,combined) %>%
-  filter(days_since_index<cp) %>%
-  inner_join(filter(visit_counts,code_set=="SSD")) %>%
-  group_by(bootstrap,cp,model) %>%
-  summarise(mse = mean((combined-n)^2)) %>%
-  group_by(cp,model) %>%
-  summarise(out_mse = mean(mse))
-
-out_of_sample_control_mse_ssd %>%
-  ungroup() %>%
-  arrange(out_mse)
-
-# Out-of-sample MSE across bootstraps
-out_of_sample_control_mse_all <- boot_fits_all %>%
-  unnest(fits) %>%
-  select(bootstrap,cp,model,days_since_index,combined) %>%
-  filter(days_since_index<cp) %>%
-  inner_join(filter(visit_counts,code_set=="All")) %>%
-  group_by(bootstrap,cp,model) %>%
-  summarise(mse = mean((combined-n)^2)) %>%
-  group_by(cp,model) %>%
-  summarise(out_mse = mean(mse))
-
-out_of_sample_control_mse_all %>%
-  ungroup() %>%
-  arrange(out_mse)
+# # Out-of-sample MSE across bootstraps
+# out_of_sample_control_mse_ssd <- boot_fits_ssd %>%
+#   unnest(fits) %>%
+#   select(bootstrap,cp,model,days_since_index,combined) %>%
+#   filter(days_since_index<cp) %>%
+#   inner_join(filter(visit_counts,code_set=="SSD")) %>%
+#   group_by(bootstrap,cp,model) %>%
+#   summarise(mse = mean((combined-n)^2)) %>%
+#   group_by(cp,model) %>%
+#   summarise(out_mse = mean(mse))
+# 
+# out_of_sample_control_mse_ssd %>%
+#   ungroup() %>%
+#   arrange(out_mse)
+# 
+# # Out-of-sample MSE across bootstraps
+# out_of_sample_control_mse_all <- boot_fits_all %>%
+#   unnest(fits) %>%
+#   select(bootstrap,cp,model,days_since_index,combined) %>%
+#   filter(days_since_index<cp) %>%
+#   inner_join(filter(visit_counts,code_set=="All")) %>%
+#   group_by(bootstrap,cp,model) %>%
+#   summarise(mse = mean((combined-n)^2)) %>%
+#   group_by(cp,model) %>%
+#   summarise(out_mse = mean(mse))
+# 
+# out_of_sample_control_mse_all %>%
+#   ungroup() %>%
+#   arrange(out_mse)
