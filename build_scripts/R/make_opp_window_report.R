@@ -14,7 +14,7 @@ args = commandArgs(trailingOnly=TRUE)
 # condition <- "cocci"
 condition <- args[1]
 
-out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name,"/change_point_results/")
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
 
 load("/Shared/AML/params/delay_any_params.RData")
 # load("/Volumes/AML/params/delay_any_params.RData")
@@ -413,7 +413,7 @@ save(out_of_sample_mse_ssd,out_of_sample_mse_all,
 
 
 
-rmarkdown::render(input = "github/delay_diagnosis/cp_approaches/bootstrap/opp_window_report.Rmd",
+rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/opp_window_report.Rmd",
                   params = list(cond = condition),
                   output_dir = out_path)
 
