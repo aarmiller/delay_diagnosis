@@ -23,7 +23,7 @@ delay_params <- delay_any_params[[condition]]
 in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results")
 # in_path <- paste0("~/Data/tmp/dengue/delay_results")
 
-out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results/change_point_results/")
+out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
 # out_path <- "~/Data/Statepi_Diagnosis/prelim_results/dengue/change_point_results/"
 
 if (!dir.exists(out_path)){
@@ -662,10 +662,6 @@ inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd) %>%
   geom_line() +
   facet_wrap(~key,scale = "free_y")
 
-# Find Best Model
-# out_of_sample_mse_ssd %>%
-#   ungroup() %>%
-#   arrange(out_mse)
 
 cp_fits_ssd <- tibble(cp = cp_range) %>%
   mutate(fits = map(cp,~assemble_cp_fit(select(filter(visit_counts,code_set=="SSD"),-code_set),cp = .))) %>%
@@ -690,18 +686,6 @@ out_of_sample_mse_all <- boot_fits_all %>%
   summarise(mse = mean((combined-n)^2)) %>%
   group_by(cp,model) %>%
   summarise(out_mse = mean(mse))
-
-# Plot results
-# inner_join(in_sample_mse_all,out_of_sample_mse_all) %>%
-#   gather(key = key, value = value, -model, -cp) %>%
-#   ggplot(aes(cp,value,color = model)) +
-#   geom_line() +
-#   facet_wrap(~key,scale = "free_y")
-
-# Find Best Model
-# out_of_sample_mse_all %>%
-#   ungroup() %>%
-#   arrange(out_mse)
 
 cp_fits_all <- tibble(cp = cp_range) %>%
   mutate(fits = map(cp,~assemble_cp_fit(select(filter(visit_counts,code_set=="All"),-code_set),cp = .))) %>%
@@ -791,5 +775,8 @@ rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts
                   params = list(cond = condition),
                   output_dir = out_path)
 
+rmarkdown::render(input = "github/delay_diagnosis/cp_approaches/bootstrap/opp_window_report_new.Rmd",
+                  params = list(cond = condition),
+                  output_dir = out_path)
 
 

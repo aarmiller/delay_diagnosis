@@ -19,136 +19,98 @@ library(kableExtra)
 # This needs to be passed as an argument
 condition <- params$cond
 
+load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
+delay_params <- delay_any_params[[condition]]
+
+# If change-point bounds are missing replace with default range from 10 to 100
+if (is.na(delay_params$cp_lower) | is.na(delay_params$cp_upper)){
+  cp_lower <- 10
+  cp_upper <- 100
+} else {
+  cp_lower <- delay_params$cp_lower
+  cp_upper <- delay_params$cp_upper
+}
+
 # Extract Condition Name
 condition_name <- codeBuildr::avail_disease_codes() %>% 
   filter(name==condition) %>% 
   .$description
 
-in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results/change_point_results/")
 
-load(paste0(in_path,"standard_cp_res.RData"))
-load(paste0(in_path,"cp_boot_eval_res.RData"))
-
+load(paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_eval_res.RData"))
+# load(paste0("/Volumes/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/cp_boot_eval_res.RData"))
 ```
 
-This document provides a summary of the change-point analysis for `r cond_name` (`r params$cond`).
+This report summarizes the results of the bootstrapping change-point
+approach to select the diagnostic opportunity window for
+**`r condition_name`**. For this report we analyzed opportunity windows
+ranging from **`r cp_lower`** to **`r cp_upper`** days prior to the
+index diagnosis.
 
+The following approach was used for this report. For a given range of
+opportunity bound, *OB*, (e.g., 50 days before diagnosis) do the
+following:
 
-# Visit Trends
+1.  Generate 100 bootstrapped samples, by selecting individual patients
+    with replacement. For each sample, compute the number of visits (any
+    or SSD) each day before diagnosis.
+
+2.  For a given bootstrap and opportunity bound, *OB*, perform the
+    following:
+
+    1.  **Estimate Expected Trends** - Estimate linear, quadratic, and
+        cubic trends over the control window from
+        `r delay_params$upper_bound` to *OB* days before diagnosis.
+
+    2.  Extrapolate this trend forward into the implied opportunity
+        window, from *OB* to 1 day before diagnosis.
+
+    3.  **Estimate Excess Trends** - Compute the residuals during the
+        opportunity window (these are the "excess" visits) as the
+        difference between the observed values and the expected trend
+        from step 2. Use a LOESS model to fit this *excess* trend.
+
+    4.  Compute the final fitted trend as the sum of the expected and
+        excess trends.
+
+3.  Using the final estimated trend, compute in-sample and out-of-sample
+    performance defined by the following:
+
+    -   **In-sample** - Compare the observed and fitted values within
+        the bootstrapped sample used to fit the model
+
+    -   **Aggregate Out-of-sample** - Compare the observed values from the
+        aggregated (non-bootstrapped) patient data to the fitted values
+        from the bootstrap samples.
+
+    -   **K-fold (99-fold) Out-of-sample** - Compare the observed
+        values from the other bootstrapped sample to the fitted values
+        from a given bootstrap sample.
+
+4.  Repeat steps 2-3 across the range of opportunity bounds from
+    **`r cp_lower`** to **`r cp_upper`** days before diagnosis and
+    bootstrap samples.
+
+5.  Aggregate performance metrics across bootstrap samples.
+
+## Visits before `r condition_name`
+
+The following figure depicts the number of patients with any visit or an
+SSD-related visit each day prior to diagnosis:
 
 ```{r, echo = FALSE}
-
-bind_rows(mutate(SSD_res_standard$count_data_ssd,group = "SSD Visits"),
-          mutate(ALL_res_standard$count_data_all,group = "All Visits")) %>% 
-  ggplot(aes(period,n)) +
+visit_counts %>% 
+  mutate(label = paste0(code_set," Visits")) %>% 
+  ggplot(aes(-days_since_index,n)) +
   geom_point() +
   scale_x_reverse() +
+  facet_wrap(~label, scale = "free_y") +
   theme_bw() +
-  xlab("Days Before Index Diagnosis") +
-  ylab("Number of Patients") +
-  facet_wrap(~group, scale = "free_y")
+  xlab("Days Before Diagnosis") +
+  ylab("Number of Patients")
 
 ```
-
-# Piecewise CP Approach
-The following section summarizes change-point analysis for trends in the number 
-of visits before diagnosis using the standard piecewise-modeling approach to find 
-the change-point. Specifically, we evaluate 4 peicewise models with linear,
-quadratic, cubic and exponential trends. The change-point is found by iterating 
-over different change-points and selecting the best fitting model based on AIC.
-
-### SSD Visits
-This section summarizes results using counts of SSD visits.
-
-
-#### Change-point summary
-The following table summarizes the optimal change-point for each trend type, with 
-or without periodicity. For each approach, the change-point, prediction-bound change-point,
-and implied number of missed opportunities is reported.
-```{r, echo = FALSE}
-SSD_res_standard$ssd_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-
-#### Performance Summary
-The following table summarizes performance metrics for each model.
-```{r, echo = FALSE}
-SSD_res_standard$ssd_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-The following table ranks each model in terms of the above performance metrics.
-```{r, echo = FALSE}
-SSD_res_standard$ssd_mod_rankings %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-#### Plot of each model that included periodicity
-```{r, echo = FALSE}
-SSD_res_standard$plot_periodicity
-
-```
-
-#### Plot of each model that did not include periodicity
-```{r, echo = FALSE}
-SSD_res_standard$plot_no_periodicity
-
-```
-
-
-### All Visits
-This section summarizes results using counts of all visits.
-
-
-#### Change-point summary
-The following table summarizes the optimal change-point for each trend type, with 
-or without periodicity. For each approach, the change-point, prediction-bound change-point,
-and implied number of missed opportunities is reported.
-```{r, echo = FALSE}
-ALL_res_standard$all_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-
-#### Performance Summary
-The following table summarizes performance metrics for each model.
-```{r, echo = FALSE}
-ALL_res_standard$all_res_out %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-The following table ranks each model in terms of the above performance metrics.
-```{r, echo = FALSE}
-ALL_res_standard$all_mod_rankings %>% 
-  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-```
-
-#### Plot of each model that included periodicity
-```{r, echo = FALSE}
-ALL_res_standard$plot_periodicity
-
-```
-
-#### Plot of each model that did not include periodicity
-```{r, echo = FALSE}
-ALL_res_standard$plot_no_periodicity
-
-```
-
-# Bootstrapping CP Approach
 
 ## SSD Visits
 
@@ -718,4 +680,3 @@ filter(tmp,model=="cube") %>%
   ylab("Number of Patients") +
   xlab("Days Before Diagnosis")
 ```
-
