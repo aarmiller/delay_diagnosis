@@ -13,7 +13,7 @@
 #$ -q AML-HM
 
 #Select the number of slots the job will use
-#$ -pe smp 10
+#$ -pe smp 20
 
 
 #Print information from the job into the output file
