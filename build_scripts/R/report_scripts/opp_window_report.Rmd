@@ -31,7 +31,7 @@ load(paste0(in_path,"cp_boot_eval_res.RData"))
 
 ```
 
-This document provides a summary of the change-point analysis for `r cond_name` (`r params$cond`).
+This document provides a summary of the change-point analysis for `r condition_name` (`r params$cond`).
 
 
 # Visit Trends
