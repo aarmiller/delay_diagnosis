@@ -14,7 +14,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 args = commandArgs(trailingOnly=TRUE)
 
-# condition <- "dengue"
+# condition <- "blasto"
 condition <- args[1]
 
 delay_params <- delay_any_params[[condition]]

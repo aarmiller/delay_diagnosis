@@ -24,7 +24,7 @@ condition_name <- codeBuildr::avail_disease_codes() %>%
   filter(name==condition) %>% 
   .$description
 
-in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results/change_point_results/")
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
 
 load(paste0(in_path,"standard_cp_res.RData"))
 load(paste0(in_path,"cp_boot_eval_res.RData"))
