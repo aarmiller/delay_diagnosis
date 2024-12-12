@@ -90,13 +90,13 @@ trends_ssd %>%
   geom_text(data = mse_res_ssd,
             mapping = aes(x = x_pos, y = y_pos, label = label)) +
   ylab("Number of SSD visits") +
-  xlab("Days before index sepsis diagnosis")
+  xlab("Days Before Index Sepsis Diagnosis")
 ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/figures/appendix_figure1.pdf",
        width = 8, height = 5)
 
  ### Figure 1 -------------------------------------------------------------------
 
-trends_ssd %>%
+p1 <- trends_ssd %>%
   filter(cp ==14) %>%  
   select(period,"Observed"=n,"Expected"=pred,cp) %>% 
   gather(key = key,value = value,-period,-cp) %>% 
@@ -107,9 +107,10 @@ trends_ssd %>%
   theme_bw() +
   scale_color_manual(values = c("red","black")) +
   ylab("Total visits with signs or symptoms") +
-  xlab("Days before index sepsis diagnosis") +
+  xlab("Days Before Index Sepsis Diagnosis") +
   theme(legend.title = element_blank(),
-        legend.position = c(0.25, 0.8))
+        legend.position = c(0.25, 0.8)) +
+  ggtitle("A: SSD-Related Visits")
 # ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/figures/figure1.pdf",
 #        width = 4.5, height = 4)
 ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/figure1.pdf",
@@ -149,13 +150,33 @@ ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submission
 
 
 
-trends_ssd %>% 
+p2 <- trends_ssd %>% 
   filter(cp ==14) %>%  
   ggplot(aes(period,num_miss)) +
   geom_histogram(stat = "identity") +
   scale_x_reverse() +
   ylab("Number of Missed Opportunities") +
-  xlab("Days Before Index Diagnosis") +
-  theme_bw() 
+  xlab("Days Before Index Sepsis Diagnosis") +
+  theme_bw() +
+  ggtitle("B: Missed Opportunities")
 ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/figure2.pdf",
        width = 4.5, height = 4, dpi = 600)
+
+
+### Combine Figure 1 and 2 -----------------------------------------------------
+library(gridExtra)
+install.packages("patchwork")
+library(patchwork)
+
+pdf(file = "~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/revisions/figure_2.pdf",
+    width = 8, height = 4)
+grid.arrange(p1,p2,nrow=1)
+dev.off()
+?pdf
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/sepsis_delay_dx/submissions/crit_care_explorations/revisions/figure_2.pdf",
+       width = 8, height = 4, dpi = 600)
+
+?grid.arrange
+
+p1

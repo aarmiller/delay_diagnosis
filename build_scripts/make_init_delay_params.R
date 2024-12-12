@@ -33,8 +33,8 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                          
                          blasto = list(path = "/Shared/AML/truven_extracts/small_dbs/blasto/",
                                      cp = 51,
-                                     cp_lower = NA,
-                                     cp_upper = NA,
+                                     cp_lower = 10,
+                                     cp_upper = 100,
                                      upper_bound = 365,
                                      final_model = "quadratic",
                                      periodicity = TRUE,
@@ -83,8 +83,8 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                          
                          dengue = list(path = "/Shared/AML/truven_extracts/small_dbs/dengue/",
                                        cp = 30,
-                                       cp_lower = NA,
-                                       cp_upper = NA,
+                                       cp_lower = 5,
+                                       cp_upper = 30,
                                        upper_bound = 180,
                                        final_model = NA,
                                        periodicity = TRUE,

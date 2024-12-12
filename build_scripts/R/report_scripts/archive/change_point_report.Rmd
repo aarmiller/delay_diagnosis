@@ -1,0 +1,722 @@
+---
+title: "Change-point report"
+output: html_document
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+params:
+  cond:
+    value: x
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+library(changepoint)
+library(trend)
+library(codeBuildr)
+
+# load delay_parms
+load("/Shared/AML/params/delay_any_params.RData")
+# load("/Volumes/AML/params/delay_any_params.RData")
+
+# params <- list()
+# params$cond <- "dengue"
+
+delay_params <- delay_any_params[[params$cond]]
+# delay_params <- delay_any_params[["dengue"]]
+
+
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",params$cond,"/delay_results")
+# in_path <- paste0("~/Data/tmp/dengue/delay_results")
+
+load(paste0(in_path,"/all_dx_visits.RData"))
+
+cond_name <- filter(codeBuildr::avail_disease_codes(),name==params$cond)$description
+# cond_name <- filter(codeBuildr::avail_disease_codes(),name=="dengue")$description
+
+```
+
+```{r functions, include=FALSE}
+fit_model <- function(data,cp,model="lm",periodicity = FALSE, return_fit=FALSE){
+  
+  tmp <- data %>% 
+    mutate(before_cp = period>=cp)
+  
+  if (model=="lm"){
+    if (periodicity){
+      fit <- lm(n~period*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~period*before_cp, data = tmp) 
+    }
+  } else if (model=="quad"){
+    if (periodicity){
+      fit <- lm(n~poly(period,2)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~poly(period,2)*before_cp, data = tmp) 
+    }
+  } else if (model=="cubic") {
+    if (periodicity){
+      fit <- lm(n~poly(period,3)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~poly(period,3)*before_cp, data = tmp) 
+    }
+  } else if (model=="exp"){
+    if (periodicity){
+      fit <- lm(n~log(period)*before_cp+dow, data = tmp)
+    } else {
+      fit <- lm(n~log(period)*before_cp, data = tmp) 
+    }
+  }
+  
+  rmse <- sqrt(mean(fit$residuals^2))
+  
+  if (return_fit){
+    return(list(fit=fit,
+                rmse=rmse))
+  } else {
+    return(rmse)
+  }
+  
+}
+
+find_cp <- function(data,cp_range,model="lm",periodicity = FALSE){
+  out1 <- tibble(cp = cp_range) %>% 
+    mutate(rmse = map_dbl(cp,~fit_model(data = data,
+                                        cp = .,
+                                        model = model,
+                                        periodicity = periodicity))) %>% 
+    filter(rmse==min(rmse))
+  
+  out2 <- fit_model(data = data,cp = out1$cp,
+                    model = model,
+                    periodicity = periodicity,
+                    return_fit = TRUE)
+  
+  out3 <- data %>% 
+    mutate(before_cp = TRUE) %>%
+    mutate(pred1=predict(out2$fit,newdata=.)) %>%
+    mutate(before_cp = period>=out1$cp) %>% 
+    mutate(pred2=predict(out2$fit,newdata=.)) %>% 
+    select(period,n,pred1,pred2)
+  
+  return(list(cp=out1$cp,
+              fit=out2$fit,
+              pred=out3))
+}
+
+find_pred_bound_cp <- function(pred_data){
+  pred_data %>% 
+    arrange(period)  %>%
+    mutate(above_cp=cumsum(n>pred1)==row_number()) %>%
+    filter(above_cp) %>%
+    summarise(cp=max(period)) %>% 
+    .$cp
+}
+
+fit_cumsum_mods <- function(count_data, model, periodicity){
+  cp_out <- count_data %>% 
+    arrange(-period)
+  
+  t_series <- ts(cp_out$n, start = min(-1*cp_out$period), frequency = 1)
+  
+  cp_est <- suppressWarnings( cpts(cpt.mean(t_series,pen.value = 1, penalty = "None", test.stat = 'CUSUM')))
+  cp <- cp_out$period[cp_est]
+  
+  fit <- fit_model(data = count_data,cp = cp,model = model,periodicity = periodicity,return_fit = TRUE)
+  
+  pred_data <-  count_data %>% 
+    mutate(before_cp = TRUE) %>% 
+    mutate(pred1 = predict(fit$fit, newdata = .))
+  
+  return(list(cp = cp,
+              pred = pred_data))
+}
+
+get_rankings <- function(cp_data){
+  tmp1 <- cp_data %>% 
+    mutate(tmp=abs(cp_consistency)) %>% 
+    distinct(tmp) %>% 
+    arrange(tmp) %>% 
+    mutate(consistency_rank=row_number()) %>% 
+    inner_join(cp_data %>% 
+                 mutate(tmp=abs(cp_consistency))) %>% 
+    select(label,consistency_rank)
+  
+  tmp2 <- cp_data %>% 
+    distinct(mse) %>% 
+    arrange(mse) %>% 
+    mutate(mse_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse_rank)
+  
+  tmp3 <- cp_data %>% 
+    distinct(mse7) %>% 
+    arrange(mse7) %>% 
+    mutate(mse7_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse7_rank)
+  
+  tmp4 <- cp_data %>% 
+    distinct(mse14) %>% 
+    arrange(mse14) %>% 
+    mutate(mse14_rank=row_number()) %>% 
+    inner_join(cp_data) %>% 
+    select(label,mse14_rank)
+  
+  cp_data %>% 
+    select(label, cp, pb_cp = pred_bound_cp) %>% 
+    left_join(tmp1, by = "label") %>% 
+    left_join(tmp2, by = "label") %>% 
+    left_join(tmp3, by = "label") %>% 
+    left_join(tmp4, by = "label") %>% 
+    mutate(avg_rank = (consistency_rank+mse_rank+mse7_rank+mse14_rank)/4) %>% 
+    arrange(avg_rank) %>% 
+    select(label,avg_rank,cp, pb_cp,consistency_rank:mse14_rank)
+}
+
+```
+
+```{r count_data, include = FALSE}
+
+# count all visits
+count_data_all <- visit_counts %>% 
+  filter(is.na(dx_ver)) %>% 
+  filter(days_since_index<0) %>% 
+  mutate(period = -days_since_index) %>% 
+  mutate(dow = as.factor(period %% 7))
+
+# load SSD codes
+ssd_codes <- bind_rows(codeBuildr::load_ssd_codes(params$cond) %>%
+                         filter(type == "icd9") %>%
+                         select(dx=code) %>%
+                         mutate(icd_ver=9),
+                       codeBuildr::load_ssd_codes(params$cond) %>%
+                         filter(type == "icd10") %>%
+                         select(dx=code) %>%
+                         mutate(icd_ver=10))
+
+
+# load(paste0(in_path,"/all_dx_visits.RData"))
+
+#Change this to read from wherever the data is stored for you
+count_data_ssd <- all_dx_visits %>%
+  inner_join(ssd_codes, by = "dx") %>%
+  distinct(patient_id,days_since_index) %>%
+  count(days_since_index) %>%
+  left_join(tibble(days_since_index=min(visit_counts$days_since_index):-1),., by = "days_since_index") %>% # in case there are 0 days
+  mutate(n = replace_na(n,0L)) %>% 
+  mutate(period = -days_since_index) %>%
+  select(period,n,days_since_index) %>% 
+  filter(days_since_index<0) %>% 
+  mutate(period = -days_since_index) %>% 
+  mutate(dow = as.factor(period %% 7))
+```
+This document provides a summary of the change-point analysis for `r cond_name` (`r params$cond`).
+
+# SSD Visits
+The following section summarizes change-point analysis for trends in the number 
+of SSD-related visits prior to the index diagnosis
+
+```{r, include=FALSE}
+
+# piecewise model results
+ssd_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~find_cp(count_data_ssd,
+                                cp_range = 3:300,
+                                model = .x,
+                                periodicity = .y))) %>% 
+  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
+  mutate(pred = map(cp_res,~.$pred)) %>% 
+  select(model,label,periodicity,cp,pred) %>% 
+  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+
+# cusum model results
+ssd_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0("CUSUM ",label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~fit_cumsum_mods(count_data_ssd,model = .x, periodicity = .y))) %>% 
+  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
+  mutate(pred = map(cp_res,~.$pred)) %>% 
+  select(model,label,periodicity,cp,pred) %>% 
+  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+
+# aggregate results output
+ssd_res_out <- bind_rows(mutate(ssd_res1,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("Piecewise ", model, tmp)),
+                          mutate(ssd_res2,
+                                 tmp = ifelse(periodicity," w/ periodicity",""),
+                                 label = paste0("CUSUM ", model, tmp))) %>% 
+  select(label,cp,pred_bound_cp,pred) %>% 
+  mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  unnest(cp_n_miss) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  unnest(pb_cp_n_miss) %>% 
+  mutate(mse = map2(pred,cp,
+                    ~filter(.x, period>.y) %>% 
+                      summarise(mse = mean((n-pred1)^2)))) %>%
+  unnest(mse) %>% 
+  mutate(mse7 = map2(pred,cp,
+                    ~filter(.x, between(period,.y,.y+6)) %>% 
+                      summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+13)) %>% 
+                       summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
+
+# split up results for plotting
+tmp1 <- ssd_res1 %>%
+  filter(periodicity)
+
+tmp2 <- ssd_res1 %>%
+  filter(!periodicity)
+
+tmp3 <- ssd_res2 %>%
+  filter(periodicity)
+
+tmp4 <- ssd_res2 %>%
+  filter(!periodicity)
+
+```
+
+## Results
+
+The following summarizes the results across the various change-point
+approaches applied to trends in SSD-related visits.
+
+#### Optimal Change-point(s)
+
+```{r}
+opt_mods <- get_rankings(ssd_res_out) %>% 
+  filter(avg_rank == min(avg_rank))
+
+opt_mods_text <- ifelse(nrow(opt_mods)>1,
+                            paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
+                            paste0("The optimal model was ",opt_mods$label))
+```
+
+`r opt_mods_text`
+
+The following is a summary of the *estimated* (from given method) and
+*implied* (from prediction-bound) change-points for the optimal model,
+along with the corresponding number of missed opportunities:
+
+```{r}
+opt_mods %>% 
+  select(label) %>% 
+  inner_join(ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>%
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
+```{r}
+tmp <- bind_rows(mutate(ssd_res1,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("Piecewise ", model, tmp)),
+                 mutate(ssd_res2,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("CUSUM ", model, tmp))) %>% 
+  inner_join(select(opt_mods,label)) %>% 
+  select(label,cp,pred_bound_cp,pred)
+
+tmp %>% 
+  unnest(pred) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+#### Change-point summary
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+```{r}
+ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Performance Summary
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+```{r}
+ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Change-point rankings
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+```{r}
+get_rankings(ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+## Plots
+
+### Piecewise models with periodicity
+
+```{r, include = TRUE}
+tmp1 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp1, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp1, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+
+```
+
+### Piecewise models without periodicity
+
+```{r, include = TRUE}
+tmp2 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp2, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp2, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+
+```
+
+### CUSUM models with periodicity
+
+```{r, include = TRUE}
+tmp3 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp3, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp3, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+### CUSUM models without periodicity
+
+```{r, include = TRUE}
+tmp4 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp4, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp4, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+# All Visits
+The following section summarizes change-point analysis for trends in the number 
+of all visits (regardless of the presence of an SSD) prior to the index diagnosis
+
+```{r, include=FALSE}
+# Piecewise Results
+all_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~find_cp(count_data_all,
+                                cp_range = 3:300,
+                                model = .x,
+                                periodicity = .y))) %>% 
+  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
+  mutate(pred = map(cp_res,~.$pred)) %>% 
+  select(model,label,periodicity,cp,pred) %>% 
+  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+
+# CUSUM Results
+all_res2 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0("CUSUM ",label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~fit_cumsum_mods(count_data_all,model = .x, periodicity = .y))) %>% 
+  mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
+  mutate(pred = map(cp_res,~.$pred)) %>% 
+  select(model,label,periodicity,cp,pred) %>% 
+  mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
+
+## aggregate results output
+all_res_out <- bind_rows(mutate(all_res1,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("Piecewise ", model, tmp)),
+                         mutate(all_res2,
+                                tmp = ifelse(periodicity," w/ periodicity",""),
+                                label = paste0("CUSUM ", model, tmp))) %>% 
+  select(label,cp,pred_bound_cp,pred) %>% 
+  mutate(pred = map(pred,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(cp_n_miss = map2(pred,cp,~filter(.x, period<=.y) %>% summarise(cp_n_miss = sum(n_miss)))) %>% 
+  unnest(cp_n_miss) %>% 
+  mutate(pb_cp_n_miss = map2(pred,pred_bound_cp,~filter(.x, period<=.y) %>% summarise(pb_cp_n_miss = sum(n_miss)))) %>% 
+  unnest(pb_cp_n_miss) %>% 
+  mutate(mse = map2(pred,cp,
+                    ~filter(.x, period>.y) %>% 
+                      summarise(mse = mean((n-pred1)^2)))) %>% 
+  unnest(mse) %>% 
+  mutate(mse7 = map2(pred,cp,
+                     ~filter(.x, between(period,.y,.y+6)) %>% 
+                       summarise(mse7 = mean((n-pred1)^2)))) %>% 
+  unnest(mse7) %>% 
+  mutate(mse14 = map2(pred,cp,
+                      ~filter(.x, between(period,.y,.y+13)) %>% 
+                        summarise(mse14 = mean((n-pred1)^2)))) %>% 
+  unnest(mse14) %>% 
+  select(label,cp,pred_bound_cp,mse,cp_n_miss,pb_cp_n_miss,mse7,mse14) %>% 
+  mutate_at(vars(mse:mse14),~round(.,2)) %>% 
+  mutate(cp_consistency = 100*(cp-pred_bound_cp)/cp)
+
+## split up results for plotting
+tmp1 <- all_res1 %>%
+  filter(periodicity)
+
+tmp2 <- all_res1 %>%
+  filter(!periodicity)
+
+tmp3 <- all_res2 %>%
+  filter(periodicity)
+
+tmp4 <- all_res2 %>%
+  filter(!periodicity)
+
+```
+
+## Results
+
+The following summarizes the results across the various change-point
+approaches applied to trends in all visits.
+
+#### Optimal Change-point(s)
+
+```{r}
+# get the rankings across models
+opt_mods <- get_rankings(all_res_out) %>% 
+  filter(avg_rank == min(avg_rank))
+
+# Extract the optimal model(s)
+opt_mods_text <- ifelse(nrow(opt_mods)>1,
+                            paste0("The optimal models were ",paste0(opt_mods$label,collapse = " or ")),
+                            paste0("The optimal model was ",opt_mods$label))
+```
+
+`r opt_mods_text`
+
+The following is a summary of the *estimated* (from given method) and
+*implied* (from prediction-bound) change-points for the optimal model,
+along with the corresponding number of missed opportunities:
+
+```{r}
+# Extract values from optimal models
+opt_mods %>% 
+  select(label) %>% 
+  inner_join(all_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>%
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following is a plot of the optimal model(s). The red line depicts
+the estimated expected trend, the dashed-black line depicts the
+estimated change-point and the dashed-green line depicts the implied
+change-point from the prediction bound approach:
+
+```{r}
+tmp <- bind_rows(mutate(all_res1,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("Piecewise ", model, tmp)),
+                 mutate(all_res2,
+                        tmp = ifelse(periodicity," w/ periodicity",""),
+                        label = paste0("CUSUM ", model, tmp))) %>% 
+  inner_join(select(opt_mods,label)) %>% 
+  select(label,cp,pred_bound_cp,pred)
+
+tmp %>% 
+  unnest(pred) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+#### Change-point summary
+
+The following is a summary of the estimated change-point and the implied
+change-point using the prediction bound approach along with the
+corresponding number of missed opportunities for each change-point,
+across each of the methods evaluated:
+
+```{r}
+all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Performance Summary
+
+The following is a summary of the performance metrics for each of the
+change-point approaches:
+
+```{r}
+all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Change-point rankings
+
+The following is a ranking of change-point methods in terms of their
+consistency with the implied change-point from the prediction-bound
+approach, overall MSE before the change-point and MSE within 7 and 14
+days prior to the change-point.
+
+```{r}
+get_rankings(all_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+## Plots
+
+### Piecewise model with periodicity
+
+```{r, include = TRUE}
+tmp1 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp1, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp1, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+### Piecewise model without periodicity
+
+```{r, include = TRUE}
+tmp2 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred2), color = "blue", size = .75) +
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp2, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp2, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+### CUSUM models with periodicity
+
+```{r, include = TRUE}
+tmp3 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp3, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp3, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
+
+### CUSUM models without periodicity
+
+```{r, include = TRUE}
+tmp4 %>%
+  select(label,cp,pred_bound_cp,pred) %>%
+  unnest(pred) %>%
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse()+
+  geom_line(aes(y = pred1), color ="red", size = .75) +
+  geom_vline(data = tmp4, aes(xintercept=cp), linetype=2) +
+  geom_vline(data = tmp4, aes(xintercept=pred_bound_cp), linetype=2, color = "green") +
+  facet_wrap(~label, ncol = 2) +
+  theme_bw()
+```
