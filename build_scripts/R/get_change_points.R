@@ -21,10 +21,10 @@ delay_params <- delay_any_params[[condition]]
 
 
 in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/delay_results")
-# in_path <- paste0("~/Data/tmp/dengue/delay_results")
+# in_path <- paste0("~/Data/Statepi_Diagnosis/prelim_results/",condition,"/delay_results")
 
 out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
-# out_path <- "~/Data/Statepi_Diagnosis/prelim_results/dengue/change_point_results/"
+# out_path <- paste0("~/Data/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
 
 if (!dir.exists(out_path)){
   dir.create(out_path)
@@ -39,7 +39,7 @@ cond_name <- filter(codeBuildr::avail_disease_codes(),name==condition)$descripti
 
 ##### Functions ####
 
-fit_model <- function(data,cp,model="lm",periodicity = FALSE, return_fit=FALSE){
+fit_model <- function(data,cp,model="lm",periodicity = FALSE, return_fit=FALSE, return_pred = FALSE){
   
   tmp <- data %>% 
     mutate(before_cp = period>=cp)
@@ -72,14 +72,45 @@ fit_model <- function(data,cp,model="lm",periodicity = FALSE, return_fit=FALSE){
   
   rmse <- sqrt(mean(fit$residuals^2))
   
-  if (return_fit){
-    return(list(fit=fit,
-                rmse=rmse))
-  } else {
+  if (!return_fit & !return_pred){
     return(rmse)
+  } else {
+    
+    out <- list(rmse = rmse)
+    
+    if (return_fit){
+      out[["fit"]] <- fit
+    }
+    
+    if (return_pred){
+      
+      pred <- data %>% 
+        mutate(before_cp = TRUE) %>%
+        mutate(pred1=predict(fit,newdata=.)) %>%
+        mutate(before_cp = period>=cp) %>% 
+        mutate(pred2=predict(fit,newdata=.)) %>% 
+        select(period,n,pred1,pred2)
+      
+      out[["pred"]] <- pred
+    }
+    
+    return(out)
+    
   }
-  
 }
+
+fit_cp_range <- function(data,cp_range,model="lm",periodicity = FALSE){
+  
+  suppressWarnings({
+    tibble(cp = cp_range) %>% 
+      mutate(fit_res = map(cp,~fit_model(data = data,
+                                         cp = .,
+                                         model = model,
+                                         periodicity = periodicity,
+                                         return_pred = TRUE)))
+  })
+}
+
 
 find_cp <- function(data,cp_range,model="lm",periodicity = FALSE){
   out1 <- tibble(cp = cp_range) %>% 
@@ -113,25 +144,6 @@ find_pred_bound_cp <- function(pred_data){
     filter(above_cp) %>%
     summarise(cp=max(period)) %>% 
     .$cp
-}
-
-fit_cumsum_mods <- function(count_data, model, periodicity){
-  cp_out <- count_data %>% 
-    arrange(-period)
-  
-  t_series <- ts(cp_out$n, start = min(-1*cp_out$period), frequency = 1)
-  
-  cp_est <- suppressWarnings( cpts(cpt.mean(t_series,pen.value = 1, penalty = "None", test.stat = 'CUSUM')))
-  cp <- cp_out$period[cp_est]
-  
-  fit <- fit_model(data = count_data,cp = cp,model = model,periodicity = periodicity,return_fit = TRUE)
-  
-  pred_data <-  count_data %>% 
-    mutate(before_cp = TRUE) %>% 
-    mutate(pred1 = predict(fit$fit, newdata = .))
-  
-  return(list(cp = cp,
-              pred = pred_data))
 }
 
 get_rankings <- function(cp_data){
@@ -211,7 +223,33 @@ count_data_ssd <- all_dx_visits %>%
   mutate(period = -days_since_index) %>% 
   mutate(dow = as.factor(period %% 7))
 
-#### Standard Approach - SSD Results -------------------------------------------
+#### Standard Approach - SSD Results ####
+
+### find all cp predictions ----------------------------------------------------
+ssd_fits <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~fit_cp_range(count_data_ssd,
+                                     cp_range = seq(from = 7, to = 300, by = 7),
+                                     model = .x,
+                                     periodicity = .y)))
+
+ssd_fits <- ssd_fits %>% 
+  unnest(cp_res) %>% 
+  mutate(rmse = map_dbl(fit_res,~.$rmse)) %>% 
+  mutate(pred = map(fit_res,~.$pred)) %>% 
+  select(-fit_res)
+
+ssd_fits <- ssd_fits %>% 
+  mutate(miss = map2(pred,cp,~mutate(.x,cp = .y))) %>% 
+  mutate(miss = map(miss,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(miss = map(miss, ~filter(., period<=cp))) %>% 
+  mutate(miss = map(miss,~summarise(.,n_miss = sum(n_miss)))) %>% 
+  unnest(miss)
+
 
 # piecewise model results
 ssd_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
@@ -304,6 +342,7 @@ plot_no_periodicity <- tmp2 %>%
 ## Combine Results -------------------------------------------------------------
 
 SSD_res_standard <- list(count_data_ssd = count_data_ssd,
+                         ssd_fits = ssd_fits,
                          ssd_res = ssd_res1,
                          ssd_res_out = ssd_res_out,
                          ssd_mod_rankings = ssd_mod_rankings,
@@ -316,6 +355,32 @@ rm(plot_periodicity, plot_no_periodicity,
 
 
 #### Standard Approach - All Visits ####
+
+### find all cp predictions ----------------------------------------------------
+all_fits <- tibble(model = c("lm","quad","cubic","exp")) %>% 
+  mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
+  mutate(periodicity = map(model,~c(T,F))) %>% 
+  unnest(periodicity) %>% 
+  mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
+  mutate(cp_res = map2(model,periodicity,
+                       ~fit_cp_range(count_data_all,
+                                     cp_range = seq(from = 7, to = 300, by = 7),
+                                     model = .x,
+                                     periodicity = .y)))
+
+all_fits <- all_fits %>% 
+  unnest(cp_res) %>% 
+  mutate(rmse = map_dbl(fit_res,~.$rmse)) %>% 
+  mutate(pred = map(fit_res,~.$pred)) %>% 
+  select(-fit_res)
+
+all_fits <- all_fits %>% 
+  mutate(miss = map2(pred,cp,~mutate(.x,cp = .y))) %>% 
+  mutate(miss = map(miss,~mutate(., n_miss = ifelse(n>pred1,n-pred1,0)))) %>% 
+  mutate(miss = map(miss, ~filter(., period<=cp))) %>% 
+  mutate(miss = map(miss,~summarise(.,n_miss = sum(n_miss)))) %>% 
+  unnest(miss)
+
 
 # piecewise model results
 all_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>% 
@@ -408,6 +473,7 @@ plot_no_periodicity <- tmp2 %>%
 ## Combine Results -------------------------------------------------------------
 
 ALL_res_standard <- list(count_data_all = count_data_all,
+                         all_fits = all_fits,
                          all_res = all_res1,
                          all_res_out = all_res_out,
                          all_mod_rankings = all_mod_rankings,
@@ -428,8 +494,9 @@ save(ALL_res_standard,SSD_res_standard,
 
 
 
-
+#################################
 #### Bootstrapping Approach #####
+#################################
 
 # If change-point bounds are missing replace with default range from 10 to 100
 if (is.na(delay_params$cp_lower) | is.na(delay_params$cp_upper)){
@@ -450,9 +517,8 @@ ssd_set <- load_ssd_codes(condition) %>%
 upper_bound <- delay_params$upper_bound
 
 
-###################
-#### Prepars Data ####
-###################
+#### Prepare Data ####
+
 
 ## Compute visit counts for entire population ----------------------------------
 
@@ -656,11 +722,11 @@ out_of_sample_mse_ssd <- boot_fits_ssd %>%
   summarise(out_mse = mean(mse))
 
 # Plot results
-inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd) %>%
-  gather(key = key, value = value, -model, -cp) %>%
-  ggplot(aes(cp,value,color = model)) +
-  geom_line() +
-  facet_wrap(~key,scale = "free_y")
+# inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd) %>%
+#   gather(key = key, value = value, -model, -cp) %>%
+#   ggplot(aes(cp,value,color = model)) +
+#   geom_line() +
+#   facet_wrap(~key,scale = "free_y")
 
 
 cp_fits_ssd <- tibble(cp = cp_range) %>%
