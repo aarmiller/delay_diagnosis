@@ -12,8 +12,12 @@ cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 14 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
+
 out_path <-paste0(delay_params$out_path,"risk_models/") 
 sim_in_path <- paste0(delay_params$out_path,"sim_results/")
+delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 
 # enrollment time prior to index
 db <- src_sqlite(paste0(delay_params$small_db_path, cond_name, ".db"))
@@ -23,12 +27,49 @@ enroll_time_prior <- tbl(db,"index_dx_dates") %>% collect() %>%
   distinct(patient_id, max_time_before_index) %>% 
   rename(enroll_time = max_time_before_index)
 
-#load reg_demo data
-load(paste0(out_path, "reg_data.RData"))
+#create reg_demo data
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),"index_cases.RData"))
+load(paste0(delay_base_path,"demo_data.RData"))
+demo1 <- demo1 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+demo2 <- demo2 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
 
-# Table 1 ----------------------------------------------------------------------
+reg_demo <- demo1 %>% 
+  mutate(female=(sex==2),
+         age = index_year-dobyr,
+         stdrace = as.numeric(stdrace)) %>% 
+  left_join(tibble(stdrace = c(0,1,2,4,9),
+                   race = c("Missing/Unknown","White","Black","Hispanic","Other")),
+            by = "stdrace") %>% 
+  mutate(race = fct_relevel(race,"White"))
+
+reg_demo <- reg_demo %>% 
+  left_join(demo2 %>% 
+              filter(index_date<=dtend & index_date>=dtstart) %>% 
+              mutate(msa_new = msa %in% c("0","")) %>% 
+              mutate(msa_new = ifelse(is.na(msa),NA,msa_new)) %>% 
+              mutate(source = as.factor(source)) %>% 
+              distinct(patient_id,source,msa=msa_new),
+            by = "patient_id")
+
+age_cats <- c(-1,17,34,44,54,64,130)
+
+reg_demo <- reg_demo %>% 
+  mutate(age_cat = cut(age,age_cats)) %>% 
+  mutate(month = as.character(month(as_date(index_date))),
+         year = as.character(year(as_date(index_date)))) %>% 
+  select(patient_id,female,age_cat,age,msa,source,year,month,msa,race) %>% 
+  left_join(distinct(rural_visits,patient_id) %>% 
+              mutate(rural = 1L), by = "patient_id") %>% 
+  mutate(rural = replace_na(rural,0L))
+
 reg_demo <- reg_demo %>% inner_join(enroll_time_prior, by = "patient_id")
 
+# Table 1 ----------------------------------------------------------------------
 
 table1_fun <- function(reg_demo){
   
@@ -270,9 +311,50 @@ cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 14 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 out_path <-paste0(delay_params$out_path,"risk_models/") 
 sim_in_path <- paste0(delay_params$out_path,"sim_results/")
-load(paste0(out_path, "reg_data.RData"))
+
+#create reg_demo data
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),"index_cases.RData"))
+load(paste0(delay_base_path,"demo_data.RData"))
+demo1 <- demo1 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+demo2 <- demo2 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+
+reg_demo <- demo1 %>% 
+  mutate(female=(sex==2),
+         age = index_year-dobyr,
+         stdrace = as.numeric(stdrace)) %>% 
+  left_join(tibble(stdrace = c(0,1,2,4,9),
+                   race = c("Missing/Unknown","White","Black","Hispanic","Other")),
+            by = "stdrace") %>% 
+  mutate(race = fct_relevel(race,"White"))
+
+reg_demo <- reg_demo %>% 
+  left_join(demo2 %>% 
+              filter(index_date<=dtend & index_date>=dtstart) %>% 
+              mutate(msa_new = msa %in% c("0","")) %>% 
+              mutate(msa_new = ifelse(is.na(msa),NA,msa_new)) %>% 
+              mutate(source = as.factor(source)) %>% 
+              distinct(patient_id,source,msa=msa_new),
+            by = "patient_id")
+
+age_cats <- c(-1,17,34,44,54,64,130)
+
+reg_demo <- reg_demo %>% 
+  mutate(age_cat = cut(age,age_cats)) %>% 
+  mutate(month = as.character(month(as_date(index_date))),
+         year = as.character(year(as_date(index_date)))) %>% 
+  select(patient_id,female,age_cat,age,msa,source,year,month,msa,race) %>% 
+  left_join(distinct(rural_visits,patient_id) %>% 
+              mutate(rural = 1L), by = "patient_id") %>% 
+  mutate(rural = replace_na(rural,0L))
 
 load(paste0(sim_in_path,"aggregated_sim_results.RData"))
 
@@ -409,3 +491,132 @@ appendix_table2 <- bind_rows(tibble(metric = "No. of missed opportunities per pa
                     dur_bins_ssd_mean_median %>% mutate(metric=paste0(" ", metric)))
 
 write_csv(appendix_table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", "dengue", "/tables/appendix_table2.csv"))
+
+
+# Appendix Table 3 --------------------------------------------------------------
+# sensitivity analysis varying delay window
+
+# name of condition
+proj_name <- "dengue"
+cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
+
+load("/Shared/AML/params/final_delay_params.RData")
+
+delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 14 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
+
+out_path <-paste0(delay_params$out_path,"risk_models/") 
+sim_in_path <- paste0(delay_params$out_path,"sim_results/")
+
+#load reg_demo data
+#create reg_demo data
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),"index_cases.RData"))
+load(paste0(delay_base_path,"demo_data.RData"))
+demo1 <- demo1 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+demo2 <- demo2 %>% select(-index_date) %>% 
+  inner_join(index_cases %>% mutate(index_date = index_date + shift) %>% 
+               select(patient_id, index_date), by = "patient_id")
+
+reg_demo <- demo1 %>% 
+  mutate(female=(sex==2),
+         age = index_year-dobyr,
+         stdrace = as.numeric(stdrace)) %>% 
+  left_join(tibble(stdrace = c(0,1,2,4,9),
+                   race = c("Missing/Unknown","White","Black","Hispanic","Other")),
+            by = "stdrace") %>% 
+  mutate(race = fct_relevel(race,"White"))
+
+reg_demo <- reg_demo %>% 
+  left_join(demo2 %>% 
+              filter(index_date<=dtend & index_date>=dtstart) %>% 
+              mutate(msa_new = msa %in% c("0","")) %>% 
+              mutate(msa_new = ifelse(is.na(msa),NA,msa_new)) %>% 
+              mutate(source = as.factor(source)) %>% 
+              distinct(patient_id,source,msa=msa_new),
+            by = "patient_id")
+
+age_cats <- c(-1,17,34,44,54,64,130)
+
+reg_demo <- reg_demo %>% 
+  mutate(age_cat = cut(age,age_cats)) %>% 
+  mutate(month = as.character(month(as_date(index_date))),
+         year = as.character(year(as_date(index_date)))) %>% 
+  select(patient_id,female,age_cat,age,msa,source,year,month,msa,race) %>% 
+  left_join(distinct(rural_visits,patient_id) %>% 
+              mutate(rural = 1L), by = "patient_id") %>% 
+  mutate(rural = replace_na(rural,0L))
+
+n_total <- nrow(reg_demo)
+
+appendix_table3 <- tibble()
+
+for(i in final_delay_params[[proj_name]]$cp){
+  delay_params$cp <- i
+  delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
+  
+  sim_in_path <- paste0(delay_params$out_path,"sim_results/")
+  load(paste0(sim_in_path,"aggregated_sim_results.RData"))
+  
+  temp <- stringr::str_split(miss_bins_ssd$n, " ")
+  n_new <- ceiling(as.numeric(sapply(temp, FUN = function(x) {x[1]})))
+  n_range <- sapply(temp, FUN = function(x) {stringr::str_split(gsub("[()]", "", x[2]),  "-")})
+  n_lower <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[1]})))
+  n_upper <-  ceiling(as.numeric(sapply(n_range, FUN = function(x) {x[2]})))
+  
+  percent_pateint_delayed <- miss_bins_ssd %>% 
+    mutate(miss_bin = paste0(">=",miss_bin)) %>% 
+    select(miss_bin, n) %>% 
+    mutate(N_pat =  n_new,
+           N_pat_low = n_lower,
+           N_pat_upper = n_upper) %>% 
+    rowwise() %>% 
+    mutate(nice = paste0(format(round(N_pat/n_total *100, 1), nsmall = 1),
+                         "\n(95%CI: ",  format(round(N_pat_low/n_total *100, 1), nsmall = 1),
+                         "-",
+                         format(round(N_pat_upper/n_total *100, 1), nsmall = 1),")")) %>% 
+    filter(miss_bin == ">=1") %>% 
+    mutate(miss_bin = "percent_pateint_delayed") %>% 
+    select(metric = miss_bin, nice)
+  
+  names(percent_pateint_delayed)[2] <- paste0("delay_window_1_", i-1)
+  
+  # mean/median No. of missed opportunities per patient
+  miss_bins_ssds_mean_median <- agg_stats_ssd$main_stats %>% 
+    select(-measure_out) %>% 
+    filter(measure %in% c("mean_n_miss")) %>% 
+    mutate(CI = paste0(low, "-", high),
+           mean = as.character(mean)) %>% 
+    mutate(nice = paste0(mean, "\n(95%CI: ", CI, ")")) %>% 
+    select(metric = measure, nice) 
+  
+  names(miss_bins_ssds_mean_median)[2] <- paste0("delay_window_1_", i-1)
+  
+  # mean/median No. of missed opportunities per patient
+  dur_bins_ssd_mean_median <- agg_stats_ssd$main_stats %>% 
+    select(-measure_out) %>% 
+    filter(measure %in% c("mean_dur")) %>% 
+    mutate(CI = paste0(trimws(format(round(low, 2), nsmall = 2)), "-", trimws(format(round(high, 2), nsmall = 2))),
+           mean = trimws(format(round(mean, 2), nsmall = 2))) %>% 
+    mutate(nice = paste0(mean, "\n(95%CI: ", CI, ")")) %>% 
+    select(metric = measure, nice) 
+  
+  names(dur_bins_ssd_mean_median)[2] <- paste0("delay_window_1_", i-1)
+  
+  temp_table <- bind_rows(percent_pateint_delayed,
+                          miss_bins_ssds_mean_median,
+                          dur_bins_ssd_mean_median)
+  if(nrow(appendix_table3) == 0){
+    appendix_table3 <- temp_table
+  } else {
+    appendix_table3 <- inner_join(appendix_table3, temp_table)
+  }
+  
+}
+
+write_csv(appendix_table3, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/appendix_table3.csv"))
+
+

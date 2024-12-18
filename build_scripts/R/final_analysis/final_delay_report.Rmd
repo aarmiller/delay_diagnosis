@@ -62,7 +62,9 @@ sim_in_path <- paste0(delay_params$out_path,"sim_results/")
 
 ## Pull in the data
 # identify test dates
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+            "index_cases.RData"))
 
 load(paste0(delay_base_path,"all_dx_visits.RData"))
 load(paste0(delay_base_path,"delay_tm.RData"))

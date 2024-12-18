@@ -26,6 +26,8 @@ library(lubridate)
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 63 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 
 risk_model_base_path <- paste0(delay_params$out_path,"risk_models/")
 

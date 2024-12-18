@@ -13,6 +13,8 @@ cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 63 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
@@ -28,10 +30,11 @@ con <- DBI::dbConnect(RSQLite::SQLite(),
                       paste0(delay_params$small_db_path, str_split(proj_name, "_")[[1]][1], ".db"))
 
 ### Load index cases
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),"index_cases.RData"))
 
 num_cores <- 50
-cp_selected <- delay_params$cp
+cp_selected <- delay_params$cp - 1 # minus 1 as the risk factors are for within delay window
 
 #update demo1 and demo2
 load(paste0(delay_base_path,"demo_data.RData"))
@@ -146,8 +149,10 @@ tm <- tm %>% rename(admdate = svcdate)
 
 ## Prepare abx indicators --------------------------------------------------
 
-all_abx_codes <- read_csv(paste0(delay_params$out_path,"all_abx_codes.csv"))
-
+# all_abx_codes <- read_csv(paste0(delay_params$out_path,"all_abx_codes.csv"))
+all_abx_codes <- read_csv(paste0(stringr::str_replace(delay_params$out_path,
+                                     paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+                "all_abx_codes.csv"))
 all_abx_codes <- all_abx_codes %>%
   filter(!drug_name %in% tolower(c("Nitrofurantoin", "Metronidazole", "Trimethoprim",
                                    "Cefadroxil", "Rifampin", "Methenamine", "Demeclocycline",
@@ -254,8 +259,15 @@ reg_demo <- reg_demo %>%
   mutate_at(vars(IPD_prior_cp),~replace_na(.,0L))
 
 ## Prepare prior geography  ----------------------------------------------------
-source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
-load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
+# source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
+# load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
+
+source(paste0(stringr::str_replace(delay_params$out_path,
+                                   paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+              "get_enroll_detail_fun.R"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+            "egeoloc_labels.RData"))
 
 enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = reg_demo %>% distinct(patient_id) %>% .$patient_id,
                                                     vars = "egeoloc",

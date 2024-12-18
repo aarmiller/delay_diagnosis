@@ -1,15 +1,15 @@
 Setting,Potential Missed Opportunity Visit Days,Index Count,% of all Index Locations,Number of Missed Opportunities,% of Missed opportunities
-outpatient,567,989,76.3,"296
-(222-393)","74.4
-(70.4-78.7)"
-ed,152,190,14.7,"80
-(55-106)","19.9
-(16.6-23.3)"
+outpatient,535,989,76.3,"284
+(217-348)","74.7
+(71.0-78.9)"
+ed,143,190,14.7,"77
+(54-101)","20.2
+(16.8-23.5)"
 obs_stay,6,26, 2.0,"4
 (0-8)"," 0.9
-( 0.0- 1.8)"
-inpatient,68,91, 7.0,"20
-(7-35)"," 4.8
-( 2.1- 7.7)"
-inpatient visit,23,91, 7.0,"14
-(6-22)",
+( 0.0- 2.0)"
+inpatient,58,91, 7.0,"17
+(5-29)"," 4.2
+( 1.4- 7.1)"
+inpatient visit,22,91, 7.0,"12
+(4-20)",

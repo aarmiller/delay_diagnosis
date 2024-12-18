@@ -1,5 +1,5 @@
 
-rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name", "cps_index", "cps_vector", "delay_params_org"))])
 library(tidyverse)
 library(bit64)
 library(parallel)
@@ -40,7 +40,9 @@ if (!dir.exists(sim_out_path)) {
 
 load(paste0(data_in_path,"all_dx_visits.RData"))
 load(paste0(data_in_path,"delay_tm.RData"))
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+            "index_cases.RData"))
 
   
 # update all_dx_visits
@@ -370,8 +372,8 @@ sim_obs_reduced <- sim_obs %>%
 save(sim_obs_reduced, file = paste0(sim_out_path,"sim_obs_reduced.RData"))
 
 # cleanup
-rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name","n_patients",
-                             "proj_name", "project_name"))])
+# rm(list = ls()[!(ls() %in% c("delay_params","sim_out_path","sim_in_path","cond_name","n_patients",
+#                              "proj_name", "project_name"))])
 gc()
 
 

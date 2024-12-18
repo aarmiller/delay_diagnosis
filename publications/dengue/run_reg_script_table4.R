@@ -12,6 +12,8 @@ cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 14 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
@@ -22,15 +24,20 @@ if (!dir.exists(out_path)) {
   dir.create(out_path)
 }
 
+if (!dir.exists(paste0(out_path, "/reg_data/"))) {
+  dir.create(paste0(out_path, "/reg_data/"))
+}
+
 ### Connect to db
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       paste0(delay_params$small_db_path, str_split(proj_name, "_")[[1]][1], ".db"))
 
 ### Load index cases
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),"index_cases.RData"))
 
 num_cores <- 40
-cp_selected <- delay_params$cp
+cp_selected <- delay_params$cp - 1 # minus 1 as the risk factors are for within delay window
 
 #update demo1 and demo2
 load(paste0(delay_base_path,"demo_data.RData"))
@@ -143,7 +150,9 @@ rx_visits <- rx_visits %>%
 
 gc()
 
-abx_codes <- read_csv(paste0(delay_params$out_path, "antibiotics.csv"))
+abx_codes <- read_csv(paste0(stringr::str_replace(delay_params$out_path,
+                                                  paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+                             "antibiotics.csv"))
 abx_rx_vis <- rx_visits %>% 
   filter(ndcnum %in% abx_codes$ndcnum) 
 

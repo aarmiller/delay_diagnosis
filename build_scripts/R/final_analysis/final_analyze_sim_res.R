@@ -1,5 +1,5 @@
 
-rm(list=ls()[!(ls() %in% c("proj_name", "project_name"))])
+rm(list=ls()[!(ls() %in% c("proj_name", "project_name", "cps_index", "cps_vector", "delay_params_org"))])
 library(tidyverse)
 library(bit64)
 library(parallel)
@@ -41,7 +41,9 @@ load(paste0(sim_out_path,"sim_res_all.RData"))
 load(paste0(sim_out_path,"sim_obs_reduced.RData"))
 load(paste0(delay_params$base_path,"/delay_results/all_dx_visits.RData"))
 load(paste0(delay_params$base_path,"/delay_results/delay_tm.RData"))
-load(paste0(delay_params$out_path,"index_cases.RData"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+            "index_cases.RData"))
 load(paste0(sim_out_path,"boot_data.RData"))
 
 # update all_dx_visits

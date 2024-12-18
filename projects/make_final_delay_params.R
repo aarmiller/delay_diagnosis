@@ -119,7 +119,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/dengue/",  # base path to original prelim extract results
                                          out_path = "/Shared/Statepi_Diagnosis/projects/dengue/",   # path to output delay new results
                                          ssd_name = "dengue",
-                                         cp = 17,
+                                         cp = c(7+1, 14+1, 21+1),
                                          upper_bound = 180,
                                          final_model = "cubic",
                                          periodicity = TRUE,
@@ -133,7 +133,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                    base_path = "/Shared/Statepi_Diagnosis/prelim_results/dengue/",  # base path to original prelim extract results
                                                    out_path = "/Shared/Statepi_Diagnosis/projects/dengue/dengue_validated/",   # path to output delay new results
                                                    ssd_name = "dengue",
-                                                   cp = 17,
+                                                   cp = 14+1,
                                                    upper_bound = 180,
                                                    final_model = "cubic",
                                                    periodicity = TRUE,
@@ -147,9 +147,9 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/blasto/",  # base path to original prelim extract results
                                          out_path = "/Shared/Statepi_Diagnosis/projects/blasto/",   # path to output delay new results
                                          ssd_name = "blasto",
-                                         cp = 65,
+                                         cp = c(56+1, 63+1, 70+1),
                                          upper_bound = 365,
-                                         final_model = "quad",
+                                         final_model = "quadratic",
                                          periodicity = TRUE,
                                          boot_trials = 100,
                                          sim_trials = 100,
@@ -162,7 +162,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                       ssd_name = "blasto",
                                                       cp = 65,
                                                       upper_bound = 365,
-                                                      final_model = "quad",
+                                                      final_model = "quadratic",
                                                       periodicity = TRUE,
                                                       boot_trials = 100,
                                                       sim_trials = 100,
@@ -176,7 +176,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                       ssd_name = "blasto",
                                                       cp = 65,
                                                       upper_bound = 365,
-                                                      final_model = "quad",
+                                                      final_model = "quadratic",
                                                       periodicity = TRUE,
                                                       boot_trials = 100,
                                                       sim_trials = 100,
@@ -189,7 +189,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                           ssd_name = "blasto",
                                                           cp = 65,
                                                           upper_bound = 365,
-                                                          final_model = "quad",
+                                                          final_model = "quadratic",
                                                           periodicity = TRUE,
                                                           boot_trials = 100,
                                                           sim_trials = 100,
