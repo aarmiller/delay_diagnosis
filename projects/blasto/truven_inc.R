@@ -13,6 +13,8 @@ cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- 63 + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 
 delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 sim_out_path <- paste0(delay_params$out_path,"sim_results/")
@@ -50,8 +52,15 @@ load("/Shared/AML/truven_extracts/small_dbs/blasto/blasto_enrolid_crosswalk.RDat
 all_blasto_dx_visits <- all_blasto_dx_visits %>% inner_join(enrolids) # only 6074 unique enrolids in enrolids
 # however there are supposed to be 6125 enrollees diagnosed with blasto
 
-source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
-load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
+# source(paste0(delay_params$out_path, "get_enroll_detail_fun.R"))
+# load(paste0(delay_params$out_path, "egeoloc_labels.RData")) # checked with 2020 data dic on 07/31/2024
+source(paste0(stringr::str_replace(delay_params$out_path,
+                                   paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+              "get_enroll_detail_fun.R"))
+load(paste0(stringr::str_replace(delay_params$out_path,
+                                 paste0("delay_window_1_", delay_params$cp-1, "/"), ""),
+            "egeoloc_labels.RData"))
+
 
 enroll_collapsed_temp <- gather_collapse_enrollment(enrolid_list = all_blasto_dx_visits %>% distinct(patient_id) %>% .$patient_id,
                                                     vars = "egeoloc",
@@ -133,7 +142,7 @@ save(truven_blasto_inc, ave_truven_blasto_inc_state, file = paste0(out_path,"tru
 ## Plot inc by state -----------------------------------------------------------
 library(tidyverse)
 library(usmap)
-out_path <- "/Volumes/Statepi_Diagnosis/projects/blasto/risk_models/"
+out_path <- "/Volumes/Statepi_Diagnosis/projects/blasto/delay_window_1_63/risk_models/"
 load(paste0(out_path,"truven_inc_by_egeoloc_year.RData"))
 
 ave_truven_blasto_inc_state <- ave_truven_blasto_inc_state %>% 
