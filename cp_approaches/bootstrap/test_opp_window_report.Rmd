@@ -11,7 +11,7 @@ library(tidyverse)
 library(kableExtra)
 
 # This needs to be passed as an argument
-condition <- "blasto"
+condition <- "dengue"
 
 params <- list()
 params$cond <- condition
