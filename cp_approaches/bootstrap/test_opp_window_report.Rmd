@@ -1,8 +1,14 @@
 ---
-title: "test_opp_window_report"
-author: "Aaron Miller"
+title: "Opportunity Window Report"
+author: ""
 date: "`r Sys.Date()`"
+params:
+  cond:
+    value: x
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -11,17 +17,14 @@ library(tidyverse)
 library(kableExtra)
 
 # This needs to be passed as an argument
-condition <- "dengue"
-
-params <- list()
-params$cond <- condition
+condition <- params$cond
 
 # Extract Condition Name
 condition_name <- codeBuildr::avail_disease_codes() %>% 
   filter(name==condition) %>% 
   .$description
 
-in_path <- paste0("~/Data/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
 
 load(paste0(in_path,"standard_cp_res.RData"))
 load(paste0(in_path,"cp_boot_eval_res.RData"))
