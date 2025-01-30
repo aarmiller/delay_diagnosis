@@ -14,7 +14,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 args = commandArgs(trailingOnly=TRUE)
 
-# condition <- "blasto"
+# condition <- "cocci"
 condition <- args[1]
 
 delay_params <- delay_any_params[[condition]]
@@ -838,6 +838,10 @@ save(out_of_sample_mse_ssd,out_of_sample_mse_all,
 
 
 rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts/opp_window_report.Rmd",
+                  params = list(cond = condition),
+                  output_dir = out_path)
+
+rmarkdown::render(input = "github/delay_diagnosis/cp_approaches/bootstrap/test_opp_window_report.Rmd",
                   params = list(cond = condition),
                   output_dir = out_path)
 
