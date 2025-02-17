@@ -14,7 +14,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 args = commandArgs(trailingOnly=TRUE)
 
-# condition <- "cocci"
+# condition <- "meningitis"
 condition <- args[1]
 
 delay_params <- delay_any_params[[condition]]
@@ -500,7 +500,7 @@ save(ALL_res_standard,SSD_res_standard,
 
 # If change-point bounds are missing replace with default range from 10 to 100
 if (is.na(delay_params$cp_lower) | is.na(delay_params$cp_upper)){
-  cp_lower <- 10
+  cp_lower <- 7
   cp_upper <- 100
 } else {
   cp_lower <- delay_params$cp_lower
@@ -710,6 +710,7 @@ in_sample_mse_ssd <- boot_fits_ssd %>%
   summarise(mse = mean((combined-n)^2)) %>%
   group_by(cp,model) %>%
   summarise(in_mse = mean(mse))
+
 
 # Out-of-sample MSE across bootstraps
 out_of_sample_mse_ssd <- boot_fits_ssd %>%

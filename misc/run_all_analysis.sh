@@ -456,6 +456,8 @@ qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh hiv
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh bronchiectasis
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pcp
 
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh hiv
+
 
 qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh blasto
 qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh cocci
@@ -466,3 +468,9 @@ qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh afib
 qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh afib
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh afib
 qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh afib
+
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh uti
+
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh meningitis

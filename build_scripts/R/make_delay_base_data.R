@@ -15,7 +15,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 # name of condition
 cond_name <- args[1]
-# cond_name <- "bronchiectasis"
+# cond_name <- "pd"
 
 # Load Delay Params
 load("/Shared/AML/params/delay_any_params.RData")
@@ -164,18 +164,23 @@ ccae_mdcr_collect <- collect_plan(con) %>% filter(source!="medicaid") %>%
   distinct(source,year)
 
 # collect medicaid
-tmp_med <- smallDB::gether_table_data(collect_tab = med_collect,
-                          table = "enrollees",
-                          vars = c("patient_id","sex","dobyr","stdrace"),
-                          db_con = con,
-                          collect_n = Inf) %>% 
-  select(year,table_data) %>% 
-  mutate(year = as.integer(year)+2000L) %>% 
-  mutate(table_data = map(table_data,~mutate(.,stdrace=as.character(stdrace)))) %>% 
-  unnest(table_data) %>% 
-  inner_join(select(index_dx_dates,patient_id,index_date)) %>% 
-  mutate(index_year = year(as_date(index_date))) %>% 
-  filter(index_year==year) 
+if (nrow(med_collect)>0){
+  tmp_med <- smallDB::gether_table_data(collect_tab = med_collect,
+                                        table = "enrollees",
+                                        vars = c("patient_id","sex","dobyr","stdrace"),
+                                        db_con = con,
+                                        collect_n = Inf) %>% 
+    select(year,table_data) %>% 
+    mutate(year = as.integer(year)+2000L) %>% 
+    mutate(table_data = map(table_data,~mutate(.,stdrace=as.character(stdrace)))) %>% 
+    unnest(table_data) %>% 
+    inner_join(select(index_dx_dates,patient_id,index_date)) %>% 
+    mutate(index_year = year(as_date(index_date))) %>% 
+    filter(index_year==year) 
+} else {
+  tmp_med <- tibble()
+}
+
 
 # collect ccae medicare
 tmp_ccae_mdcr <- smallDB::gether_table_data(collect_tab = ccae_mdcr_collect,

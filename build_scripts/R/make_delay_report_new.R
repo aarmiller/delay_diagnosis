@@ -14,7 +14,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 args = commandArgs(trailingOnly=TRUE)
 
-# condition <- "dengue"
+# condition <- "meningitis"
 condition <- args[1]
 
 delay_params <- delay_any_params[[condition]]
@@ -622,7 +622,7 @@ boot_counts_ssd <- tibble(bootstrap = 1:100) %>%
 boot_fits_all <- boot_counts_all %>%
   mutate(fits = map(vis_counts,~fit_trends(.,cp_range = cp_range))) %>%
   select(bootstrap,fits)
-
+ 
 boot_fits_ssd <- boot_counts_ssd %>%
   mutate(fits = map(vis_counts,~fit_trends(.,cp_range = cp_range))) %>%
   select(bootstrap,fits)
@@ -775,7 +775,7 @@ rmarkdown::render(input = "github/delay_diagnosis/build_scripts/R/report_scripts
                   params = list(cond = condition),
                   output_dir = out_path)
 
-rmarkdown::render(input = "github/delay_diagnosis/cp_approaches/bootstrap/opp_window_report_new.Rmd",
+rmarkdown::render(input = "github/delay_diagnosis/cp_approaches/bootstrap/test_opp_window_report.Rmd",
                   params = list(cond = condition),
                   output_dir = out_path)
 
