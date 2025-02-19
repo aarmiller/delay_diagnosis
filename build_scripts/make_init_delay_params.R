@@ -42,10 +42,10 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                                     duration_bins = c(10,20,30,40,50,60,70,100,140,170,210,300,330,360)),
                          
                          als = list(path = "/Shared/AML/truven_extracts/small_dbs/als/",
-                                     cp = 365,
+                                     cp = 180,
                                      cp_lower = NA,
                                      cp_upper = NA,
-                                     upper_bound = 365*2,
+                                     upper_bound = 365,
                                      final_model = "cubic",
                                      periodicity = TRUE,
                                      miss_bins = c(1,2,3,4,5),

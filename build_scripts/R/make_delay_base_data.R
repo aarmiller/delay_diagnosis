@@ -26,6 +26,10 @@ delay_params <- delay_any_params[[cond_name]]
 out_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",cond_name)
 # out_path <- paste0("~/Data/tmp/",cond_name)
 
+if (!dir.exists(out_path)){
+  dir.create(out_path)
+}
+
 # connect to database
 con <- DBI::dbConnect(RSQLite::SQLite(), paste0(delay_params$path,cond_name,".db"))
 # con <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db"))
