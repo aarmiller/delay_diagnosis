@@ -1,28 +1,28 @@
 
-# MG
+# ALS
 
 rm(list = ls())
 library(tidyverse)
 library(bit64)
 
-# load MG data from Jacob and save to AML 
-mg_cases <- read_csv("~/Data/MarketScan/truven_extracts/small_dbs/mg/mg_chort.csv")
-mg_study_cohort <- mutate(mg_cases,enrolid = as.integer64(enrolid))
-save(mg_study_cohort, file = "/Volumes/AML/truven_extracts/small_dbs/mg/from_jacob/mg_study_cohort.RData")
+# load ALS data from Jacob and save to AML 
+als_cases <- read_csv("~/Data/MarketScan/truven_extracts/small_dbs/als/als_chort.csv")
+als_study_cohort <- mutate(als_cases,enrolid = as.integer64(enrolid))
+save(als_study_cohort, file = "/Volumes/AML/truven_extracts/small_dbs/als/from_jacob/als_study_cohort.RData")
 
 # save crosswalk to small_db directory
 
-mg_index_dates <- mg_study_cohort %>% 
-  filter(mg==TRUE) %>% 
-  select(enrolid,index_date = first_mg_date)
+als_index_dates <- als_study_cohort %>% 
+  filter(als==TRUE) %>% 
+  select(enrolid,index_date = first_als_date)
 
-enrolids <- mg_index_dates %>% 
+enrolids <- als_index_dates %>% 
   arrange(enrolid) %>% 
   mutate(medicaid=0L) %>% 
   mutate(patient_id = row_number()) %>% 
   select(enrolid,medicaid,patient_id)
 
-save(enrolids, file = "/Volumes/AML/truven_extracts/small_dbs/mg/mg_enrolid_crosswalk.RData")
+save(enrolids, file = "/Volumes/AML/truven_extracts/small_dbs/als/als_enrolid_crosswalk.RData")
 
 ## Load Enrollment and save index_dx_date file -----------
 
@@ -37,12 +37,12 @@ enroll_periods <- enroll_db %>%
   collect()
 
 
-load("/Shared/AML/truven_extracts/small_dbs/mg/from_jacob/mg_study_cohort.RData")
-load("/Shared/AML/truven_extracts/small_dbs/mg/mg_enrolid_crosswalk.RData")
+load("/Shared/AML/truven_extracts/small_dbs/als/from_jacob/als_study_cohort.RData")
+load("/Shared/AML/truven_extracts/small_dbs/als/als_enrolid_crosswalk.RData")
 
-index_dx_date <- mg_study_cohort %>% 
-  filter(mg==TRUE) %>% 
-  select(enrolid,index_date = first_mg_date) %>% 
+index_dx_date <- als_study_cohort %>% 
+  filter(als==TRUE) %>% 
+  select(enrolid,index_date = first_als_date) %>% 
   inner_join(enrolids, by = "enrolid") %>% 
   select(enrolid,medicaid,patient_id,index_date)
 
@@ -68,8 +68,8 @@ index_dx_date <- index_dx_date %>%
   left_join(continuous_time_before) %>%
   left_join(max_time_before)
 
-save(index_dx_date, file = "/Shared/AML/truven_extracts/small_dbs/mg/mg_index_dx_dates.RData")
+save(index_dx_date, file = "/Shared/AML/truven_extracts/small_dbs/als/als_index_dx_dates.RData")
 
 
-qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh mg
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh als
 
