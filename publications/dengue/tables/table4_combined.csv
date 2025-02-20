@@ -1,0 +1,17 @@
+label,FC OR (95%CI),VC OR (95%CI)
+Database Source,,
+  Commercial,REF,REF
+  Medicare,0.77 (0.36-2.05),0.41 (0.08-2.00)
+  Medicaid,0.79 (0.39-1.27),1.61 (0.21-4.47)
+Age,,
+  Age < 18,REF,REF
+  Age 18-34,0.82 (0.71-0.96),0.68 (0.46-1.05)
+  Age 35-44,0.90 (0.74-1.07),0.68 (0.45-1.08)
+  Age 45-54,0.86 (0.72-1.02),0.63 (0.40-0.95)
+  Age 55-64,0.84 (0.67-1.00),0.57 (0.35-0.91)
+  Age >= 65,1.05 (0.38-2.11),1.39 (0.29-3.62)
+Female,0.95 (0.86-1.05),1.08 (0.83-1.38)
+Weekend Visit,1.55 (1.31-1.81),1.78 (1.22-2.51)
+Antibiotic prescription during visit,1.72 (1.41-2.13),2.07 (1.27-3.30)
+Opioid prescription during visit,1.79 (1.16-2.44),1.59 (0.72-3.16)
+Infectious Disease consult during visit,0.62 (0.42-0.90),0.27 (0.12-0.55)

@@ -1,0 +1,25 @@
+metric,label,delay_window_1_7,delay_window_1_14,delay_window_1_21
+Percent of patients that experienced a delay (95%CI),Full,"19.5
+(95%CI: 18.1-21.0)","22.8
+(95%CI: 21.3-24.4)","24.7
+(95%CI: 22.6-26.8)"
+Percent of patients that experienced a delay (95%CI),Validated,"22.0
+(95%CI: 17.7-25.4)","23.5
+(95%CI: 18.5-27.3)","27.1
+(95%CI: 21.6-31.0)"
+Mean number of missed opportunities per patient (95%CI),Full,"1.36
+(95%CI: 1.31-1.41)","1.45
+(95%CI: 1.39-1.51)","1.52
+(95%CI: 1.42-1.61)"
+Mean number of missed opportunities per patient (95%CI),Validated,"1.24
+(95%CI: 1.16-1.32)","1.25
+(95%CI: 1.16-1.36)","1.31
+(95%CI: 1.2-1.44)"
+Mean delay duration (days) (95%CI),Full,"2.92
+(95%CI: 2.79-3.05)","4.02
+(95%CI: 3.67-4.43)","4.87
+(95%CI: 4.19-5.57)"
+Mean delay duration (days) (95%CI),Validated,"2.80
+(95%CI: 2.43-3.11)","3.43
+(95%CI: 2.64-4.22)","5.00
+(95%CI: 3.75-6.15)"

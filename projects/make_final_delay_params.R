@@ -133,7 +133,8 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                                    base_path = "/Shared/Statepi_Diagnosis/prelim_results/dengue/",  # base path to original prelim extract results
                                                    out_path = "/Shared/Statepi_Diagnosis/projects/dengue/dengue_validated/",   # path to output delay new results
                                                    ssd_name = "dengue",
-                                                   cp = 14+1,
+                                                   # cp = 14+1,
+                                                   cp = c(7+1, 14+1, 21+1),
                                                    upper_bound = 180,
                                                    final_model = "cubic",
                                                    periodicity = TRUE,
@@ -200,14 +201,14 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          base_path = "/Shared/Statepi_Diagnosis/prelim_results/cocci/",  # base path to original prelim extract results
                                          out_path = "/Shared/Statepi_Diagnosis/projects/cocci/",   # path to output delay new results
                                          ssd_name = "cocci",
-                                         cp = 65,
+                                         cp = c(84+1, 91+1, 98+1),
                                          upper_bound = 365,
-                                         final_model = "cubic",
+                                         final_model = "quadratic",
                                          periodicity = TRUE,
                                          boot_trials = 100,
                                          sim_trials = 100,
                                          miss_bins = c(1,2,3,4,5),
-                                         duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60))
+                                         duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90))
 )
 
 # save parameters

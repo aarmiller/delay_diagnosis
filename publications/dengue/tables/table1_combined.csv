@@ -1,0 +1,24 @@
+Characteristic,Full Cohort,Validated Cohort
+Age at diagnosis,,
+" (-1,17]","1,329 (22.2%)",132 (12.6%)
+" (17,34]","1,517 (25.3%)",256 (24.4%)
+" (34,44]",942 (15.7%),208 (19.8%)
+" (44,54]","1,003 (16.7%)",251 (23.9%)
+" (54,64]",870 (14.5%),177 (16.9%)
+" (64,130]",331 (5.5%),25 (2.4%)
+ Age Mean (SD),36.0 (19.5),39.2 (16.3)
+ Age Median (IQR),36.0 (33.0),42.0 (26.0)
+Sex,,
+ Male,"2,845 (47.5%)",484 (46.1%)
+ Female,"3,147 (52.5%)",565 (53.9%)
+Database Source,,
+ Commercial,"5,580 (93.1%)","1,020 (97.2%)"
+ Supplemental Medicare,297 (5.0%),20 (1.9%)
+ Medicaid,115 (1.9%),9 (0.9%)
+Enrollment time prior to index (years),,
+ enroll_time Mean (SD),4.0 (3.4),4.1 (3.5)
+ enroll_time Median (IQR),2.8 (4.2),2.8 (4.2)
+ Count <= 1 years,982 (16.4%),184 (17.5%)
+ Count <= 2 years,"2,240 (37.4%)",389 (37.1%)
+ Count <= 3 years,"3,163 (52.8%)",546 (52.0%)
+ Count > 3 years,"2,829 (47.2%)",503 (48.0%)

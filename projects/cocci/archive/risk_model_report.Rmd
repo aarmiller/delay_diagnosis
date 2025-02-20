@@ -26,8 +26,6 @@ library(lubridate)
 load("/Shared/AML/params/final_delay_params.RData")
 
 delay_params <- final_delay_params[[proj_name]]
-delay_params$cp <- 91 + 1
-delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
 
 risk_model_base_path <- paste0(delay_params$out_path,"risk_models/")
 
@@ -64,12 +62,9 @@ better_labels <- tribble(~term,~label,
                          'asthma_prior_cp', 'Asthma dx prior to change point',
                          'copd_prior_cp', 'COPD dx prior to change point',
                          'IPD_prior_cp', 'IPD dx prior to change point',
-                          'ID_consult', 'ID consult during visit',
                          'chest_ct_prior_cp', 'Chest CT dx prior to change point',
                          'chest_xray_prior_cp', 'Chest x-ray dx prior to change point',
                          'top2_high_inc_state_baddley', 'Residing in state with incidence >= 1.38',
-                         'top2_high_inc_state_baddley:ID_consult', 'Residing in state with incidence >= 1.38 * ID consult during visit',
-                         'top5_truven_inc_states', 'Residing in top 5 highest truven inc state',
                          'resp_antibiotic_drugs_window', 'Respiratory abx rx during delay window',
                          'inhalers_window', 'Inhaler rx during delay window')
 
@@ -125,76 +120,23 @@ ssd_miss_risk_models$miss_opp_res %>%
   kableExtra::kable_styling(full_width = F)
 ```
 
-*Including interaction between high incidence state and ID consult*
+*The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info) with an any inpatient indicator instead*
+
 ```{r, echo = FALSE}
-temp <- ssd_miss_risk_models$miss_opp_res_interaction %>% 
+
+ssd_miss_risk_models$miss_opp_res_inpatient_ind %>% 
   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
                                " (",
                                formatC(low, digits = 3, format = "g", flag= "#"),
                                "-",
                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
-  filter(!str_detect(term, 'year')) %>% 
-  filter(!str_detect(term, 'month')) 
-
-temp %>% 
   inner_join(better_labels) %>% 
-  filter(!str_detect(term, 'Est')) %>% 
-  select(label, `Odds Ratio`) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F)
-
-temp %>% 
-  filter(str_detect(term, 'Est')) %>% 
-  mutate(label = stringr::str_replace_all(term, "Est", "OR:")) %>% 
+  filter(!str_detect(term, 'year')) %>% 
+  filter(!str_detect(term, 'month')) %>% 
   select(label, `Odds Ratio`) %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling(full_width = F)
 ```
-
-<!-- *The following risk model pertains to all observations (CCAE and MDCR; Note: Medicaid excluded due to missing state info) with an any inpatient indicator instead* -->
-
-<!-- ```{r, echo = FALSE} -->
-
-<!-- ssd_miss_risk_models$miss_opp_res_inpatient_ind %>%  -->
-<!--   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"), -->
-<!--                                " (", -->
-<!--                                formatC(low, digits = 3, format = "g", flag= "#"), -->
-<!--                                "-", -->
-<!--                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%  -->
-<!--   inner_join(better_labels) %>%  -->
-<!--   filter(!str_detect(term, 'year')) %>%  -->
-<!--   filter(!str_detect(term, 'month')) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
-
-<!-- *Including interaction between high incidence state and ID consult* -->
-
-<!-- ```{r, echo = FALSE} -->
-<!-- temp <- ssd_miss_risk_models$miss_opp_res_inpatient_ind_interaction %>%  -->
-<!--   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"), -->
-<!--                                " (", -->
-<!--                                formatC(low, digits = 3, format = "g", flag= "#"), -->
-<!--                                "-", -->
-<!--                                formatC(high, digits = 3, format = "g", flag= "#"),")")) %>%  -->
-<!--   filter(!str_detect(term, 'year')) %>%  -->
-<!--   filter(!str_detect(term, 'month'))  -->
-
-<!-- temp %>%  -->
-<!--   inner_join(better_labels) %>%  -->
-<!--   filter(!str_detect(term, 'Est')) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-
-<!-- temp %>%  -->
-<!--   filter(str_detect(term, 'Est')) %>%  -->
-<!--   mutate(label = stringr::str_replace_all(term, "Est", "OR:")) %>%  -->
-<!--   select(label, `Odds Ratio`) %>%  -->
-<!--   kableExtra::kable() %>%  -->
-<!--   kableExtra::kable_styling(full_width = F) -->
-<!-- ``` -->
 
 
 ### Missed Patients
