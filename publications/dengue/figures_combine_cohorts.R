@@ -32,7 +32,7 @@ ssd_vis_count_validated <- ssd_vis_count
 ##################
 
 fig1_A <- ssd_vis_count_full %>% mutate(Cohort = "Full Cohort") %>% 
-  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Validated Cohort")) %>% 
+  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Procedure-Validated Subcohort")) %>% 
   ggplot(aes(period,n)) +
   geom_point(size = 0.5) +
   geom_line(size = 0.5) +
@@ -46,7 +46,7 @@ fig1_A <- ssd_vis_count_full %>% mutate(Cohort = "Full Cohort") %>%
 
 
 fig1_B <- ssd_vis_count_full %>% mutate(Cohort = "Full Cohort") %>% 
-  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Validated Cohort")) %>% 
+  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Procedure-Validated Subcohort")) %>% 
   ggplot(aes(period,n)) +
   geom_point(size = 0.5) +
   geom_line(size = 0.5) +
@@ -86,7 +86,7 @@ ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/den
 ##################
 
 figure2 <- ssd_vis_count_full %>% mutate(Cohort = "Full Cohort") %>% 
-  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Validated Cohort")) %>% 
+  bind_rows(ssd_vis_count_validated %>% mutate(Cohort = "Procedure-Validated Subcohort")) %>% 
   filter(period<delay_params$cp) %>% 
   ggplot(aes(period,num_miss)) +
   geom_histogram(stat = "identity") +
