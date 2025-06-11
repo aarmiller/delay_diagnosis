@@ -208,7 +208,46 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                          boot_trials = 100,
                                          sim_trials = 100,
                                          miss_bins = c(1,2,3,4,5),
-                                         duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90))
+                                         duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
+                           cocci_AZ = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/cocci/",
+                                        base_path = "/Shared/Statepi_Diagnosis/prelim_results/cocci/",  # base path to original prelim extract results
+                                        out_path = "/Shared/Statepi_Diagnosis/projects/cocci/cocci_AZ/",   # path to output delay new results
+                                        ssd_name = "cocci",
+                                        cp = c(84+1, 91+1, 98+1),
+                                        upper_bound = 365,
+                                        final_model = "quadratic",
+                                        periodicity = TRUE,
+                                        boot_trials = 100,
+                                        sim_trials = 100,
+                                        miss_bins = c(1,2,3,4,5),
+                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
+                           cocci_not_AZ = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/cocci/",
+                                           base_path = "/Shared/Statepi_Diagnosis/prelim_results/cocci/",  # base path to original prelim extract results
+                                           out_path = "/Shared/Statepi_Diagnosis/projects/cocci/cocci_not_AZ/",   # path to output delay new results
+                                           ssd_name = "cocci",
+                                           cp = c(84+1, 91+1, 98+1),
+                                           upper_bound = 365,
+                                           final_model = "quadratic",
+                                           periodicity = TRUE,
+                                           boot_trials = 100,
+                                           sim_trials = 100,
+                                           miss_bins = c(1,2,3,4,5),
+                                           duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,60,90)),
+                           
+                           measles = list(small_db_path = "/Shared/AML/truven_extracts/small_dbs/measles/",
+                                        base_path = "/Shared/Statepi_Diagnosis/prelim_results/measles/",  # base path to original prelim extract results
+                                        out_path = "/Shared/Statepi_Diagnosis/projects/measles/",   # path to output delay new results
+                                        ssd_name = "measles",
+                                        cp = c(14+1, 21+1),
+                                        upper_bound = 180,
+                                        final_model = "linear",
+                                        periodicity = TRUE,
+                                        boot_trials = 100,
+                                        sim_trials = 100,
+                                        miss_bins = c(1,2,3,4,5),
+                                        duration_bins = c(1,2,3,4,5,6,7,10,14,17,21))
 )
 
 # save parameters

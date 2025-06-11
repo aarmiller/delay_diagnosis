@@ -39,3 +39,42 @@ index_cases <- enrolid_crosswalk %>%
   mutate(shift=0L)
 
 save(index_cases, file = paste0(delay_params$out, "index_cases.RData"))
+
+## Get AZ location info and build nested cohorts -------------------------------
+
+load("/Shared/Statepi_Diagnosis/projects/cocci/delay_window_1_91/sim_results/AZ_ind_data.RData")
+#comes from Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/cocci/sim_res_stratified_by_AZ
+
+index_cases_w_loc <- index_cases %>% 
+  left_join(AZ_ind_data %>% select(patient_id, AZ)) 
+
+index_cases_w_loc %>% count(AZ)
+AZ_ind_data %>% count(AZ)
+
+### Build the index_cases for the AZ cohort
+cond_name <- "cocci_AZ"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_w_loc %>%
+  filter(AZ == 1) %>% 
+  select(-AZ)
+
+save(index_cases,  file = paste0(delay_params$out, "index_cases.RData"))
+
+### Build the index_cases for the non-AZ cohort
+cond_name <- "cocci_not_AZ"
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path)
+}
+
+index_cases <- index_cases_w_loc %>%
+  filter(AZ == 0) %>% 
+  select(-AZ)
+
+save(index_cases,  file = paste0(delay_params$out, "index_cases.RData"))

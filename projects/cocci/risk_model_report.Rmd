@@ -71,7 +71,8 @@ better_labels <- tribble(~term,~label,
                          'top2_high_inc_state_baddley:ID_consult', 'Residing in state with incidence >= 1.38 * ID consult during visit',
                          'top5_truven_inc_states', 'Residing in top 5 highest truven inc state',
                          'resp_antibiotic_drugs_window', 'Respiratory abx rx during delay window',
-                         'inhalers_window', 'Inhaler rx during delay window')
+                         'inhalers_window', 'Inhaler rx during delay window',
+                         'rash_window', 'Rash dx during delay window')
 
 better_labels <- better_labels %>% 
   bind_rows(ssd_miss_risk_models$miss_opp_res %>% 

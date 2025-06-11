@@ -305,14 +305,17 @@ write_csv(table3, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis
 
 # Appendix Table 1 --------------------------------------------------------------
 # ICD code SSDs
-load("/Shared/AML/params/final_delay_params.RData")
+load("/Volumes/AML/params/final_delay_params.RData")
 delay_params <- final_delay_params[[proj_name]]
 
 codeBuildr:::load_ssd_codes(delay_params$ssd_name) %>% 
   mutate(icd_version = ifelse(type == "icd9", 9L, 10L)) %>% 
   select(icd_codes = code, icd_version) %>% 
   inner_join(codeBuildr::labels) %>% 
-write_csv(paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/appendix_table1.csv"))
+  mutate(icd_codes_nice = map_chr(icd_codes, ~icd::short_to_decimal(.))) %>% 
+  mutate(icd_codes_nice = paste0("'",icd_codes_nice ))%>% 
+  select(icd_codes, icd_codes_nice, icd_version, desc) %>% 
+write_csv(paste0("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/appendix_table1.csv"))
 
 # Appendix Table 2 --------------------------------------------------------------
 # sensitivity analysis varying delay window

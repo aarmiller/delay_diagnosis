@@ -219,6 +219,43 @@ reg_demo <- reg_demo %>%
   left_join(copd) %>% 
   mutate_at(vars(asthma_prior_cp, copd_prior_cp),~replace_na(.,0L))
 
+## Prepare rashes indicators --------------------------------------------------
+# Hi Alan,
+# 
+# This is a follow-up from our discussion yesterday. Two more things to add to the cocci paper.
+# 
+# First, Arizona vs other states on the impact on delays.
+# 
+# Second, we want to look at rashes. For this we would like to look at the impact of a rash diagnosis during the diagnostic window, similar to the antibiotic analysis and inhaler analysis. Below are the ICD-9 and ICD-10 codes for the two different types of rashes we want to use. 
+# 
+# ICD-9
+# Rash and other nonspecific skin eruption:  782.1
+# Erythema nodosum:  695.2
+# 
+# ICD-10
+# Rash and other nonspecific skin eruption:  R21
+# Erythema nodosum: L52
+# 
+# Thanks,
+# 
+# Phil
+
+dx_visits_within_window <- con %>% tbl("all_dx_visits") %>% collect()
+
+dx_visits_within_window <- dx_visits_within_window %>% 
+  inner_join(select(demo1,patient_id,index_date)) %>% 
+  filter(days_since_index<0 & days_since_index>=(-cp_selected))
+
+rash <- dx_visits_within_window %>% 
+  inner_join(tibble(dx = c("7821", "6952", "R21", "L52"),
+                    dx_ver = c(9L, 9L, 10L, 10L)), by = join_by(dx, dx_ver)) %>%
+  distinct(patient_id) %>% mutate(rash_window = 1L) 
+
+reg_demo <- reg_demo %>%
+  left_join(rash) %>% 
+  mutate_at(vars(rash_window),~replace_na(.,0L))
+
+
 ## Prepare prior chest imaging -------------------------------------------------
 chest_ct <-c("71260", "71250", "71270")
 chest_xray <- c("71010", "71015", "71020", "71021", "71022", "71023",
@@ -1115,7 +1152,7 @@ get_delay_pat_res <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     select(miss, age_cat, female, rural, source, year, month,
-           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley,
+           asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley, rash_window,
            resp_antibiotic_drugs_window, inhalers_window) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   

@@ -1,0 +1,10 @@
+metric,delay_window_1_14,delay_window_1_21
+percent_pateint_delayed,"9.6
+(95%CI: 8.7-10.3)","10.5
+(95%CI: 9.3-11.4)"
+mean_n_miss,"1.35
+(95%CI: 1.27-1.45)","1.4
+(95%CI: 1.3-1.49)"
+mean_dur,"5.07
+(95%CI: 4.64-5.55)","6.34
+(95%CI: 5.58-7.03)"

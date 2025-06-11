@@ -1,0 +1,592 @@
+---
+title: "Opportunity Window Report"
+author: ""
+date: "`r Sys.Date()`"
+params:
+  cond:
+    value: x
+  condition_name:
+    value: x  
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+
+# This needs to be passed as an argument
+condition <- params$cond
+
+# Extract Condition Name
+condition_name <- params$condition_name
+
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
+
+load(paste0(in_path,"standard_cp_res.RData"))
+load(paste0(in_path,"cp_boot_eval_res.RData"))
+```
+
+This document provides a summary of the change-point analysis for `r condition_name` (`r params$cond`).
+
+
+# Visit Trends
+
+```{r, echo = FALSE}
+
+bind_rows(mutate(SSD_res_standard$count_data_ssd,group = "SSD Visits"),
+          mutate(ALL_res_standard$count_data_all,group = "All Visits")) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse() +
+  theme_bw() +
+  xlab("Days Before Index Diagnosis") +
+  ylab("Number of Patients") +
+  facet_wrap(~group, scale = "free_y")
+
+```
+
+# Piecewise CP Approach
+The following section summarizes change-point analysis for trends in the number 
+of visits before diagnosis using the standard piecewise-modeling approach to find 
+the change-point. Specifically, we evaluate 4 peicewise models with linear,
+quadratic, cubic and exponential trends. The change-point is found by iterating 
+over different change-points and selecting the best fitting model based on AIC.
+
+### Summary of Optimal Models based on RMSE
+
+The following table depicts the optimal change-point selected for each approach
+based on RMSE.
+```{r, echo = FALSE, message=FALSE}
+tibble(label = c("Piecewise lm w/ periodicity",
+                 "Piecewise quad w/ periodicity",
+                 "Piecewise cubic w/ periodicity",
+                 "Piecewise exp w/ periodicity",
+                 "Piecewise lm",
+                 "Piecewise quad",
+                 "Piecewise cubic",
+                 "Piecewise exp")) %>% 
+  left_join(SSD_res_standard$ssd_res_out) %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following figure depicts the optimal change-point for each method with periodicity.
+```{r, echo = FALSE,out.width="100%"}
+SSD_res_standard$plot_periodicity 
+
+```
+
+
+The following figure depicts the optimal change-point for each method without periodicity.
+```{r, echo = FALSE,out.width="100%"}
+SSD_res_standard$plot_no_periodicity
+
+```
+
+### Summary of Model Performance Across Change-points
+
+The following table summarizes RMSE and the implied number of missed opportunities
+across each method for the different change-points evaluated
+```{r, echo = FALSE, message = FALSE}
+tmp_rmse <- SSD_res_standard$ssd_fits %>% 
+  filter(periodicity) %>% 
+  select(cp,model,rmse) %>% 
+  mutate(rmse = round(rmse,3)) %>% 
+  spread(key = model, value = rmse) %>% 
+  select(cp,lm,quad,cubic,exp)
+
+tmp_miss <- SSD_res_standard$ssd_fits %>% 
+  filter(periodicity) %>% 
+  select(cp,model,n_miss) %>% 
+  mutate(n_miss = round(n_miss,0)) %>% 
+  spread(key = model, value = n_miss) %>% 
+  select(cp,lm,quad,cubic,exp)
+
+tmp_lm <- inner_join(select(tmp_rmse,cp,RMSE = lm),
+           select(tmp_miss,cp,`N Miss Visits` = lm)) %>%
+  mutate(weeks = cp/7) %>% 
+  select(weeks,days=cp,RMSE,`N Miss Visits`)
+
+tmp_quad <- inner_join(select(tmp_rmse,cp,RMSE = quad),
+                     select(tmp_miss,cp,`N Miss Visits` = quad)) %>% 
+  select(-cp)
+
+tmp_cube <- inner_join(select(tmp_rmse,cp,RMSE = cubic),
+                     select(tmp_miss,cp,`N Miss Visits` = cubic)) %>% 
+  select(-cp)
+
+tmp_exp <- inner_join(select(tmp_rmse,cp,RMSE = exp),
+                     select(tmp_miss,cp,`N Miss Visits` = exp)) %>% 
+  select(-cp)
+
+tmp <- cbind(tmp_lm,tmp_quad,tmp_cube,tmp_exp)
+
+j1 <- which.min(tmp[,3])
+tmp[j1,3] <- tmp[j1,3] %>% cell_spec(bold = TRUE)
+
+j2 <- which.min(tmp[,5])
+tmp[j2,5] <- tmp[j2,5] %>% cell_spec(bold = TRUE)
+
+j3 <- which.min(tmp[,7])
+tmp[j3,7] <- tmp[j3,7] %>% cell_spec(bold = TRUE)
+
+j4 <- which.min(tmp[,9])
+tmp[j4,9] <- tmp[j4,9] %>% cell_spec(bold = TRUE)
+
+tmp %>% 
+  kable(align = 'c', booktabs = TRUE,escape = FALSE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c("Change Point" = 2, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2, "Exponential" = 2)) %>% 
+  column_spec(3, color = "black",
+              background = spec_color(tmp_lm$RMSE, begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(5, color = "black",
+              background = spec_color(tmp_quad$RMSE, begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(7, color = "black",
+              background = spec_color(tmp_cube$RMSE, begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(9, color = "black",
+              background = spec_color(tmp_exp$RMSE, begin = .25, end = 1, direction = -1,
+                                      option = "A")) 
+
+```
+
+
+The following figure depicts model performance, in terms of RMSE, across various 
+change-points for each of the methods evaluated:
+```{r, echo = FALSE,out.width="100%"}
+SSD_res_standard$ssd_fits %>% 
+  ggplot(aes(cp,rmse, color = periodicity)) +
+  geom_line() +
+  facet_wrap(~model) +
+  theme_bw()
+
+```
+
+
+### Linear Models
+
+The following figure depicts the optimal linear model along with the 4 other nearest
+change-points on either side of the optimal change-point
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+tmp <- SSD_res_standard$ssd_fits %>% 
+  group_by(model, periodicity) %>% 
+  filter(rmse == min(rmse)) %>% 
+  select(model,cp,periodicity) %>% 
+  mutate(cp_range = map(cp,~(-4*7+.):(4*7+.))) %>% 
+  unnest(cp_range) %>% 
+  select(model,cp=cp_range,periodicity) %>% 
+  inner_join(SSD_res_standard$ssd_fits,by = join_by(model, cp,periodicity)) %>% 
+  select(model,cp,periodicity,rmse,pred) %>% 
+  unnest() %>% 
+  ungroup()
+
+
+tmp %>% 
+  filter(periodicity) %>% 
+  filter(model == "lm") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red") +
+  geom_vline(aes(xintercept = cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Linear Models w/ Periodicity Near Optimal CP")
+```
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+tmp %>% 
+  filter(!periodicity) %>% 
+  filter(model == "lm") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  geom_vline(aes(xintercept = cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Linear Models w/o Periodicity Near Optimal CP")
+```
+
+
+### Quadratic Models
+
+The following figure depicts the optimal quadratic model along with the 4 other nearest
+change-points on either side of the optimal change-point
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(periodicity) %>% 
+  filter(model == "quad") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  geom_vline(aes(xintercept = cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Quadratic Models w/ Periodicity Near Optimal CP")
+```
+
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(!periodicity) %>% 
+  filter(model == "quad") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  geom_vline(aes(xintercept = cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Quadratic Models w/o Periodicity Near Optimal CP")
+```
+
+### Cubic Models
+
+The following figure depicts the optimal cubic model along with the 4 other nearest
+change-points on either side of the optimal change-point
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(periodicity) %>% 
+  filter(model == "quad") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Cubic Models w/ Periodicity Near Optimal CP")
+```
+
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(!periodicity) %>% 
+  filter(model == "quad") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Cubic Models w/o Periodicity Near Optimal CP")
+```
+
+### Exponential Models
+
+The following figure depicts the optimal exponential model along with the 4 other nearest
+change-points on either side of the optimal change-point
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(periodicity) %>% 
+  filter(model == "exp") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Exponential Models w/ Periodicity Near Optimal CP")
+```
+
+```{r, echo = FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(!periodicity) %>% 
+  filter(model == "exp") %>% 
+  mutate(label = paste0(cp," days/",cp/7," wks; RMSE = ",round(rmse,3))) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=pred1), color = "red")+
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Exponential Models w/o Periodicity Near Optimal CP")
+```
+
+
+
+
+# Bootstrapping CP Approach
+
+This section summarizes results using counts of SSD-related visits.
+
+The following figure depicts the in-sample and out-of-sample performance
+(MSE) of various bounds on the opportunity window and different trends.
+
+```{r, echo = FALSE}
+inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd,by = join_by(cp, model)) %>%
+  inner_join(select(kfold_mse_ssd,model,cp,out_mse_other_boot=mean_mse),by = join_by(cp, model)) %>% 
+  gather(key = key, value = value, -model, -cp)  %>% 
+  mutate(label = ifelse(key == "in_mse", "In-Sample",
+                        ifelse(key=="out_mse","Out-of-Sample (Aggregate)","Out-of-Sample (K-fold)"))) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  ggplot(aes(cp,value,color = model_lab)) +
+  geom_line() +
+  facet_wrap(~label,scale = "free_y") +
+  theme_bw() +
+  ylab("MSE") +
+  xlab("Opportunity Window Upper Bound") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+```
+
+The following table depicts the top 10 specifications based on either aggregate or
+k-fold out-of-sample performance:
+
+```{r, echo = FALSE}
+tab1 <- out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  mutate(Weeks = cp/7) %>% 
+  rename(`Days`=cp,Model=model_lab,MSE=out_mse) %>% 
+  select(Weeks, Days, Model, MSE) %>% 
+  slice(1:10) %>% 
+  mutate(rank = row_number()) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  select(rank,everything())
+
+tab2 <- kfold_mse_ssd %>% 
+  select(model,cp,out_mse=mean_mse) %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  mutate(out_mse = round(out_mse,2)) %>% 
+  mutate(Weeks = cp/7) %>% 
+  rename(`Days`=cp,Model=model_lab,MSE=out_mse) %>% 
+  select(Weeks, Days, Model, MSE) %>% 
+  slice(1:10)
+
+cbind(tab1,tab2) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Aggregate Out-of-Sample" = 4, "K-Fold Out-of-Sample" = 4))
+```
+
+
+The following figure depicts the observed and expected trend for the top
+9 models based on **99-fold out-of-sample** performance:
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+kfold_mse_ssd %>% 
+  arrange(mean_mse) %>% 
+  slice(1:9) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days/",(-cp/7),"wks \n RMSE ",round(mean_mse,2))) %>% 
+  inner_join(cp_fits_ssd,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+
+### Summary of Model Performance Across Change-points
+
+The following table summarizes the out-of-sample and 99-fold performance (RMSE) 
+along with the implied number of missed opportunities for each method across the 
+different change-points evaluated
+
+```{r, echo = FALSE, message=FALSE}
+tmp1 <- out_of_sample_mse_ssd %>% 
+  select(model,cp,out_mse) %>% 
+  mutate(out_mse = round(out_mse,2)) %>% 
+  spread(key = model, value = out_mse) %>% 
+  arrange(desc(cp)) %>% 
+  ungroup()
+
+tmp2 <- kfold_mse_ssd %>% 
+  select(model,cp,mean_mse) %>% 
+  mutate(mean_mse = round(mean_mse,2)) %>% 
+  spread(key = model, value = mean_mse) %>% 
+  arrange(desc(cp)) 
+
+tmp3 <- cp_fits_ssd %>% 
+  group_by(model,cp) %>% 
+  filter(days_since_index>=cp) %>% 
+  summarise(n_miss = sum(n-expected)) %>% 
+  ungroup() %>% 
+  mutate(n_miss = round(n_miss,0)) %>% 
+  spread(key = model, value = n_miss) %>% 
+  arrange(desc(cp))
+
+
+tmp_lm <- inner_join(select(tmp1,cp,`Out-of-sample` = linear),
+                     select(tmp2,cp,`K-fold` = linear)) %>% 
+  inner_join(select(tmp3,cp,`N Miss Visits` = linear)) %>%
+  mutate(weeks = -cp/7) %>% 
+  mutate(cp = -cp) %>% 
+  select(weeks,days=cp,`Out-of-sample RMSE`=`Out-of-sample`,`K-fold RMSE`=`K-fold`,`N Miss Visits`) 
+
+tmp_quad <- inner_join(select(tmp1,cp,`Out-of-sample` = quad),
+                       select(tmp2,cp,`K-fold` = quad)) %>% 
+  inner_join(select(tmp3,cp,`N Miss Visits` = quad)) %>%
+  mutate(weeks = -cp/7) %>% 
+  mutate(cp = -cp) %>% 
+  select(`Out-of-sample RMSE`=`Out-of-sample`,`K-fold RMSE`=`K-fold`,`N Miss Visits`) 
+
+tmp_cube <- inner_join(select(tmp1,cp,`Out-of-sample` = cube),
+                       select(tmp2,cp,`K-fold` = cube)) %>% 
+  inner_join(select(tmp3,cp,`N Miss Visits` = cube)) %>%
+  mutate(weeks = -cp/7) %>% 
+  mutate(cp = -cp) %>% 
+  select(`Out-of-sample RMSE`=`Out-of-sample`,`K-fold RMSE`=`K-fold`,`N Miss Visits`) 
+
+tmp <- cbind(tmp_lm,tmp_quad,tmp_cube) 
+
+j11 <- which.min(tmp[,3])
+tmp[j11,3] <- tmp[j11,3] %>% cell_spec(bold = TRUE)
+
+j12 <- which.min(tmp[,4])
+tmp[j12,4] <- tmp[j12,4] %>% cell_spec(bold = TRUE)
+
+j21 <- which.min(tmp[,6])
+tmp[j21,6] <- tmp[j21,6] %>% cell_spec(bold = TRUE)
+
+j22 <- which.min(tmp[,7])
+tmp[j22,7] <- tmp[j22,7] %>% cell_spec(bold = TRUE)
+
+
+j31 <- which.min(tmp[,9])
+tmp[j31,9] <- tmp[j31,9] %>% cell_spec(bold = TRUE)
+
+j32 <- which.min(tmp[,10])
+tmp[j32,10] <- tmp[j32,10] %>% cell_spec(bold = TRUE)
+
+tmp %>% 
+  kable(align = 'c', booktabs = TRUE,escape = FALSE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c("Change Point" = 2, "Linear" = 3, "Quadratic" = 3, "Cubic" = 3)) %>% 
+  column_spec(3, color = "black",
+              background = spec_color(tmp_lm[["Out-of-sample RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(6, color = "black",
+              background = spec_color(tmp_quad[["Out-of-sample RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(9, color = "black",
+              background = spec_color(tmp_cube[["Out-of-sample RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(4, color = "black",
+              background = spec_color(tmp_lm[["K-fold RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(7, color = "black",
+              background = spec_color(tmp_quad[["K-fold RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A")) %>% 
+  column_spec(10, color = "black",
+              background = spec_color(tmp_cube[["K-fold RMSE"]], begin = .25, end = 1, direction = -1,
+                                      option = "A"))
+```
+
+
+
+### Linear Models
+
+The following figure depicts the optimal linear model (based on 99-fold performance) 
+along with the 4 other nearest change-points on either side of the optimal change-point
+```{r, echo = FALSE, message=FALSE, warning = FALSE, out.width="100%"}
+
+tmp <- kfold_mse_ssd %>% 
+  group_by(model) %>% 
+  filter(mean_mse == min(mean_mse)) %>% 
+  select(model,cp,rmse=mean_mse) %>% 
+  mutate(cp_range = map(cp,~(-4*7+.):(4*7+.))) %>% 
+  unnest(cp_range) %>% 
+  select(model,cp = cp_range) %>% 
+  inner_join(kfold_mse_ssd) %>% 
+  select(model,cp,rmse = mean_mse) %>% 
+  ungroup() %>% 
+  inner_join(cp_fits_ssd)
+
+
+tmp %>% 
+  filter(model == "linear") %>% 
+  mutate(label = paste0(-cp," days/",-cp/7," wks; RMSE = ",round(rmse,2))) %>% 
+  mutate(period = -days_since_index) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=combined), color = "blue") +
+  geom_line(aes(y=expected), color = "red") +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Linear Models w/ Periodicity Near Optimal CP")
+```
+
+### Quadratic Models
+
+The following figure depicts the optimal quadratic model (based on 99-fold performance) 
+along with the 4 other nearest change-points on either side of the optimal change-point
+```{r, echo = FALSE, message=FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(model == "quad") %>% 
+  mutate(label = paste0(-cp," days/",-cp/7," wks; RMSE = ",round(rmse,2))) %>% 
+  mutate(period = -days_since_index) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=combined), color = "blue") +
+  geom_line(aes(y=expected), color = "red") +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Linear Models w/ Periodicity Near Optimal CP")
+```
+
+### Cubic Models
+
+The following figure depicts the optimal cubic model (based on 99-fold performance) 
+along with the 4 other nearest change-points on either side of the optimal change-point
+```{r, echo = FALSE, message=FALSE, warning = FALSE, out.width="100%"}
+
+tmp %>% 
+  filter(model == "cube") %>% 
+  mutate(label = paste0(-cp," days/",-cp/7," wks; RMSE = ",round(rmse,2))) %>% 
+  mutate(period = -days_since_index) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() + 
+  geom_line(aes(y=combined), color = "blue") +
+  geom_line(aes(y=expected), color = "red") +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  scale_x_reverse() +
+  facet_wrap(~label) +
+  theme_bw() +
+  ggtitle("Linear Models w/ Periodicity Near Optimal CP")
+```

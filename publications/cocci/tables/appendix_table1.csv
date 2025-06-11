@@ -1,239 +1,241 @@
-icd_codes,icd_version,desc
-0389,9,Unspecified septicemia
-07999,9,Unspecified viral infection
-135,9,Sarcoidosis
-1623,9,"Malignant neoplasm of upper lobe, bronchus or lung"
-1625,9,"Malignant neoplasm of lower lobe, bronchus or lung"
-1629,9,"Malignant neoplasm of bronchus and lung, unspecified"
-2123,9,Benign neoplasm of bronchus and lung
-2357,9,"Neoplasm of uncertain behavior of trachea, bronchus, and lung"
-2391,9,Neoplasm of unspecified nature of respiratory system
-2761,9,Hyposmolality and/or hyponatremia
-28419,9,Other pancytopenia
-2875,9,"Thrombocytopenia, unspecified"
-2883,9,Eosinophilia
-28860,9,"Leukocytosis, unspecified"
-3229,9,"Meningitis, unspecified"
-340,9,Multiple sclerosis
-4239,9,Unspecified disease of pericardium
-4280,9,"Congestive heart failure, unspecified"
-4293,9,Cardiomegaly
-4619,9,"Acute sinusitis, unspecified"
-462,9,Acute pharyngitis
-4658,9,Acute upper respiratory infections of other multiple sites
-4659,9,Acute upper respiratory infections of unspecified site
-4660,9,Acute bronchitis
-4739,9,Unspecified sinusitis (chronic)
-481,9,Pneumococcal pneumonia [Streptococcus pneumoniae pneumonia]
-48289,9,Pneumonia due to other specified bacteria
-4829,9,"Bacterial pneumonia, unspecified"
-4838,9,Pneumonia due to other specified organism
-485,9,"Bronchopneumonia, organism unspecified"
-486,9,"Pneumonia, organism unspecified"
-4871,9,Influenza with other respiratory manifestations
-490,9,"Bronchitis, not specified as acute or chronic"
-49120,9,Obstructive chronic bronchitis without exacerbation
-49121,9,Obstructive chronic bronchitis with (acute) exacerbation
-4919,9,Unspecified chronic bronchitis
-4920,9,Emphysematous bleb
-4928,9,Other emphysema
-49300,9,"Extrinsic asthma, unspecified"
-49310,9,"Intrinsic asthma, unspecified"
-49320,9,"Chronic obstructive asthma, unspecified"
-49322,9,Chronic obstructive asthma with (acute) exacerbation
-49390,9,"Asthma, unspecified type, unspecified"
-49392,9,"Asthma, unspecified type, with (acute) exacerbation"
-496,9,"Chronic airway obstruction, not elsewhere classified"
-5110,9,Pleurisy without mention of effusion or current tuberculosis
-5111,9,"Pleurisy with effusion, with mention of a bacterial cause other than tuberculosis"
-51189,9,"Other specified forms of effusion, except tuberculous"
-5119,9,Unspecified pleural effusion
-5128,9,Other pneumothorax and air leak
-51281,9,Primary spontaneous pneumothorax
-51282,9,Secondary spontaneous pneumothorax
-51283,9,Chronic pneumothorax
-51284,9,Other air leak
-51289,9,Other pneumothorax
-5130,9,Abscess of lung
-514,9,Pulmonary congestion and hypostasis
-515,9,Postinflammatory pulmonary fibrosis
-5180,9,Pulmonary collapse
-5183,9,Pulmonary eosinophilia
-51881,9,Acute respiratory failure
-51882,9,"Other pulmonary insufficiency, not elsewhere classified"
-51884,9,Acute and chronic respiratory failure
-51889,9,"Other diseases of lung, not elsewhere classified"
-51911,9,Acute bronchospasm
-71940,9,"Pain in joint, site unspecified"
-7291,9,"Myalgia and myositis, unspecified"
-7806,9,Fever and other physiologic disturbances of temperature regulation
-78060,9,"Fever, unspecified"
-78061,9,Fever presenting with conditions classified elsewhere
-78062,9,Postprocedural fever
-78063,9,Postvaccination fever
-78064,9,Chills (without fever)
-78065,9,Hypothermia not associated with low environmental temperature
-78066,9,Febrile nonhemolytic transfusion reaction
-78079,9,Other malaise and fatigue
-7808,9,Generalized hyperhidrosis
-7821,9,Rash and other nonspecific skin eruption
-7822,9,"Localized superficial swelling, mass, or lump"
-78321,9,Loss of weight
-7840,9,Headache
-7842,9,"Swelling, mass, or lump in head and neck"
-7850,9,"Tachycardia, unspecified"
-7856,9,Enlargement of lymph nodes
-78600,9,"Respiratory abnormality, unspecified"
-78605,9,Shortness of breath
-78607,9,Wheezing
-78609,9,Other respiratory abnormalities
-7862,9,Cough
-7863,9,Hemoptysis
-78630,9,"Hemoptysis, unspecified"
-78631,9,Acute idiopathic pulmonary hemorrhage in infants [AIPHI]
-78639,9,Other hemoptysis
-78650,9,"Chest pain, unspecified"
-78651,9,Precordial pain
-78652,9,Painful respiration
-78659,9,Other chest pain
-7866,9,"Swelling, mass, or lump in chest"
-7869,9,Other symptoms involving respiratory system and chest
-78720,9,"Dysphagia, unspecified"
-78791,9,Diarrhea
-78900,9,"Abdominal pain, unspecified site"
-78901,9,"Abdominal pain, right upper quadrant"
-78906,9,"Abdominal pain, epigastric"
-78907,9,"Abdominal pain, generalized"
-78909,9,"Abdominal pain, other specified site"
-7908,9,"Viremia, unspecified"
-7931,9,Lung field
-79311,9,Solitary pulmonary nodule
-79319,9,Other nonspecific abnormal finding of lung field
-79902,9,Hypoxemia
-99591,9,Sepsis
-V741,9,Screening examination for pulmonary tuberculosis
-M2550,10,Pain in unspecified joint
-M791,10,Myalgia
-M7910,10,"Myalgia, unspecified site"
-M7911,10,Myalgia of mastication muscle
-M7912,10,"Myalgia of auxiliary muscles, head and neck"
-M7918,10,"Myalgia, other site"
-R042,10,Hemoptysis
-R05,10,Cough
-R0600,10,"Dyspnea, unspecified"
-R0602,10,Shortness of breath
-R0609,10,Other forms of dyspnea
-R062,10,Wheezing
-R0689,10,Other abnormalities of breathing
-R069,10,Unspecified abnormalities of breathing
-R071,10,Chest pain on breathing
-R072,10,Precordial pain
-R0781,10,Pleurodynia
-R0782,10,Intercostal pain
-R0789,10,Other chest pain
-R079,10,"Chest pain, unspecified"
-R1010,10,"Upper abdominal pain, unspecified"
-R1011,10,Right upper quadrant pain
-R1013,10,Epigastric pain
-R102,10,Pelvic and perineal pain
-R1030,10,"Lower abdominal pain, unspecified"
-R1084,10,Generalized abdominal pain
-R109,10,Unspecified abdominal pain
-R5081,10,Fever presenting with conditions classified elsewhere
-R509,10,"Fever, unspecified"
-R51,10,Headache
-R531,10,Weakness
-R5381,10,Other malaise
-R5383,10,Other fatigue
-R61,10,Generalized hyperhidrosis
-R634,10,Abnormal weight loss
-A419,10,"Sepsis, unspecified organism"
-B349,10,"Viral infection, unspecified"
-B9789,10,Other viral agents as the cause of diseases classified elsewhere
-G039,10,"Meningitis, unspecified"
-J0190,10,"Acute sinusitis, unspecified"
-J020,10,Streptococcal pharyngitis
-J029,10,"Acute pharyngitis, unspecified"
-J069,10,"Acute upper respiratory infection, unspecified"
-J101,10,Influenza due to other identified influenza virus with other respiratory manifestations
-J111,10,Influenza due to unidentified influenza virus with other respiratory manifestations
-J13,10,Pneumonia due to Streptococcus pneumoniae
-J158,10,Pneumonia due to other specified bacteria
-J159,10,Unspecified bacterial pneumonia
-J168,10,Pneumonia due to other specified infectious organisms
-J180,10,"Bronchopneumonia, unspecified organism"
-J181,10,"Lobar pneumonia, unspecified organism"
-J182,10,"Hypostatic pneumonia, unspecified organism"
-J188,10,"Other pneumonia, unspecified organism"
-J189,10,"Pneumonia, unspecified organism"
-J208,10,Acute bronchitis due to other specified organisms
-J209,10,"Acute bronchitis, unspecified"
-J329,10,"Chronic sinusitis, unspecified"
-J40,10,"Bronchitis, not specified as acute or chronic"
-J851,10,Abscess of lung with pneumonia
-J852,10,Abscess of lung without pneumonia
-N390,10,"Urinary tract infection, site not specified"
-C3410,10,"Malignant neoplasm of upper lobe, unspecified bronchus or lung"
-C3411,10,"Malignant neoplasm of upper lobe, right bronchus or lung"
-C3430,10,"Malignant neoplasm of lower lobe, unspecified bronchus or lung"
-C3490,10,Malignant neoplasm of unspecified part of unspecified bronchus or lung
-D1430,10,Benign neoplasm of unspecified bronchus and lung
-D381,10,"Neoplasm of uncertain behavior of trachea, bronchus and lung"
-D491,10,Neoplasm of unspecified behavior of respiratory system
-D860,10,Sarcoidosis of lung
-D869,10,"Sarcoidosis, unspecified"
-I2789,10,Other specified pulmonary heart diseases
-I319,10,"Disease of pericardium, unspecified"
-I509,10,"Heart failure, unspecified"
-J42,10,Unspecified chronic bronchitis
-J439,10,"Emphysema, unspecified"
-J441,10,Chronic obstructive pulmonary disease with (acute) exacerbation
-J449,10,"Chronic obstructive pulmonary disease, unspecified"
-J4540,10,"Moderate persistent asthma, uncomplicated"
-J45901,10,Unspecified asthma with (acute) exacerbation
-J45909,10,"Unspecified asthma, uncomplicated"
-J45998,10,Other asthma
-J80,10,Acute respiratory distress syndrome
-J811,10,Chronic pulmonary edema
-J82,10,"Pulmonary eosinophilia, not elsewhere classified"
-J8410,10,"Pulmonary fibrosis, unspecified"
-J8489,10,Other specified interstitial pulmonary diseases
-J849,10,"Interstitial pulmonary disease, unspecified"
-J850,10,Gangrene and necrosis of lung
-J869,10,Pyothorax without fistula
-J918,10,Pleural effusion in other conditions classified elsewhere
-J9383,10,Other pneumothorax
-J941,10,Fibrothorax
-J948,10,Other specified pleural conditions
-J949,10,"Pleural condition, unspecified"
-J9600,10,"Acute respiratory failure, unspecified whether with hypoxia or hypercapnia"
-J9601,10,Acute respiratory failure with hypoxia
-J9621,10,Acute and chronic respiratory failure with hypoxia
-J9690,10,"Respiratory failure, unspecified, unspecified whether with hypoxia or hypercapnia"
-J9801,10,Acute bronchospasm
-J9819,10,Other pulmonary collapse
-J984,10,Other disorders of lung
-R049,10,"Hemorrhage from respiratory passages, unspecified"
-R091,10,Pleurisy
-D61818,10,Other pancytopenia
-D696,10,"Thrombocytopenia, unspecified"
-D721,10,Eosinophilia
-D72829,10,"Elevated white blood cell count, unspecified"
-E871,10,Hypo-osmolality and hyponatremia
-I517,10,Cardiomegaly
-J90,10,"Pleural effusion, not elsewhere classified"
-J9811,10,Atelectasis
-R000,10,"Tachycardia, unspecified"
-R0902,10,Hypoxemia
-R220,10,"Localized swelling, mass and lump, head"
-R221,10,"Localized swelling, mass and lump, neck"
-R222,10,"Localized swelling, mass and lump, trunk"
-R229,10,"Localized swelling, mass and lump, unspecified"
-R590,10,Localized enlarged lymph nodes
-R591,10,Generalized enlarged lymph nodes
-R599,10,"Enlarged lymph nodes, unspecified"
-R740,10,Nonspecific elevation of levels of transaminase and lactic acid dehydrogenase [LDH]
-R911,10,Solitary pulmonary nodule
-R918,10,Other nonspecific abnormal finding of lung field
-R945,10,Abnormal results of liver function studies
-Z111,10,Encounter for screening for respiratory tuberculosis
+icd_codes,icd_codes_nice,icd_version,desc
+0389,'038.9,9,Unspecified septicemia
+07999,'079.99,9,Unspecified viral infection
+135,'135,9,Sarcoidosis
+1623,'162.3,9,"Malignant neoplasm of upper lobe, bronchus or lung"
+1625,'162.5,9,"Malignant neoplasm of lower lobe, bronchus or lung"
+1629,'162.9,9,"Malignant neoplasm of bronchus and lung, unspecified"
+2123,'212.3,9,Benign neoplasm of bronchus and lung
+2357,'235.7,9,"Neoplasm of uncertain behavior of trachea, bronchus, and lung"
+2391,'239.1,9,Neoplasm of unspecified nature of respiratory system
+2761,'276.1,9,Hyposmolality and/or hyponatremia
+28419,'284.19,9,Other pancytopenia
+2875,'287.5,9,"Thrombocytopenia, unspecified"
+2883,'288.3,9,Eosinophilia
+28860,'288.60,9,"Leukocytosis, unspecified"
+3229,'322.9,9,"Meningitis, unspecified"
+4239,'423.9,9,Unspecified disease of pericardium
+4280,'428.0,9,"Congestive heart failure, unspecified"
+4293,'429.3,9,Cardiomegaly
+4619,'461.9,9,"Acute sinusitis, unspecified"
+462,'462,9,Acute pharyngitis
+4658,'465.8,9,Acute upper respiratory infections of other multiple sites
+4659,'465.9,9,Acute upper respiratory infections of unspecified site
+4660,'466.0,9,Acute bronchitis
+4739,'473.9,9,Unspecified sinusitis (chronic)
+481,'481,9,Pneumococcal pneumonia [Streptococcus pneumoniae pneumonia]
+48289,'482.89,9,Pneumonia due to other specified bacteria
+4829,'482.9,9,"Bacterial pneumonia, unspecified"
+4838,'483.8,9,Pneumonia due to other specified organism
+485,'485,9,"Bronchopneumonia, organism unspecified"
+486,'486,9,"Pneumonia, organism unspecified"
+4871,'487.1,9,Influenza with other respiratory manifestations
+490,'490,9,"Bronchitis, not specified as acute or chronic"
+49120,'491.20,9,Obstructive chronic bronchitis without exacerbation
+49121,'491.21,9,Obstructive chronic bronchitis with (acute) exacerbation
+4919,'491.9,9,Unspecified chronic bronchitis
+4920,'492.0,9,Emphysematous bleb
+4928,'492.8,9,Other emphysema
+49300,'493.00,9,"Extrinsic asthma, unspecified"
+49310,'493.10,9,"Intrinsic asthma, unspecified"
+49320,'493.20,9,"Chronic obstructive asthma, unspecified"
+49322,'493.22,9,Chronic obstructive asthma with (acute) exacerbation
+49390,'493.90,9,"Asthma, unspecified type, unspecified"
+49392,'493.92,9,"Asthma, unspecified type, with (acute) exacerbation"
+496,'496,9,"Chronic airway obstruction, not elsewhere classified"
+5110,'511.0,9,Pleurisy without mention of effusion or current tuberculosis
+5111,'511.1,9,"Pleurisy with effusion, with mention of a bacterial cause other than tuberculosis"
+51189,'511.89,9,"Other specified forms of effusion, except tuberculous"
+5119,'511.9,9,Unspecified pleural effusion
+5128,'512.8,9,Other pneumothorax and air leak
+51281,'512.81,9,Primary spontaneous pneumothorax
+51282,'512.82,9,Secondary spontaneous pneumothorax
+51283,'512.83,9,Chronic pneumothorax
+51284,'512.84,9,Other air leak
+51289,'512.89,9,Other pneumothorax
+5130,'513.0,9,Abscess of lung
+514,'514,9,Pulmonary congestion and hypostasis
+515,'515,9,Postinflammatory pulmonary fibrosis
+5180,'518.0,9,Pulmonary collapse
+5183,'518.3,9,Pulmonary eosinophilia
+51881,'518.81,9,Acute respiratory failure
+51882,'518.82,9,"Other pulmonary insufficiency, not elsewhere classified"
+51884,'518.84,9,Acute and chronic respiratory failure
+51889,'518.89,9,"Other diseases of lung, not elsewhere classified"
+51911,'519.11,9,Acute bronchospasm
+6952,'695.2,9,Erythema nodosum
+71940,'719.40,9,"Pain in joint, site unspecified"
+7291,'729.1,9,"Myalgia and myositis, unspecified"
+7806,'780.6,9,Fever and other physiologic disturbances of temperature regulation
+78060,'780.60,9,"Fever, unspecified"
+78061,'780.61,9,Fever presenting with conditions classified elsewhere
+78062,'780.62,9,Postprocedural fever
+78063,'780.63,9,Postvaccination fever
+78064,'780.64,9,Chills (without fever)
+78065,'780.65,9,Hypothermia not associated with low environmental temperature
+78066,'780.66,9,Febrile nonhemolytic transfusion reaction
+78079,'780.79,9,Other malaise and fatigue
+7808,'780.8,9,Generalized hyperhidrosis
+7821,'782.1,9,Rash and other nonspecific skin eruption
+7822,'782.2,9,"Localized superficial swelling, mass, or lump"
+78321,'783.21,9,Loss of weight
+7840,'784.0,9,Headache
+7842,'784.2,9,"Swelling, mass, or lump in head and neck"
+7850,'785.0,9,"Tachycardia, unspecified"
+7856,'785.6,9,Enlargement of lymph nodes
+78600,'786.00,9,"Respiratory abnormality, unspecified"
+78605,'786.05,9,Shortness of breath
+78607,'786.07,9,Wheezing
+78609,'786.09,9,Other respiratory abnormalities
+7862,'786.2,9,Cough
+7863,'786.3,9,Hemoptysis
+78630,'786.30,9,"Hemoptysis, unspecified"
+78631,'786.31,9,Acute idiopathic pulmonary hemorrhage in infants [AIPHI]
+78639,'786.39,9,Other hemoptysis
+78650,'786.50,9,"Chest pain, unspecified"
+78651,'786.51,9,Precordial pain
+78652,'786.52,9,Painful respiration
+78659,'786.59,9,Other chest pain
+7866,'786.6,9,"Swelling, mass, or lump in chest"
+7869,'786.9,9,Other symptoms involving respiratory system and chest
+78720,'787.20,9,"Dysphagia, unspecified"
+78791,'787.91,9,Diarrhea
+78900,'789.00,9,"Abdominal pain, unspecified site"
+78901,'789.01,9,"Abdominal pain, right upper quadrant"
+78906,'789.06,9,"Abdominal pain, epigastric"
+78907,'789.07,9,"Abdominal pain, generalized"
+78909,'789.09,9,"Abdominal pain, other specified site"
+7908,'790.8,9,"Viremia, unspecified"
+7931,'793.1,9,Lung field
+79311,'793.11,9,Solitary pulmonary nodule
+79319,'793.19,9,Other nonspecific abnormal finding of lung field
+79902,'799.02,9,Hypoxemia
+99591,'995.91,9,Sepsis
+V741,'V74.1,9,Screening examination for pulmonary tuberculosis
+M2550,'M25.50,10,Pain in unspecified joint
+M791,'M79.1,10,Myalgia
+M7910,'M79.10,10,"Myalgia, unspecified site"
+M7911,'M79.11,10,Myalgia of mastication muscle
+M7912,'M79.12,10,"Myalgia of auxiliary muscles, head and neck"
+M7918,'M79.18,10,"Myalgia, other site"
+R042,'R04.2,10,Hemoptysis
+R05,'R05,10,Cough
+R0600,'R06.00,10,"Dyspnea, unspecified"
+R0602,'R06.02,10,Shortness of breath
+R0609,'R06.09,10,Other forms of dyspnea
+R062,'R06.2,10,Wheezing
+R0689,'R06.89,10,Other abnormalities of breathing
+R069,'R06.9,10,Unspecified abnormalities of breathing
+R071,'R07.1,10,Chest pain on breathing
+R072,'R07.2,10,Precordial pain
+R0781,'R07.81,10,Pleurodynia
+R0782,'R07.82,10,Intercostal pain
+R0789,'R07.89,10,Other chest pain
+R079,'R07.9,10,"Chest pain, unspecified"
+R1010,'R10.10,10,"Upper abdominal pain, unspecified"
+R1011,'R10.11,10,Right upper quadrant pain
+R1013,'R10.13,10,Epigastric pain
+R102,'R10.2,10,Pelvic and perineal pain
+R1030,'R10.30,10,"Lower abdominal pain, unspecified"
+R1084,'R10.84,10,Generalized abdominal pain
+R109,'R10.9,10,Unspecified abdominal pain
+R5081,'R50.81,10,Fever presenting with conditions classified elsewhere
+R509,'R50.9,10,"Fever, unspecified"
+R51,'R51,10,Headache
+R531,'R53.1,10,Weakness
+R5381,'R53.81,10,Other malaise
+R5383,'R53.83,10,Other fatigue
+R61,'R61,10,Generalized hyperhidrosis
+R634,'R63.4,10,Abnormal weight loss
+A419,'A41.9,10,"Sepsis, unspecified organism"
+B349,'B34.9,10,"Viral infection, unspecified"
+B9789,'B97.89,10,Other viral agents as the cause of diseases classified elsewhere
+G039,'G03.9,10,"Meningitis, unspecified"
+J0190,'J01.90,10,"Acute sinusitis, unspecified"
+J020,'J02.0,10,Streptococcal pharyngitis
+J029,'J02.9,10,"Acute pharyngitis, unspecified"
+J069,'J06.9,10,"Acute upper respiratory infection, unspecified"
+J101,'J10.1,10,Influenza due to other identified influenza virus with other respiratory manifestations
+J111,'J11.1,10,Influenza due to unidentified influenza virus with other respiratory manifestations
+J13,'J13,10,Pneumonia due to Streptococcus pneumoniae
+J158,'J15.8,10,Pneumonia due to other specified bacteria
+J159,'J15.9,10,Unspecified bacterial pneumonia
+J168,'J16.8,10,Pneumonia due to other specified infectious organisms
+J180,'J18.0,10,"Bronchopneumonia, unspecified organism"
+J181,'J18.1,10,"Lobar pneumonia, unspecified organism"
+J182,'J18.2,10,"Hypostatic pneumonia, unspecified organism"
+J188,'J18.8,10,"Other pneumonia, unspecified organism"
+J189,'J18.9,10,"Pneumonia, unspecified organism"
+J208,'J20.8,10,Acute bronchitis due to other specified organisms
+J209,'J20.9,10,"Acute bronchitis, unspecified"
+J329,'J32.9,10,"Chronic sinusitis, unspecified"
+J40,'J40,10,"Bronchitis, not specified as acute or chronic"
+J851,'J85.1,10,Abscess of lung with pneumonia
+J852,'J85.2,10,Abscess of lung without pneumonia
+N390,'N39.0,10,"Urinary tract infection, site not specified"
+C3410,'C34.10,10,"Malignant neoplasm of upper lobe, unspecified bronchus or lung"
+C3411,'C34.11,10,"Malignant neoplasm of upper lobe, right bronchus or lung"
+C3430,'C34.30,10,"Malignant neoplasm of lower lobe, unspecified bronchus or lung"
+C3490,'C34.90,10,Malignant neoplasm of unspecified part of unspecified bronchus or lung
+D1430,'D14.30,10,Benign neoplasm of unspecified bronchus and lung
+D381,'D38.1,10,"Neoplasm of uncertain behavior of trachea, bronchus and lung"
+D491,'D49.1,10,Neoplasm of unspecified behavior of respiratory system
+D860,'D86.0,10,Sarcoidosis of lung
+D869,'D86.9,10,"Sarcoidosis, unspecified"
+I2789,'I27.89,10,Other specified pulmonary heart diseases
+I319,'I31.9,10,"Disease of pericardium, unspecified"
+I509,'I50.9,10,"Heart failure, unspecified"
+J42,'J42,10,Unspecified chronic bronchitis
+J439,'J43.9,10,"Emphysema, unspecified"
+J441,'J44.1,10,Chronic obstructive pulmonary disease with (acute) exacerbation
+J449,'J44.9,10,"Chronic obstructive pulmonary disease, unspecified"
+J4540,'J45.40,10,"Moderate persistent asthma, uncomplicated"
+J45901,'J45.901,10,Unspecified asthma with (acute) exacerbation
+J45909,'J45.909,10,"Unspecified asthma, uncomplicated"
+J45998,'J45.998,10,Other asthma
+J80,'J80,10,Acute respiratory distress syndrome
+J811,'J81.1,10,Chronic pulmonary edema
+J82,'J82,10,"Pulmonary eosinophilia, not elsewhere classified"
+J8410,'J84.10,10,"Pulmonary fibrosis, unspecified"
+J8489,'J84.89,10,Other specified interstitial pulmonary diseases
+J849,'J84.9,10,"Interstitial pulmonary disease, unspecified"
+J850,'J85.0,10,Gangrene and necrosis of lung
+J869,'J86.9,10,Pyothorax without fistula
+J918,'J91.8,10,Pleural effusion in other conditions classified elsewhere
+J9383,'J93.83,10,Other pneumothorax
+J941,'J94.1,10,Fibrothorax
+J948,'J94.8,10,Other specified pleural conditions
+J949,'J94.9,10,"Pleural condition, unspecified"
+J9600,'J96.00,10,"Acute respiratory failure, unspecified whether with hypoxia or hypercapnia"
+J9601,'J96.01,10,Acute respiratory failure with hypoxia
+J9621,'J96.21,10,Acute and chronic respiratory failure with hypoxia
+J9690,'J96.90,10,"Respiratory failure, unspecified, unspecified whether with hypoxia or hypercapnia"
+J9801,'J98.01,10,Acute bronchospasm
+J9819,'J98.19,10,Other pulmonary collapse
+J984,'J98.4,10,Other disorders of lung
+R049,'R04.9,10,"Hemorrhage from respiratory passages, unspecified"
+R091,'R09.1,10,Pleurisy
+D61818,'D61.818,10,Other pancytopenia
+D696,'D69.6,10,"Thrombocytopenia, unspecified"
+D721,'D72.1,10,Eosinophilia
+D72829,'D72.829,10,"Elevated white blood cell count, unspecified"
+E871,'E871,10,Hypo-osmolality and hyponatremia
+I517,'I51.7,10,Cardiomegaly
+J90,'J90,10,"Pleural effusion, not elsewhere classified"
+J9811,'J98.11,10,Atelectasis
+R000,'R00.0,10,"Tachycardia, unspecified"
+R0902,'R09.02,10,Hypoxemia
+R220,'R22.0,10,"Localized swelling, mass and lump, head"
+R221,'R22.1,10,"Localized swelling, mass and lump, neck"
+R222,'R22.2,10,"Localized swelling, mass and lump, trunk"
+R229,'R22.9,10,"Localized swelling, mass and lump, unspecified"
+R590,'R59.0,10,Localized enlarged lymph nodes
+R591,'R59.1,10,Generalized enlarged lymph nodes
+R599,'R59.9,10,"Enlarged lymph nodes, unspecified"
+R740,'R74.0,10,Nonspecific elevation of levels of transaminase and lactic acid dehydrogenase [LDH]
+R911,'R91.1,10,Solitary pulmonary nodule
+R918,'R91.8,10,Other nonspecific abnormal finding of lung field
+R945,'R94.5,10,Abnormal results of liver function studies
+Z111,'Z11.1,10,Encounter for screening for respiratory tuberculosis
+R21,'R21,10,Rash and other nonspecific skin eruption
+L52,'L52,10,Erythema nodosum

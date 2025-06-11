@@ -1,0 +1,82 @@
+---
+title: "Risk Factor Report"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "dengue"
+
+# load delay_parms
+load("/Shared/AML/params/final_delay_params_kaiser.RData")
+
+delay_params <- final_delay_params[[proj_name]]
+delay_params$cp <- as.numeric(stringr::str_split(proj_name, "_")[[1]][4]) + 1
+delay_params$out_path <- paste0(final_delay_params[[proj_name]]$out_path, "delay_window_1_", delay_params$cp - 1, "/")
+
+risk_model_base_path <- paste0(delay_params$out_path,"risk_models/")
+
+# load results data
+# load("/Volumes/AML/small_dbs/tb/truven/enroll_restrict_365/delay_results/risk_models/ssd_miss_risk_models.RData")
+load(paste0(risk_model_base_path,"ssd_miss_risk_models.RData"))
+
+# setup better labels
+better_labels <- tribble(~term,~label,
+                         '(Intercept)', '(Intercept)'  ,
+                         'age_cat(17,34]', 'Age 18-34'  ,
+                         'age_cat(34,44]', 'Age 35-44'  ,
+                         'age_cat(44,54]', 'Age 45-54'  ,
+                         'age_cat(54,64]', 'Age 55-64'  ,
+                         'age_cat(64,130]', 'Age >= 65'  ,
+                         'sexFemale', 'Female'  ,
+                         "weekendTRUE", "Weekend Visit",
+                         "fever_100", "Fever (>=100F) recorded during visit")
+
+# better_labels <- better_labels %>% 
+#   bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
+#               select(term) %>% 
+#               filter(grepl("setting_label", term)) %>% 
+#               mutate(label = stringr::str_remove_all(term, "setting_label")))
+```
+
+
+# Delay Risk Factor Report for `r params$cond`
+
+### Missed Opportunities
+
+The following tables depicts results for the risk model for experiencing a missed 
+opportunity at a given visit. All missed visits and index dates are included in 
+this model with an outcome of 1 assigned to missed opportunities and 0 to index 
+diagnoses.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+Note: models also adjusted for year and month of visit.

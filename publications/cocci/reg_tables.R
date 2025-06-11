@@ -108,6 +108,7 @@ better_labels <- tribble(~term,~label,
                          "chest_xray_prior_cp", "Chest X-ray prior to delay window", 
                          'resp_antibiotic_drugs_window', 'Respiratory abx rx during delay window',
                          'inhalers_window', 'Inhaler rx during delay window',
+                         'rash_window', 'Rash dx during delay window',
                          'top2_high_inc_state_baddley', 'Residing in top 2 highest coccidiomycosis incidence state',
 )
 master_table <- bind_rows(better_labels, month, year)

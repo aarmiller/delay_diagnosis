@@ -1,0 +1,721 @@
+---
+title: "Opportunity Window Report"
+author: ""
+date: "`r Sys.Date()`"
+params:
+  cond:
+    value: x
+  condition_name:
+    value: x  
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+
+# This needs to be passed as an argument
+condition <- params$cond
+
+# Extract Condition Name
+condition_name <- params$condition_name
+
+in_path <- paste0("/Shared/Statepi_Diagnosis/prelim_results/",condition,"/change_point_results/")
+
+load(paste0(in_path,"standard_cp_res.RData"))
+load(paste0(in_path,"cp_boot_eval_res.RData"))
+
+```
+
+This document provides a summary of the change-point analysis for `r condition_name` (`r params$cond`).
+
+
+# Visit Trends
+
+```{r, echo = FALSE}
+
+bind_rows(mutate(SSD_res_standard$count_data_ssd,group = "SSD Visits"),
+          mutate(ALL_res_standard$count_data_all,group = "All Visits")) %>% 
+  ggplot(aes(period,n)) +
+  geom_point() +
+  scale_x_reverse() +
+  theme_bw() +
+  xlab("Days Before Index Diagnosis") +
+  ylab("Number of Patients") +
+  facet_wrap(~group, scale = "free_y")
+
+```
+
+# Piecewise CP Approach
+The following section summarizes change-point analysis for trends in the number 
+of visits before diagnosis using the standard piecewise-modeling approach to find 
+the change-point. Specifically, we evaluate 4 peicewise models with linear,
+quadratic, cubic and exponential trends. The change-point is found by iterating 
+over different change-points and selecting the best fitting model based on AIC.
+
+### SSD Visits
+This section summarizes results using counts of SSD visits.
+
+
+#### Change-point summary
+The following table summarizes the optimal change-point for each trend type, with 
+or without periodicity. For each approach, the change-point, prediction-bound change-point,
+and implied number of missed opportunities is reported.
+```{r, echo = FALSE}
+SSD_res_standard$ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+#### Performance Summary
+The following table summarizes performance metrics for each model.
+```{r, echo = FALSE}
+SSD_res_standard$ssd_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table ranks each model in terms of the above performance metrics.
+```{r, echo = FALSE}
+SSD_res_standard$ssd_mod_rankings %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Plot of each model that included periodicity
+```{r, echo = FALSE}
+SSD_res_standard$plot_periodicity
+
+```
+
+#### Plot of each model that did not include periodicity
+```{r, echo = FALSE}
+SSD_res_standard$plot_no_periodicity
+
+```
+
+
+### All Visits
+This section summarizes results using counts of all visits.
+
+
+#### Change-point summary
+The following table summarizes the optimal change-point for each trend type, with 
+or without periodicity. For each approach, the change-point, prediction-bound change-point,
+and implied number of missed opportunities is reported.
+```{r, echo = FALSE}
+ALL_res_standard$all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP # Miss ` = cp_n_miss,`PB CP # Miss` = pb_cp_n_miss) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+
+#### Performance Summary
+The following table summarizes performance metrics for each model.
+```{r, echo = FALSE}
+ALL_res_standard$all_res_out %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pred_bound_cp,`CP Consisency`=cp_consistency,MSE=mse,`MSE 7-day`=mse7,`MSE 14-day`=mse14) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+The following table ranks each model in terms of the above performance metrics.
+```{r, echo = FALSE}
+ALL_res_standard$all_mod_rankings %>% 
+  select(label,`Change Point`=cp,`Pred. Bound CP` = pb_cp,`Average Rank`=avg_rank,consistency_rank:mse14_rank) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+#### Plot of each model that included periodicity
+```{r, echo = FALSE}
+ALL_res_standard$plot_periodicity
+
+```
+
+#### Plot of each model that did not include periodicity
+```{r, echo = FALSE}
+ALL_res_standard$plot_no_periodicity
+
+```
+
+# Bootstrapping CP Approach
+
+## SSD Visits
+
+This section summarizes results using counts of SSD-related visits.
+
+The following figure depicts the in-sample and out-of-sample performance
+(MSE) of various bounds on the opportunity window and different trends.
+
+```{r, echo = FALSE}
+inner_join(in_sample_mse_ssd,out_of_sample_mse_ssd,by = join_by(cp, model)) %>%
+  inner_join(select(kfold_mse_ssd,model,cp,out_mse_other_boot=mean_mse),by = join_by(cp, model)) %>% 
+  gather(key = key, value = value, -model, -cp)  %>% 
+  mutate(label = ifelse(key == "in_mse", "In-Sample",
+                        ifelse(key=="out_mse","Out-of-Sample (Aggregate)","Out-of-Sample (K-fold)"))) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  ggplot(aes(cp,value,color = model_lab)) +
+  geom_line() +
+  facet_wrap(~label,scale = "free_y") +
+  theme_bw() +
+  ylab("MSE") +
+  xlab("Opportunity Window Upper Bound") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+```
+
+The following table depicts the top 10 specifications based on either aggregate or
+k-fold out-of-sample performance:
+
+```{r, echo = FALSE}
+tab1 <- out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = row_number()) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  select(rank,everything())
+
+tab2 <- kfold_mse_ssd %>% 
+  select(model,cp,out_mse=mean_mse) %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  mutate(out_mse = round(out_mse,2)) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10)
+
+cbind(tab1,tab2) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Aggregate Out-of-Sample" = 3, "K-Fold Out-of-Sample" = 3))
+```
+
+The following figure depicts the observed and expected trend for the top
+4 models based on **aggregate out-of-sample** performance:
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_ssd,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+The following figure depicts the observed and expected trend for the top
+4 models based on **99-fold out-of-sample** performance:
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+kfold_mse_ssd %>% 
+  arrange(mean_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_ssd,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+The following table depicts the 10 best models for each trend, based on **aggregate
+out-of-sample** performance:
+
+```{r, echo = FALSE}
+tmp1 <- out_of_sample_mse_ssd %>% 
+  ungroup() %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp1,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp1,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp1,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+The following table depicts the 10 best models for each trend, based on **99-fold
+out-of-sample** performance:
+
+```{r, echo = FALSE}
+tmp2 <- kfold_mse_ssd %>% 
+  select(model,cp,out_mse = mean_mse) %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp2,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp2,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp2,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+### Linear Models
+
+The following figure depicts the top 4 performing linear models based on **aggregate
+out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp1,model=="linear") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Linear: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+The following figure depicts the top 4 performing linear models based on **99-fold
+out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp2,model=="linear") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Linear: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+
+```
+
+### Quadratic Models
+
+The following figure depicts the top 4 performing quadratic models based
+on **aggregate out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp1,model=="quad") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Quadratic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+The following figure depicts the top 4 performing quadratic models based
+on **99-fold out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp2,model=="quad") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Quadratic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+### Cubic Models
+
+The following figure depicts the top 4 performing cubic models based on
+**aggregate out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp1,model=="cube") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Cubic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+The following figure depicts the top 4 performing cubic models based on
+**99-fold out-of-sample** MSE:
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp2,model=="cube") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_ssd, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Cubic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+## All Visits
+
+This section summarizes results using counts of all visits.
+
+The following figure depicts the in-sample and out-of-sample performance
+of various bounds on the opportunity window and different trends.
+
+```{r, echo = FALSE}
+inner_join(in_sample_mse_all,out_of_sample_mse_all,by = join_by(cp, model)) %>%
+  gather(key = key, value = value, -model, -cp)  %>% 
+  mutate(label = ifelse(key == "in_mse", "In-Sample MSE", "Out-of-Sample MSE")) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  ggplot(aes(cp,value,color = model_lab)) +
+  geom_line() +
+  facet_wrap(~label,scale = "free_y") +
+  theme_bw() +
+  ylab("MSE") +
+  xlab("Opportunity Window Upper Bound") +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+```
+
+The following table depicts the top 10 specifications based on both aggregate and
+k-fold out-of-sample performance:
+
+```{r, echo = FALSE}
+tab1 <- out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = row_number()) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  select(rank,everything())
+
+tab2 <- kfold_mse_all %>% 
+  select(model,cp,out_mse=mean_mse) %>% 
+  arrange(out_mse) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  select(cp,model_lab,out_mse) %>% 
+  mutate(out_mse = round(out_mse,2)) %>% 
+  rename(`Bound (Days)`=cp,Model=model_lab,MSE=out_mse) %>% 
+  slice(1:10)
+
+cbind(tab1,tab2) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Aggregate Out-of-Sample" = 3, "K-Fold Out-of-Sample" = 3))
+```
+
+The following figure depicts the observed and expected trend for the top
+4 models based on **aggregate out-of-sample** performance:
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  arrange(out_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_all,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+The following figure depicts the observed and expected trend for the top
+4 models based on **k-fold out-of-sample** performance:
+
+```{r, echo = FALSE, message=FALSE,warning=FALSE,out.width="100%"}
+kfold_mse_all %>% 
+  arrange(mean_mse) %>% 
+  slice(1:4) %>% 
+  inner_join(tibble(model=c("linear","quad","cube"),
+                    model_lab = c("Linear", "Quadratic", "Cubic")),
+             by = join_by(model)) %>% 
+  mutate(label = paste0(model_lab,": ",-cp, " days")) %>% 
+  inner_join(cp_fits_all,by = join_by(cp, model)) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis") 
+
+```
+
+
+
+The following table depicts the 10 best models for each trend, based on **aggregate
+out-of-sample** performance:
+
+```{r, echo = FALSE}
+tmp <- out_of_sample_mse_all %>% 
+  ungroup() %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+The following table depicts the 10 best models for each trend, based on **99-fold
+out-of-sample** performance:
+
+```{r, echo = FALSE}
+tmp <- kfold_mse_all %>% 
+  select(model,cp,out_mse = mean_mse) %>% 
+  group_by(model) %>% 
+  arrange(model,out_mse) %>% 
+  slice(1:10) %>% 
+  mutate(rank = 1:10,
+         cp = -cp) %>% 
+  ungroup()
+
+tmp_lin <- filter(tmp,model=="linear") %>% 
+  select(Rank = rank, Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_quad <- filter(tmp,model=="quad") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+tmp_cube <- filter(tmp,model=="cube") %>% 
+  select(Bound = cp,MSE = out_mse) %>% 
+  mutate(MSE = round(MSE,2)) %>% 
+  as.matrix()
+
+cbind(tmp_lin,tmp_quad,tmp_cube) %>% 
+  kable(align = 'c', booktabs = TRUE) %>% 
+  kable_styling(full_width = F) %>% 
+  add_header_above(c(" " = 1, "Linear" = 2, "Quadratic" = 2, "Cubic" = 2))
+
+```
+
+
+### Linear Models
+
+The following figure depicts the top 4 performing linear models based on
+out-of-sample MSE
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="linear") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Linear: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+### Quadratic Models
+
+The following figure depicts the top 4 performing quadratic models based
+on out-of-sample MSE
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="quad") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Quadratic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
+### Cubic Models
+
+The following figure depicts the top 4 performing cubic models based on
+out-of-sample MSE
+
+```{r, echo = FALSE, out.width="100%"}
+filter(tmp,model=="cube") %>% 
+  filter(rank<=4) %>% 
+  mutate(cp = -cp) %>% 
+  inner_join(cp_fits_all, by = join_by(cp, model)) %>%
+  mutate(label = paste0("Cubic: ",-cp," days - MSE: ",round(out_mse,2))) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_point(size = 0.8) +
+  geom_line(aes(y=combined), color = "blue", size = 0.7) +
+  geom_line(aes(y=expected), color = "red", size = 0.7) +
+  geom_vline(aes(xintercept = -cp), linetype = 2) +
+  facet_wrap(~label) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Number of Patients") +
+  xlab("Days Before Diagnosis")
+```
+
