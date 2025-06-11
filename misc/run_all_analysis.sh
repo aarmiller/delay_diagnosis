@@ -479,3 +479,10 @@ qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh meningitis
 qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh pd
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh pd
 qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh pd
+
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh als
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh als
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh mg
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh mg
