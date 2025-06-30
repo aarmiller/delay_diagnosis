@@ -486,3 +486,46 @@ qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh als
 
 qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh mg
 qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh mg
+
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh measles
+# qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh measles
+
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh bronchiectasis
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh bladder_cancer
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh bladder_cancer
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh bladder_cancer
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh bladder_cancer
+qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh bladder_cancer
+qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh bladder_cancer
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh bladder_cancer
+
+
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh sporotrichosis
+# qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh sporotrichosis
+# qsub github/delay_diagnosis/build_scripts/jobs/get_change_points.sh sporotrichosis
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_any.sh sporotrichosis
+# qsub github/delay_diagnosis/build_scripts/jobs/get_delay_res_ssd.sh sporotrichosis
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_report.sh sporotrichosis
+qsub github/delay_diagnosis/build_scripts/jobs/run_risk_models.sh sporotrichosis
+
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh epidural_abs
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh meningitis
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh endocarditis
+
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh meningitis
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh endocarditis
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh epidural_abs
+
+# qsqsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh long_covid
+# qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh long_covid
+# qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh long_covid
+# qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh long_covid
+qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh long_covid
+
