@@ -1,58 +1,40 @@
 
-
+db <- src_sqlite("/Shared/AML/truven_extracts/small_dbs/blasto/blasto.db")
 db <- src_sqlite("~/Data/MarketScan/truven_extracts/small_dbs/blasto/blasto.db")
 
 tmp <- codeBuildr::load_disease_codes("blasto",return_tibble = TRUE)
 
+# collect blasto diagnoses
 blasto_dx <- db %>% 
   tbl("all_dx_visits") %>% 
   inner_join(tmp, copy = TRUE) %>% 
   collect()
 
-blasto_dx %>% 
-  group_by(patient_id) %>% 
-  summarise(index_dx = min(date))
-
-
-blasto_dx %>% 
-  group_by(patient_id) %>% 
-  summarise(index_dx = min(date)) %>% 
-  inner_join(blasto_dx) %>% 
-  filter(index_dx==date) %>% 
-  filter(inpatient==1)
-
-
-blasto_dx %>% 
-  group_by(patient_id) %>% 
-  summarise(index_dx = min(date)) %>% 
-  inner_join(blasto_dx) %>% 
-  filter(date>=index_dx & date<=(index_dx+30)) %>% 
-  filter(inpatient==1)
-
-
+# blasto SSDs
 ssd_codes <- codeBuildr::load_ssd_codes("blasto") %>% 
   mutate(dx_ver = ifelse(type == "icd9", 9L, 10L)) %>% 
   select(dx = code, dx_ver)
 
-
+# SSD visits
 ssd_vis <- db %>% 
   tbl("all_dx_visits") %>% 
   inner_join(ssd_codes, copy = TRUE) %>% 
   filter(between(days_since_index,-365,-1)) %>% 
   collect()
 
-
-
+# ids with sufficient enrollment
 include_ids <- db %>% 
   tbl("index_dx_dates") %>% 
   collect() %>% 
   filter(time_before_index>=365)
 
-outpatient_ssd_days <- ssd_vis %>% 
-  filter(inpatient==0) %>% 
+outpatient_ssd_days <- ssd_vis %>%
+  filter(inpatient==0) %>%
   distinct(patient_id,days_since_index)
 
-admission_window <- 30
+# window used for defining index inpatient admission (time between first blasto 
+# diagnoisis and subsequent blasto admission)
+admission_window <- 7
 
 admitted_cases <- blasto_dx %>% 
   group_by(patient_id) %>% 
@@ -62,7 +44,6 @@ admitted_cases <- blasto_dx %>%
   filter(inpatient==1) %>% 
   distinct(patient_id) %>% 
   mutate(inpatient=1L)
-
 
 cases <- select(include_ids,patient_id,index_date) %>% 
   left_join(admitted_cases) %>% 
@@ -124,6 +105,32 @@ case_counts <- tibble(window = c(0,7,14,21,30)) %>%
   mutate(res = map(window,count_cases)) %>% 
   unnest(res)
 
+case_counts
 
-case_counts %>% 
-  write_csv("~/Downloads/case_counts.csv")
+
+## final cases to include
+
+inpatient_cases <- blasto_dx %>% 
+  group_by(patient_id) %>% 
+  summarise(index_dx = min(date)) %>% 
+  inner_join(blasto_dx) %>% 
+  filter(date>=index_dx & date<=(index_dx+7)) %>% 
+  filter(inpatient==1) %>% 
+  distinct(patient_id) %>% 
+  inner_join(select(include_ids,patient_id))
+
+indeterminite_cases <- blasto_dx %>% 
+  group_by(patient_id) %>% 
+  summarise(index_dx = min(date)) %>% 
+  inner_join(blasto_dx) %>% 
+  filter(date>index_dx+7 & date<=(index_dx+30)) %>% 
+  filter(inpatient==1) %>% 
+  distinct(patient_id) %>% 
+  anti_join(inpatient_cases) %>% 
+  inner_join(select(include_ids,patient_id))
+
+outpatient_cases <- select(include_ids,patient_id) %>% 
+  anti_join(inpatient_cases) %>% 
+  anti_join(indeterminite_cases)
+
+

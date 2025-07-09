@@ -412,7 +412,7 @@ run_trial_weekly <- function(){
 #   scale_x_reverse() +
 #   facet_wrap(~name, scales = "free_y")
 
-boot_res <- tibble(trial = 1:500) %>% 
+boot_res <- tibble(trial = 1:1000) %>% 
   mutate(res = map(trial,~run_trial_weekly()))
 
 boot_res <- boot_res %>% 
@@ -425,8 +425,58 @@ boot_res <- boot_res %>%
 agg_boot_res <- boot_res %>% 
   group_by(model,period,name) %>% 
   summarise(mean_fit = mean(pred),
-            hi95_fit = quantile(pred,probs = 0.95)) %>% 
+            hi_fit = quantile(pred,probs = 0.975),
+            lo_fit = quantile(pred,probs = 0.025)) %>% 
   ungroup()
+
+# count of excess antibiotics
+excess_res1 <- agg_boot_res %>% 
+  left_join(abx_counts_name_weekly) %>% 
+  filter(period<=weekly_cp) %>% 
+  mutate(excess = n-mean_fit,
+            excess_high = n-lo_fit,
+            excess_low = n-hi_fit) %>% 
+  group_by(model,name) %>% 
+  summarise(excess = sum(excess),
+            excess_low = sum(excess_low),
+            excess_high = sum(excess_high)) %>% 
+  mutate_at(vars(excess:excess_high),~round(.,2)) %>% 
+  mutate(out = paste0(excess, " (", excess_low,", ",excess_high,")")) %>% 
+  select(name,model,out) %>% 
+  spread(key = model,value = out) %>% 
+  select(abx = name, lm, quad, cubic) %>% 
+  filter(abx!="total")
+
+# percent of antibiotics before that were in excess
+tmp1 <- agg_boot_res %>% 
+  left_join(abx_counts_name_weekly) %>% 
+  filter(period<=weekly_cp) %>% 
+  mutate(excess = n-mean_fit,
+         excess_high = n-lo_fit,
+         excess_low = n-hi_fit) %>% 
+  group_by(model,name) %>% 
+  summarise(excess = sum(excess),
+            excess_low = sum(excess_low),
+            excess_high = sum(excess_high)) %>% 
+  ungroup()
+
+excess_res2 <- abx_counts_name_weekly %>% 
+  filter(period<=weekly_cp) %>% 
+  group_by(name) %>% 
+  summarise(total_abx = sum(n)) %>% 
+  inner_join(tmp1) %>% 
+  gather(key = key,value = value, -name, -total_abx, -model) %>% 
+  mutate(frac = round(100*value/total_abx,2)) %>% 
+  select(-value) %>% 
+  spread(key = key, value =frac) %>% 
+  mutate(out = paste0(excess, " (", excess_low,", ",excess_high,")")) %>% 
+  select(name,model,out) %>% 
+  spread(key = model,value = out) %>% 
+  select(abx = name, lm, quad, cubic)
+
+excess_res1
+excess_res2
+
 
 ## linear model results --------------------------------------------------------
 tmp1 <- bind_rows(abx_counts_name_weekly,
@@ -436,188 +486,346 @@ tmp1 <- bind_rows(abx_counts_name_weekly,
 tmp2 <- select(filter(boot_res,model == "lm"),trial,name,period,pred) %>% 
   inner_join(tmp1) 
 
-tmp2 %>% 
-  mutate(excess = ifelse(n>hi95_fit & week <= weekly_cp,
-                         TRUE,FALSE)) %>% 
-  ggplot(aes(period,n)) +
-  geom_point(aes(color = excess)) +
-  scale_colour_manual(values = c("black","red")) +
-  scale_x_reverse() +
-  geom_line(aes(period, pred, group = trial), color = "blue", alpha = 0.1) +
-  geom_line(aes(period, hi95_fit), color = "red") +
-  facet_wrap(~name, scales = "free_y") +
-  theme_bw() +
-  theme(legend.position = "none") 
-
 bind_rows(abx_counts_name_weekly,
           mutate(abx_counts_total_weekly,name = "total")) %>% 
   inner_join(filter(agg_boot_res,model == "lm")) %>% 
-  mutate(excess = ifelse(n>hi95_fit & week <= weekly_cp,
-                         TRUE,FALSE)) %>% 
+  mutate(delay_window = period<=weekly_cp) %>% 
   ggplot(aes(period,n)) +
-  geom_point(aes(color = excess)) +
+  geom_point(aes(color = delay_window)) +
   scale_colour_manual(values = c("black","red")) +
   scale_x_reverse() +
-  geom_line(aes(period, hi95_fit), color = "red") +
+  geom_line(aes(period, mean_fit), color = "blue") +
+  geom_line(aes(period, hi_fit), color = "blue", linetype = 2) +
+  geom_line(aes(period, lo_fit), color = "blue", linetype = 2) +
+  facet_wrap(~name, scales = "free_y") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  geom_vline(aes(xintercept = weekly_cp), linetype = 2) +
+  xlab("Weeks Before Diagnosis") +
+  ylab("Number of Antibiotic Prescriptions")
+  
+
+bind_rows(abx_counts_name_weekly) %>% 
+  inner_join(filter(agg_boot_res,model == "lm")) %>% 
+  mutate(delay_window = period<=weekly_cp) %>% 
+  ggplot(aes(period,n)) +
+  geom_point(aes(color = delay_window)) +
+  scale_colour_manual(values = c("black","red")) +
+  scale_x_reverse() +
+  geom_ribbon(aes(ymin = lo_fit,ymax = hi_fit, alpha = 0.1)) +
   geom_line(aes(period, mean_fit), color = "blue") +
   facet_wrap(~name, scales = "free_y") +
   theme_bw() +
   theme(legend.position = "none") +
-  geom_vline(aes(xintercept = weekly_cp), linetype = 2)
-  
+  geom_vline(aes(xintercept = weekly_cp), linetype = 2) +
+  xlab("Weeks Before Diagnosis") +
+  ylab("Number of Antibiotic Prescriptions")
 
-tmp1 %>% 
-  mutate(excess_hi = n-hi95_fit,
-         excess_mean = n-mean_fit) %>% 
+bind_rows(abx_counts_name_weekly) %>% 
+  inner_join(filter(agg_boot_res,model == "lm")) %>% 
+  mutate(excess = n-mean_fit,
+         excess_high = n-lo_fit,
+         excess_low = n-hi_fit) %>% 
   filter(period<=weekly_cp) %>% 
-  group_by(name) %>% 
-  summarise(excess_hi = sum(excess_hi),
-            excess_mean = sum(excess_mean))
-
-# proportion of each antibiotic that is in excess
-# note this shows why we can simply draw at random
-tmp1 %>% 
-  mutate(excess_hi = n-hi95_fit,
-         excess_mean = n-mean_fit) %>% 
-  filter(period<=weekly_cp) %>% 
-  mutate(excess_frac = excess_mean/n) %>% 
-  ggplot(aes(period,excess_frac)) +
+  ggplot(aes(period,excess)) +
   geom_point() +
+  geom_pointrange(aes(ymin = excess_low,ymax = excess_high)) +
+  facet_wrap(~name) +
+  scale_x_reverse() +
+  theme_bw() +
   facet_wrap(~name, scales = "free_y") +
-  scale_x_reverse() +
-  theme_bw() +
+  geom_hline(aes(yintercept = 0), linetype = 2) +
   xlab("Weeks Before Diagnosis") +
-  ylab("Fraction of prescriptions in excess")
+  ylab("Estimated Number of Excess Antibiotics")
 
-# Fraction of antibiotics prescribed by class
-tmp1 %>% 
-  filter(name != "total") %>% 
-  group_by(week) %>% 
-  mutate(total = sum(n)) %>% 
-  mutate(abx_frac = 100*n/total) %>% 
-  ggplot(aes(period,abx_frac)) +
-  geom_line() +
-  scale_x_reverse() +
-  facet_wrap(~name) +
-  ylab("Fraction of Antibiotics Prescribed") +
-  theme_bw() +
-  xlab("Weeks Before Diagnosis")
+################################
+#### Simulate Excess Visits ####
+################################
 
-## What we should be drawing
+weekly_vis <- final_abx_visits %>% 
+  select(patient_id,name,week) %>% 
+  group_by(name,week) %>% 
+  nest() %>% 
+  ungroup()
 
-tmp1 %>% 
-  mutate(excess_hi = n-hi95_fit,
-         excess_mean = n-mean_fit) %>%
-  filter(period<=weekly_cp)  %>% 
-  select(name,week,period,n,excess_mean) %>% 
-  filter(name != "total") %>% 
-  group_by(week) %>% 
-  mutate(draw_total = sum(excess_mean)) %>% 
-  mutate(frac_draw = 100*excess_mean/draw_total) %>% 
-  ggplot(aes(period,frac_draw)) +
-  geom_point() +
-  facet_wrap(~name) +
-  scale_x_reverse() +
-  theme_bw() +
-  xlab("Weeks Before Diagnosis") +
-  ylab("Fraction of prescriptions in excess")
+abx_counts_name_weekly %>% 
+  filter(name == "metronidazole",
+         week == 3)
 
+final_abx_visits %>% 
+  filter(name == "metronidazole",
+         week == 3)
 
-bind_rows(tmp1 %>% 
-            filter(name != "total") %>% 
-            group_by(week) %>% 
-            mutate(total = sum(n)) %>% 
-            mutate(frac = 100*n/total) %>% 
-            select(name,period,frac) %>% 
-            ungroup() %>% 
-            mutate(group = "abx_frac"),
-          tmp1 %>% 
-            mutate(excess_hi = n-hi95_fit,
-                   excess_mean = n-mean_fit) %>%
-            filter(period<=weekly_cp)  %>% 
-            select(name,week,period,n,excess_mean,excess_hi) %>% 
-            filter(name != "total") %>% 
-            group_by(week) %>% 
-            # mutate(draw_total = sum(excess_mean)) %>% 
-            # mutate(frac_draw = 100*excess_mean/draw_total) %>% 
-            mutate(draw_total = sum(excess_hi)) %>% 
-            mutate(frac_draw = 100*excess_hi/draw_total) %>% 
-            select(name,period,frac = frac_draw) %>% 
-            mutate(group = "draw_frac")) %>% 
-  filter(period<=weekly_cp) %>% 
-  ggplot(aes(period,frac,color =group)) +
-  geom_point() +
-  scale_x_reverse() +
-  facet_wrap(~name, scale = "free_y") +
-  theme_bw()
-
-
-
-############ Exploratory ###########
-
-
-tmp_excess <- tmp1 %>% 
-  mutate(excess_hi = n-hi95_fit,
-         excess_mean = n-mean_fit) %>% 
-  filter(period<=weekly_cp) %>% 
-  select(name,week,excess = excess_mean) %>% 
-  mutate(excess = ifelse(excess<0, 0, round(excess)))
-
-
-sim_visits <- function(excess_counts){
-  tmp <- final_abx_visits %>% 
-    group_by(name,week) %>% 
-    nest() %>% 
-    ungroup() %>% 
+draw_excess <- function(excess_counts){
+  weekly_vis %>% 
     inner_join(excess_counts,by = join_by(name, week)) %>% 
-    mutate(data = map2(data,excess,~sample_n(.x,size = .y,replace = FALSE))) %>% 
-    select(name,week,data) %>% 
-    unnest(data) 
-  
-  out1 <- tmp %>% 
-    summarise(n_pat = n_distinct(patient_id),
-              n_abx = n())
-  
-  out2 <- tmp %>%  
-    group_by(name) %>% 
-    summarise(n_pat = n_distinct(patient_id),
-              n_abx = n())
-  
-  return(list(out1,
-              out2))
+    mutate(excess = map2(data,excess,~sample_n(.x, size =.y, replace = FALSE))) %>% 
+    select(name,week,excess) %>% 
+    unnest(excess)
 }
 
-sim_visits(tmp_excess)
+compute_excess_stats <- function(excess_draw_data){
+  tmp1 <- excess_draw_data %>% 
+    summarise(n_excess_abx_patients = n_distinct(patient_id))
+  
+  tmp2 <- excess_draw_data %>% 
+    group_by(name) %>% 
+    summarise(n_excess_patients = n_distinct(patient_id))
+  
+  tmp3 <- index_dates %>% 
+    distinct(patient_id) %>% 
+    left_join(excess_draw_data %>% 
+                count(patient_id,name = "n_excess"),
+              by = join_by(patient_id)) %>% 
+    mutate(n_excess = replace_na(n_excess,0L)) %>% 
+    count(n_excess)
+  
+  tmp4 <- index_dates %>% 
+    distinct(patient_id) %>% 
+    left_join(excess_draw_data %>% 
+                count(patient_id,name = "n_excess"),
+              by = join_by(patient_id)) %>% 
+    mutate(n_excess = replace_na(n_excess,0L)) %>% 
+    summarise(mean_excess = mean(n_excess))
+  
+  tmp5 <- excess_draw_data %>% 
+    count(patient_id,name = "n_excess") %>% 
+    summarise(mean_excess = mean(n_excess))
+  
+  
+  out <- list(n_excess_abx_patients = tmp1,
+              n_excess_patients_by_type = tmp2,
+              n_excess_abx_by_patient = tmp3,
+              mean_excess_per_patient_all = tmp4,
+              mean_excess_per_excess_patient = tmp5)
+  
+  return(out)
+}
+
+#### Simulate Excess Visits - Linear -------------------------------------------
+
+# pull out lm results
+tmp <- boot_res %>% 
+  filter(model == "lm") %>% 
+  filter(period<=weekly_cp) %>% 
+  filter(name!="total") %>% 
+  select(trial,name,week = period,pred) %>% 
+  inner_join(select(abx_counts_name_weekly,name,week,n),join_by(name, week)) %>% 
+  mutate(excess = round(n-pred,0)) %>% 
+  mutate(excess = ifelse(excess<0, 0, round(excess))) %>% 
+  select(trial,week,name,excess) %>% 
+  group_by(trial) %>% 
+  nest()
+
+# compute excess stats
+tmp_excess <- tmp %>% 
+  mutate(excess = map(data,draw_excess)) %>% 
+  mutate(excess_stats = map(excess,compute_excess_stats))
 
 
-sim_vis_res <- tibble(trial = 1:100) %>% 
-  mutate(res = map(trial,~sim_visits(tmp_excess)))
 
-sim_vis_res <- sim_vis_res %>% 
-  mutate(out1 = map(res,~.[[1]])) %>% 
-  mutate(out2 = map(res,~.[[2]])) %>% 
-  select(trial,out1,out2)
+## aggregate final counts
 
-sim_vis_res %>% 
-  select(trial,out1) %>% 
-  unnest(out1) %>% 
-  summarise(n_pat_mean = mean(n_pat),
-            n_pat_lo = quantile(n_pat,probs = 0.025),
-            n_pat_hi = quantile(n_pat,probs = 0.975))
+# number of patients with excess abx
+n_excess_patients <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_abx_patients)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(n_excess_patients = mean(n_excess_abx_patients),
+            n_excess_patients_lo = quantile(n_excess_abx_patients, probs = 0.025),
+            n_excess_patients_hi = quantile(n_excess_abx_patients, probs = 0.975))
 
+# fraction of patients with excess abx
+frac_excess_patients <- n_excess_patients %>% 
+  mutate_all(~100*(./nrow(index_dates)))
 
-
-## Compute excess using expected from each trial --------
-
-tmp2 %>% 
-  filter(week<=weekly_cp) %>% 
-  mutate(excess = n-pred) %>% 
-  group_by(trial,name) %>% 
-  summarise(excess = sum(excess)) %>% 
+# number of patients with excess abx by type
+n_excess_patients_by_type <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_patients_by_type)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
   group_by(name) %>% 
-  summarise(mean_excess = mean(excess),
-            lo_excess = quantile(excess,probs = 0.025),
-            high_excess = quantile(excess,probs = 0.975))
+  summarise(n_excess_patients_lo = quantile(n_excess_patients, probs = 0.025),
+            n_excess_patients_hi = quantile(n_excess_patients, probs = 0.975),
+            n_excess_patients = mean(n_excess_patients)) %>% 
+  select(name,n_excess_patients,everything())
 
+# fraction of patients with excess abx by type
+frac_excess_patients_by_type <- n_excess_patients_by_type %>% 
+  mutate_at(vars(n_excess_patients:n_excess_patients_hi),~100*(./nrow(index_dates)))
+
+# count of number of excess antibiotics by patient
+tmp <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_abx_by_patient)) %>% 
+  select(trial,res) %>% 
+  unnest(res)
+
+tmp_span <-  select(tmp_excess,trial) %>% 
+  mutate(n_excess = map(trial,~0:max(tmp$n_excess))) %>% 
+  unnest(n_excess)
+
+n_excess_abx_by_patient_count <- tmp_span %>% 
+  left_join(tmp) %>% 
+  mutate(n = replace_na(n,0L)) %>% 
+  group_by(n_excess) %>% 
+  summarise(n_mean = mean(n),
+            n_lo = quantile(n,probs = 0.025),
+            n_hi = quantile(n,probs = 0.975))
+
+tmp_excess
+
+# mean number of excess antibiotics by patient across all patients
+mean_excess_per_patient_all <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$mean_excess_per_patient_all)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(mean_excess_per_patient = mean(mean_excess),
+            mean_excess_per_patient_lo = quantile(mean_excess, probs = 0.025),
+            mean_excess_per_patient_hi = quantile(mean_excess, probs = 0.975))
+
+# mean number of excess antibiotics by patient across patients with excess
+mean_excess_per_excess_patient <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$mean_excess_per_excess_patient)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(mean_excess_per_patient = mean(mean_excess),
+            mean_excess_per_patient_lo = quantile(mean_excess, probs = 0.025),
+            mean_excess_per_patient_hi = quantile(mean_excess, probs = 0.975))
+
+## Aggregate stats
+
+lm_stats <- list(n_excess_patients = n_excess_patients,
+                 frac_excess_patients = frac_excess_patients,
+                 n_excess_patients_by_type = n_excess_patients_by_type,
+                 frac_excess_patients_by_type = frac_excess_patients_by_type,
+                 n_excess_abx_by_patient_count = n_excess_abx_by_patient_count,
+                 mean_excess_per_patient_all = mean_excess_per_patient_all,
+                 mean_excess_per_excess_patient = mean_excess_per_excess_patient)
+
+
+#### Simulate Excess Visits - Quadratic ----------------------------------------
+
+# pull out lm results
+tmp <- boot_res %>% 
+  filter(model == "quad") %>% 
+  filter(period<=weekly_cp) %>% 
+  filter(name!="total") %>% 
+  select(trial,name,week = period,pred) %>% 
+  inner_join(select(abx_counts_name_weekly,name,week,n),join_by(name, week)) %>%
+  mutate(excess = ifelse(pred<0,n,round(n-pred))) %>% 
+  mutate(excess = ifelse(excess<0, 0, excess)) %>% 
+  select(trial,week,name,excess) %>% 
+  group_by(trial) %>% 
+  nest()
+
+# compute excess stats
+tmp_excess <- tmp %>% 
+  mutate(excess = map(data,draw_excess)) %>% 
+  mutate(excess_stats = map(excess,compute_excess_stats))
+
+tmp %>% 
+  unnest(data) %>% 
+  ungroup() %>% 
+  inner_join(tmp2) %>% 
+  filter(excess > avail_draw_count)
+
+tmp2 <- weekly_vis %>% 
+  mutate(avail_draw_count = map_int(data,~nrow(.))) %>% 
+  select(name,week,avail_draw_count)
+
+
+select(abx_counts_name_weekly,name,week,n) %>% 
+  filter(week == 3)
+
+weekly_vis %>% 
+  filter(name == "metronidazole") %>% 
+  filter(week == 3)
+
+
+
+
+## aggregate final counts
+
+# number of patients with excess abx
+n_excess_patients <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_abx_patients)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(n_excess_patients = mean(n_excess_abx_patients),
+            n_excess_patients_lo = quantile(n_excess_abx_patients, probs = 0.025),
+            n_excess_patients_hi = quantile(n_excess_abx_patients, probs = 0.975))
+
+# fraction of patients with excess abx
+frac_excess_patients <- n_excess_patients %>% 
+  mutate_all(~100*(./nrow(index_dates)))
+
+# number of patients with excess abx by type
+n_excess_patients_by_type <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_patients_by_type)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  group_by(name) %>% 
+  summarise(n_excess_patients_lo = quantile(n_excess_patients, probs = 0.025),
+            n_excess_patients_hi = quantile(n_excess_patients, probs = 0.975),
+            n_excess_patients = mean(n_excess_patients)) %>% 
+  select(name,n_excess_patients,everything())
+
+# fraction of patients with excess abx by type
+frac_excess_patients_by_type <- n_excess_patients_by_type %>% 
+  mutate_at(vars(n_excess_patients:n_excess_patients_hi),~100*(./nrow(index_dates)))
+
+# count of number of excess antibiotics by patient
+tmp <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$n_excess_abx_by_patient)) %>% 
+  select(trial,res) %>% 
+  unnest(res)
+
+tmp_span <-  select(tmp_excess,trial) %>% 
+  mutate(n_excess = map(trial,~0:max(tmp$n_excess))) %>% 
+  unnest(n_excess)
+
+n_excess_abx_by_patient_count <- tmp_span %>% 
+  left_join(tmp) %>% 
+  mutate(n = replace_na(n,0L)) %>% 
+  group_by(n_excess) %>% 
+  summarise(n_mean = mean(n),
+            n_lo = quantile(n,probs = 0.025),
+            n_hi = quantile(n,probs = 0.975))
+
+tmp_excess
+
+# mean number of excess antibiotics by patient across all patients
+mean_excess_per_patient_all <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$mean_excess_per_patient_all)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(mean_excess_per_patient = mean(mean_excess),
+            mean_excess_per_patient_lo = quantile(mean_excess, probs = 0.025),
+            mean_excess_per_patient_hi = quantile(mean_excess, probs = 0.975))
+
+# mean number of excess antibiotics by patient across patients with excess
+mean_excess_per_excess_patient <- tmp_excess %>% 
+  mutate(res = map(excess_stats,~.$mean_excess_per_excess_patient)) %>% 
+  select(trial,res) %>% 
+  unnest(res) %>% 
+  ungroup() %>% 
+  summarise(mean_excess_per_patient = mean(mean_excess),
+            mean_excess_per_patient_lo = quantile(mean_excess, probs = 0.025),
+            mean_excess_per_patient_hi = quantile(mean_excess, probs = 0.975))
+
+## Aggregate stats
+
+lm_stats <- list(n_excess_patients = n_excess_patients,
+                 frac_excess_patients = frac_excess_patients,
+                 n_excess_patients_by_type = n_excess_patients_by_type,
+                 frac_excess_patients_by_type = frac_excess_patients_by_type,
+                 n_excess_abx_by_patient_count = n_excess_abx_by_patient_count,
+                 mean_excess_per_patient_all = mean_excess_per_patient_all,
+                 mean_excess_per_excess_patient = mean_excess_per_excess_patient)
 
 
