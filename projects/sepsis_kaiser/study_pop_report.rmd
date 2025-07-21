@@ -1,0 +1,504 @@
+---
+title: "Study Population Summary"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+output: html_document
+params:
+  cond:
+    value: x
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+      echo    = FALSE
+    , warning = FALSE
+    , message = FALSE
+)
+
+library(tidyverse)
+library(bit64)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+
+# params <- list()
+# params$cond <- "dengue"
+
+```
+
+
+
+```{r, echo = FALSE}
+# Get index cases for delay window [14,0) ######################################
+# load final delay param
+cond_name <- "sepsis_kaiser_cp_14"
+load("/Shared/AML/params/final_delay_params_kaiser.RData")
+delay_params <- final_delay_params[[cond_name]]
+
+if (!dir.exists(delay_params$out_path)) {
+  dir.create(delay_params$out_path, recursive = T)
+}
+
+## Build the primary index_dx_visits -------------------------------------------
+# Connect to blasto DB
+db <- src_sqlite(list.files(delay_params$small_db_path, full.names = T))
+
+# Collect index dates
+index_dx_dates <- tbl(db,"index_dx_dates") %>% collect()
+
+# Set enrollment minimum
+enroll_min <- delay_params$upper_bound
+
+# Filter to enrollees with sufficient enrollment time
+index_dx_dates <- index_dx_dates %>%
+  filter(time_before_index>=enroll_min)
+
+index_cases <- index_dx_dates %>% 
+  select(patient_id,index_date) %>% 
+  mutate(shift=0L)
+
+# Need to remove if index occur in non AV, ED, IP, or IS visit 282  patients
+
+index_occured_other_vis <- tbl(db,"all_dx_visits") %>% 
+  filter(days_since_index ==0) %>% 
+  filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>%
+  collect() %>% 
+  inner_join(index_cases) %>% 
+  group_by(patient_id) %>% 
+  summarise(test = sum(encounter_type %in% c("ED", "AV", "IP","IS"))  ==0) %>% 
+  filter(test>0)
+
+# 7 LO = Lab only
+# 221 OE=Other Encounters
+# 2 RO = Radiology only
+# 175 VC= Virtual Care
+
+# tbl(db,"all_dx_visits") %>% 
+#   filter(days_since_index ==0) %>% 
+#   collect() %>% 
+#   inner_join(index_occured_other_vis) %>% 
+#   filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>% 
+#   distinct(patient_id, encounter_type) %>% 
+#   count(encounter_type) 
+
+index_cases <- index_cases %>% anti_join(index_occured_other_vis %>% distinct(patient_id))
+
+# Find patients where X% of their all visits from AV, ED, IP, or IS between 0-14 days prior have a temp reading and
+# Temp readings can only come from AV ED IP or IS encounter types
+
+# Load vital signs information and subset to enrollees with sufficient enrollment time
+vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/", str_remove(delay_params$cond_name, "_kaiser"), "/",
+                                           str_remove(delay_params$cond_name, "_kaiser"), "_vital_signs_12sep23final.sas7bdat"))
+
+vital_signs_info <- vital_signs_info %>% 
+  rename(patient_id = STUDYID) %>% 
+  inner_join(index_cases %>% select(patient_id, index_date), by = "patient_id") %>% 
+  mutate(days_since_index = as.numeric(measurement_date - index_date)) %>% 
+  filter(days_since_index <= 0 & days_since_index >= -delay_params$upper_bound )
+  
+# Filter to visit days with non-missing temp and encounter_type %in% c("AV", "ED", "IP", "IS")
+vital_signs_info <- vital_signs_info %>% 
+  filter(!is.na(temp)) %>% 
+  filter(encounter_type %in%  c("AV", "ED", "IP", "IS")) %>% 
+  distinct(patient_id, days_since_index) %>% 
+  mutate(temp_reading = 1)
+# anti_join(vital_signs_info, index_cases) check
+
+# load all_dx visits
+all_dx <- tbl(db,"all_dx_visits") %>% 
+  collect() %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift)
+# anti_join(all_dx, index_cases) check
+
+# subset to visits that did not come from other encounter type
+load(paste0(delay_params$base_path,"delay_results/delay_tm.RData"))
+tm <- tm %>%   
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+  mutate(days_since_index = days_since_index - shift) %>%
+  select(-shift) %>%
+  filter(days_since_index<=0) %>%
+  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
+
+all_dx <- all_dx %>% 
+  inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+# all_dx %>% distinct(patient_id, encounter_date, encounter_type) %>%  # check if we remove visits without AV, ED, IP, or IS
+#   mutate(ind = 1) %>% 
+#   pivot_wider(id_cols = c("patient_id", "encounter_date"),
+#               names_from = "encounter_type",
+#               values_from = ind) %>% 
+#   mutate(across(AV:LO, ~replace_na(., 0L))) %>% 
+#   filter(AV+ED+IP+IS ==0)
+
+temp1 <- all_dx %>% 
+  filter(days_since_index <= 0 & days_since_index >= -delay_params$cp+1) %>% 
+  distinct(patient_id, days_since_index)  
+# temp1 %>% distinct(patient_id) number of patients with at least 1 visit form AV, ED, IP, or IS during window [14,0] 
+# anti_join(temp1, index_cases) check
+
+temp2 <- temp1  %>%
+  left_join(vital_signs_info,
+            by = c("patient_id", "days_since_index") ) %>%
+  mutate(temp_reading = ifelse(is.na(temp_reading), 0L, 1L))
+
+percent_complete <- temp2 %>%
+  group_by(patient_id) %>%
+  summarise(percent = mean(temp_reading)*100) %>%
+  filter(percent>0)
+
+# alternative
+# temp2 <- temp1  %>% 
+#   left_join(vital_signs_info,
+#             by = c("patient_id", "days_since_index") ) %>% 
+#   mutate(temp_reading = ifelse(is.na(temp_reading), 0L, 1L)) %>%
+#   filter(temp_reading == 1) %>% 
+#   distinct(patient_id,days_since_index, temp_reading) 
+# 
+# percent_complete1 <- temp1 %>% 
+#   left_join(temp2,
+#             by = c("patient_id", "days_since_index")) %>% 
+#   mutate(temp_reading = ifelse(is.na(temp_reading), 0L, 1L)) %>% 
+#   count(patient_id, temp_reading) %>% 
+#   group_by(patient_id) %>% 
+#   mutate(percent = n/sum(n)*100) %>% 
+#   ungroup() %>% 
+#   filter(temp_reading == 1) 
+
+n_patients <- tibble('Percent of SSD visits in window with temp reading AND temp reading on index' = paste0(">=", seq(50, 100, by = 10), "%"),
+        n= sapply(seq(50, 100, by = 10), function(x){sum(percent_complete$percent >= x)}))
+
+names(n_patients)[2] <- paste0("Number of patients [", -1*(-delay_params$cp+1),", 0) delay window")
+
+# Filter to patient that had temp reading on index and 
+# 100% of their SSD visits during window also had temp reading
+
+study_pop <- percent_complete %>% 
+  filter(percent >= 80) %>% 
+  distinct(patient_id)
+# anti_join(study_pop, index_cases) check
+
+# subset all_dx
+all_dx <- all_dx %>% 
+  inner_join(study_pop)
+
+#load ssd codes
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9","09","10")) %>% 
+  select(dx = code,dx_ver)
+
+# all_dx %>% distinct(patient_id, days_since_index) %>% 
+#   count(days_since_index) %>% print(n = Inf)
+# 
+# all_dx %>% filter(days_since_index <0) %>% 
+#   distinct(patient_id)
+
+first_vis_index <- all_dx %>%
+  distinct(patient_id, days_since_index) %>% 
+  group_by(patient_id) %>% 
+  summarise(first_date = min(days_since_index)) %>% 
+  filter(first_date==0)
+
+# Load vital signs information and subset to enrollees with sufficient enrollment time
+vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/", str_remove(delay_params$cond_name, "_kaiser"), "/",
+                                           str_remove(delay_params$cond_name, "_kaiser"), "_vital_signs_12sep23final.sas7bdat"))
+
+vital_signs_info <- vital_signs_info %>% 
+  rename(patient_id = STUDYID) %>% 
+  inner_join(index_cases %>% select(patient_id, index_date), by = "patient_id") %>% 
+  mutate(days_since_index = as.numeric(measurement_date - index_date)) %>% 
+  filter(days_since_index <= 0 & days_since_index >= -delay_params$upper_bound )
+  
+vital_signs_info_w_temp <- vital_signs_info %>% 
+  filter(!is.na(temp)) %>% 
+  filter(encounter_type %in%  c("AV", "ED", "IP", "IS")) %>% 
+  group_by(patient_id, days_since_index) %>% 
+  summarise(temp = max(temp)) %>% 
+  ungroup()
+
+# Subset tm
+tm <- tm %>% 
+  inner_join(study_pop)
+
+
+```
+
+
+```{r, echo = FALSE}
+
+# visit counts
+visit_counts <- all_dx %>%
+  distinct(patient_id,dx_ver,days_since_index) %>%
+  count(dx_ver,days_since_index)
+
+# populate missing values in visit counts (i.e., assign 0 to days missing)
+visit_counts <- tibble(days_since_index=-delay_params$upper_bound:delay_params$upper_bound) %>%
+  mutate(dx_ver=map(days_since_index,~c("09","10"))) %>%
+  unnest(dx_ver) %>%
+  arrange(dx_ver,days_since_index) %>%
+  left_join(visit_counts,by = c("days_since_index", "dx_ver")) %>%
+  mutate(n = replace_na(n,0))
+
+tmp <- all_dx %>%
+  distinct(patient_id,days_since_index) %>%
+  count(days_since_index)
+
+visit_counts <- bind_rows(tmp,visit_counts %>%
+            filter(days_since_index<=0))
+
+bind_rows(all_dx %>% 
+            inner_join(ssd_codes) %>%
+            distinct(patient_id,days_since_index) %>% 
+            count(days_since_index) %>% 
+            mutate(group = "SSD Visits"),
+          visit_counts %>% 
+            filter(days_since_index<0) %>% 
+            filter(is.na(dx_ver)) %>% 
+            select(days_since_index,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  filter(days_since_index<0) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Visits") +
+  xlab("Days Before Diagnosis") +
+  geom_vline(aes(xintercept = delay_params$cp), linetype = 2) +
+  facet_wrap(~group, scales = "free_y")
+
+```
+
+In the 180-days prior to the index diagnosis, `r all_dx %>% filter(days_since_index <0) %>% distinct(patient_id) %>% nrow()` patients of the total `r nrow(study_pop)` patients had at least one healthcare visit prior to the index for any reason. Break down of visits that occurred prior to index:
+
+```{r, echo = FALSE}
+tm %>% 
+  filter(days_since_index <0) %>% 
+  summarise(outpatient = sum(outpatient),
+            inpatient = sum(inpatient),
+            ed = sum(ed),
+            other = sum(other))
+```
+
+There were `r first_vis_index %>% distinct(patient_id) %>% nrow()` patients whose first visit occurred on the index date. Of these patients whose first visit occurred on the index date, `r vital_signs_info_w_temp %>% inner_join(first_vis_index %>% rename(days_since_index=first_date)) %>% nrow()` had temperature reading on the index visit as well, with `r vital_signs_info_w_temp %>% inner_join(first_vis_index %>% rename(days_since_index=first_date)) %>% filter(temp>=100) %>% nrow()` (`r format(round(vital_signs_info_w_temp %>% inner_join(first_vis_index %>% rename(days_since_index=first_date)) %>% filter(temp>=100) %>% nrow() /nrow(vital_signs_info_w_temp %>% inner_join(first_vis_index %>% rename(days_since_index=first_date))) *100, 2), nsmall =2)`%) patients having a fever based on a temp >= 100F. 
+
+Break down of visits that occurred on index for individuals whose first visit occurred on the index date:
+
+```{r, echo = FALSE}
+tm %>% 
+  inner_join(first_vis_index) %>% 
+  filter(days_since_index==0) %>% 
+  summarise(outpatient = sum(outpatient),
+            inpatient = sum(inpatient),
+            ed = sum(ed),
+            other = sum(other)) %>% 
+  pivot_longer(everything(), names_to = "Setting", values_to = "n") %>% 
+  mutate(percent = format(round(n/sum(n) *100, 2), nsmall = 2))
+```
+
+Break down of visits that occurred on index for individuals whose first visit occurred on the index date and had a fever based on a temp >= 100F:
+
+```{r, echo = FALSE}
+tm %>% 
+  inner_join(vital_signs_info_w_temp %>% inner_join(first_vis_index %>% rename(days_since_index=first_date)) %>% filter(temp>=100) %>% distinct(patient_id) ) %>% 
+  filter(days_since_index==0) %>% 
+  summarise(outpatient = sum(outpatient),
+            inpatient = sum(inpatient),
+            ed = sum(ed),
+            other = sum(other)) %>% 
+  pivot_longer(everything(), names_to = "Setting", values_to = "n") %>% 
+  mutate(percent = format(round(n/sum(n) *100, 2), nsmall = 2))
+```
+
+Break down of visits that occurred on index for individuals who had visits prior to index:
+
+```{r, echo = FALSE}
+tm %>% 
+  anti_join(first_vis_index) %>% 
+  filter(days_since_index==0) %>% 
+  summarise(outpatient = sum(outpatient),
+            inpatient = sum(inpatient),
+            ed = sum(ed),
+            other = sum(other)) %>% 
+  pivot_longer(everything(), names_to = "Setting", values_to = "n") %>% 
+  mutate(percent = format(round(n/sum(n) *100, 2), nsmall = 2))
+```
+
+```{r, echo = FALSE}
+vis_prior_cp <- tm %>% 
+  filter(days_since_index< -14) %>% 
+  distinct(patient_id)
+
+vis_during_window <- tm %>% 
+  filter(days_since_index>= -14 & days_since_index<0) %>% 
+  distinct(patient_id)
+
+```
+
+There were `r nrow(vis_prior_cp)` patients that had a healthcare visit prior to the change-point of 14 days. However, there were only `r nrow(vis_during_window)` patients that had a healthcare visit during the delay window (i.e.,[-14, 0)). There were a total of `r tm %>% filter(days_since_index>= -14 & days_since_index<0) %>%   distinct(patient_id, days_since_index) %>% nrow() ` visit days during the delay window among the `r nrow(vis_during_window)` patients, of which `r format(round(tm %>% filter(days_since_index>= -14 & days_since_index<0) %>% distinct(patient_id, days_since_index) %>%  left_join(vital_signs_info_w_temp) %>% summarise(mean = mean(!is.na(temp))*100) %>% .$mean,2), nsmall = 2)`% of the visit days had a temperature reading. Among visit days with a temperature,  `r format(round(tm %>% filter(days_since_index>= -14 & days_since_index<0) %>% distinct(patient_id, days_since_index) %>%  left_join(vital_signs_info_w_temp) %>% filter(!is.na(temp)) %>% summarise(mean = mean(temp>=100)*100) %>% .$mean,2), nsmall = 2)`% had a fever reading of >=100F. 
+
+What do the curves look like for the 14,441 (21,075-6,643) patients enrolled for at least 180 days in Kaiser data with an index dx coming from encounter types
+AV, ED, IP, or IS that did not meet the selection criteria of >= 80% of visits in [14,0] window with temp reading
+
+
+```{r, echo = FALSE}
+# load all_dx visits
+all_dx <- tbl(db,"all_dx_visits") %>% 
+  collect() %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift)
+# anti_join(all_dx, index_cases) check
+
+# subset to visits that did not come from other encounter type
+load(paste0(delay_params$base_path,"delay_results/delay_tm.RData"))
+tm <- tm %>%   
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+  mutate(days_since_index = days_since_index - shift) %>%
+  select(-shift) %>%
+  filter(days_since_index<=0) %>%
+  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
+
+all_dx <- all_dx %>% 
+  inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+
+# Subset tm
+tm <- tm %>% 
+  anti_join(study_pop)
+
+all_dx <- all_dx %>% 
+  anti_join(study_pop)
+
+#load ssd codes
+ssd_codes <- codeBuildr::load_ssd_codes(delay_params$ssd_name) %>% 
+  filter(type %in% c("icd9","icd10")) %>% 
+  mutate(dx_ver = ifelse(type=="icd9","09","10")) %>% 
+  select(dx = code,dx_ver)
+
+# visit counts
+visit_counts <- all_dx %>%
+  distinct(patient_id,dx_ver,days_since_index) %>%
+  count(dx_ver,days_since_index)
+
+# populate missing values in visit counts (i.e., assign 0 to days missing)
+visit_counts <- tibble(days_since_index=-delay_params$upper_bound:delay_params$upper_bound) %>%
+  mutate(dx_ver=map(days_since_index,~c("09","10"))) %>%
+  unnest(dx_ver) %>%
+  arrange(dx_ver,days_since_index) %>%
+  left_join(visit_counts,by = c("days_since_index", "dx_ver")) %>%
+  mutate(n = replace_na(n,0))
+
+tmp <- all_dx %>%
+  distinct(patient_id,days_since_index) %>%
+  count(days_since_index)
+
+visit_counts <- bind_rows(tmp,visit_counts %>%
+            filter(days_since_index<=0))
+
+bind_rows(all_dx %>% 
+            inner_join(ssd_codes) %>%
+            distinct(patient_id,days_since_index) %>% 
+            count(days_since_index) %>% 
+            mutate(group = "SSD Visits"),
+          visit_counts %>% 
+            filter(days_since_index<0) %>% 
+            filter(is.na(dx_ver)) %>% 
+            select(days_since_index,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  filter(days_since_index<0) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Visits") +
+  xlab("Days Before Diagnosis") +
+  geom_vline(aes(xintercept = delay_params$cp), linetype = 2) +
+  facet_wrap(~group, scales = "free_y")
+
+
+```
+
+
+*Curves by cutoff*
+
+```{r, echo = FALSE}
+
+for (i in seq(0,100, by = 10)){
+# load all_dx visits
+all_dx <- tbl(db,"all_dx_visits") %>% 
+  collect() %>% 
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+  mutate(days_since_index = days_since_index - shift) %>% 
+  select(-shift)
+# anti_join(all_dx, index_cases) check
+
+# subset to visits that did not come from other encounter type
+load(paste0(delay_params$base_path,"delay_results/delay_tm.RData"))
+tm <- tm %>%   
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+  mutate(days_since_index = days_since_index - shift) %>%
+  select(-shift) %>%
+  filter(days_since_index<=0) %>%
+  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
+
+all_dx <- all_dx %>% 
+  inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+
+study_pop <- percent_complete %>% 
+  filter(percent >= i) %>% 
+  distinct(patient_id)
+
+# Subset tm
+tm <- tm %>% 
+  inner_join(study_pop)
+
+all_dx <- all_dx %>% 
+  inner_join(study_pop)
+
+# visit counts
+visit_counts <- all_dx %>%
+  distinct(patient_id,dx_ver,days_since_index) %>%
+  count(dx_ver,days_since_index)
+
+# populate missing values in visit counts (i.e., assign 0 to days missing)
+visit_counts <- tibble(days_since_index=-delay_params$upper_bound:delay_params$upper_bound) %>%
+  mutate(dx_ver=map(days_since_index,~c("09","10"))) %>%
+  unnest(dx_ver) %>%
+  arrange(dx_ver,days_since_index) %>%
+  left_join(visit_counts,by = c("days_since_index", "dx_ver")) %>%
+  mutate(n = replace_na(n,0))
+
+tmp <- all_dx %>%
+  distinct(patient_id,days_since_index) %>%
+  count(days_since_index)
+
+visit_counts <- bind_rows(tmp,visit_counts %>%
+            filter(days_since_index<=0))
+
+p <- bind_rows(all_dx %>% 
+            inner_join(ssd_codes) %>%
+            distinct(patient_id,days_since_index) %>% 
+            count(days_since_index) %>% 
+            mutate(group = "SSD Visits"),
+          visit_counts %>% 
+            filter(days_since_index<0) %>% 
+            filter(is.na(dx_ver)) %>% 
+            select(days_since_index,n) %>% 
+            mutate(group = "All Visits")) %>% 
+  filter(days_since_index<0) %>% 
+  ggplot(aes(-days_since_index,n)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_reverse() +
+  ylab("Number of Visits") +
+  xlab("Days Before Diagnosis") +
+  geom_vline(aes(xintercept = delay_params$cp), linetype = 2) +
+  facet_wrap(~group, scales = "free_y")+
+  ggtitle(paste0(">= ", i, '%'))
+
+print(p)
+}
+
+```

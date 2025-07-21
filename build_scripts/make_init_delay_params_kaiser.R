@@ -22,7 +22,7 @@
 
 
 delay_any_params <- list(sepsis_kaiser= list(path = "/Shared/AML/kaiser_data/sepsis/delay_data/",
-                                             ssd_name = "sepsis_revised10",
+                                             ssd_name = "sepsis_kaiser",
                                              cp = 14 + 1,
                                              cp_lower = NA,
                                              cp_upper = NA,

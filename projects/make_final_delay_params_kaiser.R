@@ -14,7 +14,7 @@
 final_delay_params <- list(sepsis_kaiser_cp_14= list(small_db_path = "/Shared/AML/kaiser_data/sepsis/delay_data/",
                                                      base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_kaiser/",  # base path to original prelim extract results
                                                      out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_kaiser/cp_14/",   # path to output delay new results
-                                                     ssd_name = "sepsis_revised10",
+                                                     ssd_name = "sepsis_kaiser",
                                                      cond_name = "sepsis_kaiser",
                                                      cp = 14+1,
                                                      upper_bound = 180,
@@ -28,7 +28,7 @@ final_delay_params <- list(sepsis_kaiser_cp_14= list(small_db_path = "/Shared/AM
                            sepsis_kaiser_cp_7 = list(small_db_path = "/Shared/AML/kaiser_data/sepsis/delay_data/",
                                                      base_path = "/Shared/Statepi_Diagnosis/prelim_results/sepsis_kaiser/",  # base path to original prelim extract results
                                                      out_path = "/Shared/Statepi_Diagnosis/projects/sepsis_kaiser/cp_7/",   # path to output delay new results
-                                                     ssd_name = "sepsis_revised10",
+                                                     ssd_name = "sepsis_kaiser",
                                                      cond_name = "sepsis_kaiser",
                                                      cp = 7+1,
                                                      upper_bound = 180,

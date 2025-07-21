@@ -53,6 +53,32 @@ index_cases <- index_dx_dates %>%
   select(patient_id,index_date) %>% 
   mutate(shift=0L)
 
+# Need to remove if index occur in non AV, ED, IP, or IS visit 282  patients
+
+index_occured_other_vis <- tbl(db,"all_dx_visits") %>% 
+  filter(days_since_index ==0) %>% 
+  filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>%
+  collect() %>% 
+  inner_join(index_cases) %>% 
+  group_by(patient_id) %>% 
+  summarise(test = sum(encounter_type %in% c("ED", "AV", "IP","IS"))==0) %>% 
+  filter(test>0)
+
+# 7 LO = Lab only
+# 221 OE=Other Encounters
+# 2 RO = Radiology only
+# 175 VC= Virtual Care
+
+tbl(db,"all_dx_visits") %>% 
+  filter(days_since_index ==0) %>% 
+  collect() %>% 
+  inner_join(index_occured_other_vis) %>% 
+  filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>% 
+  distinct(patient_id, encounter_type) %>% 
+  count(encounter_type) 
+
+index_cases <- index_cases %>% anti_join(index_occured_other_vis %>% distinct(patient_id))
+
 # Find patients where X% of their all visits from AV, ED, IP, or IS between 0-14 days prior have a temp reading and
 # Temp readings can only come from AV ED IP or IS encounter types
 
@@ -94,6 +120,26 @@ tm <- tm %>%
 
 all_dx <- all_dx %>% 
   inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+
+# #alternative
+# temp <- all_dx %>%
+#   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+#   mutate(days_since_index = days_since_index - shift) %>%
+#   select(-shift) %>%
+#   group_by(patient_id, days_since_index) %>%
+#   summarise(test = sum(encounter_type %in% c("ED", "AV", "IP","IS"))==0) %>%
+#   filter(test<1) %>%
+#   distinct() %>%
+#   filter(days_since_index>= -delay_params$upper_bound & days_since_index<=0)
+# 
+# temp %>% ungroup() %>%
+#   anti_join(tbl(db,"all_dx_visits") %>% 
+#               collect() %>% 
+#               inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+#               mutate(days_since_index = days_since_index - shift) %>% 
+#               select(-shift) %>%
+#               inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index"))%>%
+#               distinct(patient_id, days_since_index))
 # all_dx %>% distinct(patient_id, encounter_date, encounter_type) %>%  # check if we remove visits without AV, ED, IP, or IS
 #   mutate(ind = 1) %>% 
 #   pivot_wider(id_cols = c("patient_id", "encounter_date"),
@@ -115,8 +161,8 @@ temp2 <- temp1  %>%
 
 percent_complete <- temp2 %>%
   group_by(patient_id) %>%
-  summarise(percent = mean(temp_reading)*100) %>%
-  filter(percent>0)
+  summarise(percent = mean(temp_reading)*100,
+            N_vis_window = n())
 
 # alternative
 # temp2 <- temp1  %>% 
@@ -136,10 +182,15 @@ percent_complete <- temp2 %>%
 #   ungroup() %>% 
 #   filter(temp_reading == 1) 
 
-n_patients <- tibble('Percent of SSD visits in window with temp reading AND temp reading on index' = paste0(">=", seq(50, 100, by = 10), "%"),
-        n= sapply(seq(50, 100, by = 10), function(x){sum(percent_complete$percent >= x)}))
+n_patients <- tibble( v1 = paste0(">=", seq(0, 100, by = 10), "%"),
+        n= sapply(seq(0, 100, by = 10), function(x){sum(percent_complete$percent >= x)}),
+        n_vis = round(sapply(seq(0, 100, by = 10), function(x){mean(percent_complete$N_vis_window[percent_complete$percent >= x])}), 4))
 
-names(n_patients)[2] <- paste0("Number of patients [", -1*(-delay_params$cp+1),", 0) delay window")
+names(n_patients)[1] <-paste0('Percent of SSD visits in window with temp reading AND temp reading on index [', -1*(-delay_params$cp+1),",0]")
+names(n_patients)[2] <- paste0("Number of patients")
+names(n_patients)[3] <- paste0("Average number of visits per patient")
+
+# percent_complete %>% filter(percent>=0) %>% summarise(v1 = mean(percent), v2 = mean(N_vis_window), n())
 
 write_csv(n_patients,  file = paste0(delay_params$out, "study_population_counts.csv"))
 
@@ -147,7 +198,7 @@ write_csv(n_patients,  file = paste0(delay_params$out, "study_population_counts.
 # 100% of their SSD visits during window also had temp reading
 
 study_pop <- percent_complete %>% 
-  filter(percent >= 100) %>% 
+  filter(percent >= 80) %>% 
   distinct(patient_id)
 # anti_join(study_pop, index_cases) check
 
@@ -185,6 +236,32 @@ index_dx_dates <- index_dx_dates %>%
 index_cases <- index_dx_dates %>% 
   select(patient_id,index_date) %>% 
   mutate(shift=0L)
+
+# Need to remove if index occur in non AV, ED, IP, or IS visit 282  patients
+
+index_occured_other_vis <- tbl(db,"all_dx_visits") %>% 
+  filter(days_since_index ==0) %>% 
+  filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>%
+  collect() %>% 
+  inner_join(index_cases) %>% 
+  group_by(patient_id) %>% 
+  summarise(test = sum(encounter_type %in% c("ED", "AV", "IP","IS"))==0) %>% 
+  filter(test>0)
+
+# 7 LO = Lab only
+# 221 OE=Other Encounters
+# 2 RO = Radiology only
+# 175 VC= Virtual Care
+
+tbl(db,"all_dx_visits") %>% 
+  filter(days_since_index ==0) %>% 
+  collect() %>% 
+  inner_join(index_occured_other_vis) %>% 
+  filter(dx %in% codeBuildr::children10(c("A40", "A41", "R652"))) %>% 
+  distinct(patient_id, encounter_type) %>% 
+  count(encounter_type) 
+
+index_cases <- index_cases %>% anti_join(index_occured_other_vis %>% distinct(patient_id))
 
 # Find patients where X% of their all visits from AV, ED, IP, or IS between 0-14 days prior have a temp reading and
 # Temp readings can only come from AV ED IP or IS encounter types
@@ -227,6 +304,25 @@ tm <- tm %>%
 
 all_dx <- all_dx %>% 
   inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+# #alternative
+# temp <- all_dx %>%
+#   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+#   mutate(days_since_index = days_since_index - shift) %>%
+#   select(-shift) %>%
+#   group_by(patient_id, days_since_index) %>%
+#   summarise(test = sum(encounter_type %in% c("ED", "AV", "IP","IS"))==0) %>%
+#   filter(test<1) %>%
+#   distinct() %>%
+#   filter(days_since_index>= -delay_params$upper_bound & days_since_index<=0)
+# 
+# temp %>% ungroup() %>%
+#   anti_join(tbl(db,"all_dx_visits") %>% 
+#               collect() %>% 
+#               inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
+#               mutate(days_since_index = days_since_index - shift) %>% 
+#               select(-shift) %>%
+#               inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index"))%>%
+#               distinct(patient_id, days_since_index))
 # all_dx %>% distinct(patient_id, encounter_date, encounter_type) %>%  # check if we remove visits without AV, ED, IP, or IS
 #   mutate(ind = 1) %>% 
 #   pivot_wider(id_cols = c("patient_id", "encounter_date"),
@@ -280,7 +376,7 @@ write_csv(n_patients,  file = paste0(delay_params$out, "study_population_counts.
 # 100% of their SSD visits during window also had temp reading
 
 study_pop <- percent_complete %>% 
-  filter(percent >= 100) %>% 
+  filter(percent >= 80) %>% 
   distinct(patient_id)
 # anti_join(study_pop, index_cases) check
 

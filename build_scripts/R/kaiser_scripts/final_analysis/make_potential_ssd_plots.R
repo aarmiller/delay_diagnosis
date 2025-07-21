@@ -16,6 +16,7 @@ load("/Shared/AML/params/final_delay_params_kaiser.RData")
 delay_params <- final_delay_params[[proj_name]]
 
 out_path <- delay_params$out_path
+delay_base_path <- paste0(delay_params$base_path,"delay_results/")
 
 if (!dir.exists(out_path)){
   dir.create(out_path)

@@ -65,7 +65,7 @@ tm <- tm %>%
   mutate(days_since_index = days_since_index - shift) %>%
   select(-shift) %>%
   filter(days_since_index<=0) %>%
-  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  select(patient_id, svcdate, days_since_index, outpatient, ed, inpatient, other) %>% 
   filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
 
 # update sim_obs

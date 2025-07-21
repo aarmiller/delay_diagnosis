@@ -45,6 +45,17 @@ demo1 <- demo1 %>% select(-index_date) %>%
 # 
 # rural_ids <- rural_visits %>% inner_join(index_cases %>% distinct(patient_id)) %>% distinct(patient_id)
 
+
+# update time map
+load(paste0(delay_base_path,"delay_tm.RData"))
+tm <- tm %>%   
+  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>%
+  mutate(days_since_index = days_since_index - shift) %>%
+  select(-shift) %>%
+  filter(days_since_index<=0) %>%
+  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
+
 # update all_dx_visits
 load(paste0(delay_base_path,"all_dx_visits.RData"))
 all_dx_visits <- all_dx_visits %>%
@@ -53,24 +64,20 @@ all_dx_visits <- all_dx_visits %>%
   select(-shift) %>% 
   filter(days_since_index<=0) 
 
+all_dx_visits <- all_dx_visits %>% 
+  inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index")) # visit days from other encounter types only removed
+
 # update sim_obs
 sim_obs <- sim_obs %>%
   inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
   mutate(days_since_index = days_since_index - shift) %>% 
   select(-shift) %>% 
-  filter(days_since_index<0)
-
-# update time map
-load(paste0(delay_base_path,"delay_tm.RData"))
+  filter(days_since_index<0) %>% 
+  inner_join(tm %>% distinct(patient_id, days_since_index), by = c("patient_id", "days_since_index"))
 
 problem_patient_ids <- tm %>% filter(days_since_index == 0) %>% distinct(patient_id) %>%
   anti_join(tm %>% distinct(patient_id),.)
 
-tm <- tm %>% 
-  inner_join(index_cases %>% select(patient_id, shift), by = "patient_id") %>% 
-  mutate(days_since_index = days_since_index - shift) %>% 
-  select(-shift) %>%
-  filter(days_since_index<=0)
 
 #Load in the setting types
 load(paste0(delay_base_path,"visit_info.RData"))
@@ -284,6 +291,8 @@ for (x in c(100, 100.4, 101.3)) {
     filter(temp >= x) %>% 
     distinct(patient_id, admdate) 
   
+  # add or fever dx 
+  
   tm <- tm %>% 
     left_join(temp %>% mutate(ind = 1L), by = c("patient_id", "admdate")) %>% 
     mutate_at(vars(ind),~replace_na(.,0L)) 
@@ -348,7 +357,8 @@ setting_labels <- setting_labels %>% mutate(setting_label = factor(setting_label
 
 index_locations <- tm %>% 
   filter(days_since_index==0) %>% 
-  filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
+  filter(outpatient==1 | ed==1  | inpatient==1) %>%
+  # filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
   # distinct(patient_id,outpatient,ed,other,inpatient,admdate,abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>% 
   distinct(patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100.4, fever_101.3) %>% 
   mutate(dow=weekdays(as_date(admdate))) %>% 
@@ -362,7 +372,8 @@ index_locations <- tm %>%
 obs_locations <- tm %>% 
   inner_join(sim_res_sim_obs,by = c("patient_id", "days_since_index")) %>% 
   filter(!is.na(obs)) %>% 
-  filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
+  filter(outpatient==1 | ed==1  | inpatient==1) %>%
+  # filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
   # distinct(obs,patient_id,outpatient,ed,other,inpatient,admdate,abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>%
   distinct(obs,patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100.4, fever_101.3) %>%
   mutate(dow = weekdays(as_date(admdate))) %>% 
