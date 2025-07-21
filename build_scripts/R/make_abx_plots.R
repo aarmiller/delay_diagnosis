@@ -7,3 +7,7 @@ conds <- list.dirs("/Shared/Statepi_Diagnosis/prelim_results", recursive = F, fu
 tmp <- parallel::mclapply(conds, 
                           function(x){make_abx_plots(cond_name = x)},
                           mc.cores = 30)
+
+
+
+make_abx_plots(cond_name = "sporotrichosis")

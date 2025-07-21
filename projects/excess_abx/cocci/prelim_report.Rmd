@@ -1,0 +1,244 @@
+---
+title: "Excess Antibiotics Before Cocci"
+output: html_notebook
+---
+
+```{r, include = FALSE, echo = FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+library(knitr)
+library(tidyverse)
+load("~/Data/projects/excess_abx/cocci/data/report_data.RData")
+
+```
+
+This document summarizes estimates for unecessary antibiotics recieved before a diagnosis of
+coccidioidomycosis.
+
+There were a total of `R nrow(index_dates)` patients with cocci who could be followed
+for at least one year prior to their index diagnosis.
+
+We considered a `R weekly_cp`-week window prior to diagnosis as the diagnostic opportunity 
+window where unecessary antibiotics associated with diagnostic delays may have been
+recieved.
+
+The following plot depicts counts of the number of perscriptions each week before
+diagnosis, for each of the relevant antibiotic types
+
+```{r, echo = FALSE}
+p1
+```
+
+The following plot depicts expected trends for the number of antibiotics received
+based on data 14-52 weeks prior to diagnosis, using linear, quadratic and cubic trends.
+```{r, echo = FALSE}
+p2
+```
+
+The following plots depicts the number of antibiotics estimated to be in excess 
+based on the expected trends depicted above.
+```{r, echo = FALSE}
+p3
+```
+
+## Bootstrapping results
+
+To estimate the number of excess antibiotics while accounting for uncertainty in the
+expected trend we utilized the following bootstrapping approach
+
+1) Draw a bootstrapped sample of patients
+2) Calculate the number of antibiotics each week
+3) Estimate expected trends over the 14-52 weeks prior to diagnosis for each trend type
+4) Compute the excess number of antibiotics as the difference between the observed
+   number of antibiotics and the expected trend (extrapolated to the period between
+   1-13 weeks prior to diagnosis)
+   
+The above procedure was repeated 1000 times.
+
+### Linear Models
+
+The following figure summarizes expected trends for the number of antibiotics
+based on a linear model. The blue line depicts the mean trend across models and 
+the gray band depicts a 95% confidence band.
+
+```{r, echo = FALSE}
+lm_res_plots$p2
+```
+
+### Quadratic Models
+
+The following figure summarizes expected trends for the number of antibiotics
+based on a quadratic model. The blue line depicts the mean trend across models and 
+the gray band depicts a 95% confidence band.
+
+```{r, echo = FALSE}
+quad_res_plots$p2
+```
+
+### Cubic Models
+
+The following figure summarizes expected trends for the number of antibiotics
+based on a cubic model. The blue line depicts the mean trend across models and 
+the gray band depicts a 95% confidence band.
+
+
+```{r, echo = FALSE}
+cubic_res_plots$p2
+```
+
+### Excess Antibiotics by Week
+
+```{r, echo = FALSE}
+p4
+```
+
+
+```{r, echo = FALSE}
+p5
+```
+### Aggregate Number of Excess Antibiotics Before Diagnosis
+
+The following table depicts the total number of excess antibiotics recieved by 
+antibiotic and model type:
+
+```{r, echo = FALSE}
+excess_res1 %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling()
+```
+
+The following table depicts the % of antibiotics precribed in the 13-weeks before
+diagnosis that were estimated to be in excess by antibiotic and model type:
+
+```{r, echo = FALSE}
+excess_res2 %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling()
+```
+
+
+## Patients Metrics for Reciept of Unecessary Antibiotics
+
+In order to estimate the number of patients who recieved an unecessary antibiotic
+we performed the following bootstrapping-based analysis:
+
+1) Estimate the expected trend based on a bootstrapped sample of patients, and
+   compute the estimated number of excess antibiotics (as described above).
+2) Return to the aggregate sample of patients; each week draw the estimated number
+   of excess antibiotics by antibiotic type.
+3) Compute corresponding metrics and aggregate across trials.
+
+
+```{r, echo = FALSE}
+tibble(metric = c("Number of Patients with Excess Antibiotic",
+                  "% of Patients with Excess Antibiotic",
+                  "Excess Antibiotics per patient (all patients)",
+                  "Excess Antibiotics per patient (patients w/ excess)"),
+       
+       lm = c(paste0(lm_stats$n_excess_patients$n_excess_patients," (",
+                     lm_stats$n_excess_patients$n_excess_patients_lo,", ",
+                     lm_stats$n_excess_patients$n_excess_patients_hi,")"),
+              
+              paste0(round(lm_stats$frac_excess_patients$n_excess_patients,2)," (",
+                     round(lm_stats$frac_excess_patients$n_excess_patients_lo,2),", ",
+                     round(lm_stats$frac_excess_patients$n_excess_patients_hi,2),")"),
+              
+              paste0(round(lm_stats$mean_excess_per_patient_all$mean_excess_per_patient,3)," (",
+                     round(lm_stats$mean_excess_per_patient_all$mean_excess_per_patient_lo,3),", ",
+                     round(lm_stats$mean_excess_per_patient_all$mean_excess_per_patient,3),")"),
+              
+              paste0(round(lm_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3)," (",
+                     round(lm_stats$mean_excess_per_excess_patient$mean_excess_per_patient_lo,3),", ",
+                     round(lm_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3),")")
+       ),
+       
+       quad = c(paste0(quad_stats$n_excess_patients$n_excess_patients," (",
+                       quad_stats$n_excess_patients$n_excess_patients_lo,", ",
+                       quad_stats$n_excess_patients$n_excess_patients_hi,")"),
+                
+                paste0(round(quad_stats$frac_excess_patients$n_excess_patients,2)," (",
+                       round(quad_stats$frac_excess_patients$n_excess_patients_lo,2),", ",
+                       round(quad_stats$frac_excess_patients$n_excess_patients_hi,2),")"),
+                
+                paste0(round(quad_stats$mean_excess_per_patient_all$mean_excess_per_patient,3)," (",
+                       round(quad_stats$mean_excess_per_patient_all$mean_excess_per_patient_lo,3),", ",
+                       round(quad_stats$mean_excess_per_patient_all$mean_excess_per_patient,3),")"),
+                
+                paste0(round(quad_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3)," (",
+                       round(quad_stats$mean_excess_per_excess_patient$mean_excess_per_patient_lo,3),", ",
+                       round(quad_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3),")")
+       ),
+       
+       cubic = c(paste0(cubic_stats$n_excess_patients$n_excess_patients," (",
+                        cubic_stats$n_excess_patients$n_excess_patients_lo,", ",
+                        cubic_stats$n_excess_patients$n_excess_patients_hi,")"),
+                 
+                 paste0(round(cubic_stats$frac_excess_patients$n_excess_patients,2)," (",
+                        round(cubic_stats$frac_excess_patients$n_excess_patients_lo,2),", ",
+                        round(cubic_stats$frac_excess_patients$n_excess_patients_hi,2),")"),
+                 
+                 paste0(round(cubic_stats$mean_excess_per_patient_all$mean_excess_per_patient,3)," (",
+                        round(cubic_stats$mean_excess_per_patient_all$mean_excess_per_patient_lo,3),", ",
+                        round(cubic_stats$mean_excess_per_patient_all$mean_excess_per_patient,3),")"),
+                 
+                 paste0(round(cubic_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3)," (",
+                        round(cubic_stats$mean_excess_per_excess_patient$mean_excess_per_patient_lo,3),", ",
+                        round(cubic_stats$mean_excess_per_excess_patient$mean_excess_per_patient,3),")")
+                 
+       )) %>% 
+    knitr::kable() %>% 
+  kableExtra::kable_styling()
+```
+
+
+The following table depicts the fraction of patients who recieved an unecessary antibiotic 
+by type:
+
+```{r, echo = FALSE}
+tmp_lm <- lm_stats$frac_excess_patients_by_type %>% 
+  mutate_at(vars(n_excess_patients:n_excess_patients_hi),~round(.,2)) %>% 
+  mutate(lm = paste0(n_excess_patients, " (",n_excess_patients_lo,", ",n_excess_patients_hi,")")) %>% 
+  select(name, lm)
+
+
+tmp_quad <- quad_stats$frac_excess_patients_by_type %>% 
+  mutate_at(vars(n_excess_patients:n_excess_patients_hi),~round(.,2)) %>% 
+  mutate(quad = paste0(n_excess_patients, " (",n_excess_patients_lo,", ",n_excess_patients_hi,")")) %>% 
+  select(name, quad)
+
+tmp_cubic <- cubic_stats$frac_excess_patients_by_type %>% 
+  mutate_at(vars(n_excess_patients:n_excess_patients_hi),~round(.,2)) %>% 
+  mutate(cubic = paste0(n_excess_patients, " (",n_excess_patients_lo,", ",n_excess_patients_hi,")")) %>% 
+  select(name, cubic)
+
+tmp_lm %>% 
+  inner_join(tmp_quad, by = join_by(name)) %>% 
+  inner_join(tmp_cubic, by = join_by(name)) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling()
+```
+
+The following table depicts the distribution in the number of unecessary
+antibiotics individuals recieved:
+```{r, echo = FALSE}
+tmp_lm <- lm_stats$n_excess_abx_by_patient_count %>% 
+  mutate_at(vars(n_mean:n_hi),~round(.,2)) %>% 
+  mutate(lm = paste0(n_mean, " (",n_lo,", ",n_hi,")")) %>% 
+  select(n_excess, lm)
+
+tmp_quad <- quad_stats$n_excess_abx_by_patient_count %>% 
+  mutate_at(vars(n_mean:n_hi),~round(.,2)) %>% 
+  mutate(quad = paste0(n_mean, " (",n_lo,", ",n_hi,")")) %>% 
+  select(n_excess, quad)
+
+tmp_cubic <- cubic_stats$n_excess_abx_by_patient_count %>% 
+  mutate_at(vars(n_mean:n_hi),~round(.,2)) %>% 
+  mutate(cubic = paste0(n_mean, " (",n_lo,", ",n_hi,")")) %>% 
+  select(n_excess, cubic)
+
+tmp_lm %>% 
+  inner_join(tmp_quad, by = join_by(n_excess)) %>% 
+  inner_join(tmp_cubic, by = join_by(n_excess)) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling()
+```
+
