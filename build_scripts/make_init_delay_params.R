@@ -161,6 +161,16 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                                    miss_bins = c(1,2,3,4,5),
                                    duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
+                         long_covid = list(path = "/Shared/AML/truven_extracts/small_dbs/long_covid/",
+                                            cp = 20,
+                                            cp_lower = NA,
+                                            cp_upper = NA,
+                                            upper_bound = 180,
+                                            final_model = "linear",
+                                            periodicity = TRUE,
+                                            miss_bins = c(1,2,3,4,5),
+                                            duration_bins = c(1,2,3,4,5,6,7,10,14,17,20)),
+                         
                          measles = list(path = "/Shared/AML/truven_extracts/small_dbs/measles/",
                                            cp = 14,
                                            cp_lower = NA,

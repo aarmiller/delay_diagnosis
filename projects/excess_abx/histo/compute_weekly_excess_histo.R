@@ -4,16 +4,15 @@ rm(list = ls())
 
 library(tidyverse)
 library(readxl)
+library(smallDB)
 
 ################
 #### Params ####
 ################
 
-cond_name <- "cocci"
+cond_name <- "histo"
 
-cp <- 91
-
-weekly_cp <- round(cp/7,0)
+weekly_cp <- 15
 
 upper_bound <- 365
 
@@ -72,7 +71,10 @@ load("/Volumes/argon_home/projects/delay_diagnosis/excess_abx/data/antibiotics_g
 
 abx_include <- abx_list %>% 
   filter(disease == cond_name) %>% 
-  filter(include == "Y") %>% 
+  filter(include %in% c("Y","?")) %>% 
+  filter(!(name %in% c("cefaclor","cefadroxil","cefditoren","cefixime",
+                       "cefpodoxime"))) %>% 
+  filter(!(name %in% c("amoxicillin","cefprozil","cefuroxime","cephalexin","clindamycin"))) %>%  # remove due to negative CI
   select(name)
 
 ndc_codes <- antibiotic_ndc_groups_new %>% 
@@ -81,7 +83,7 @@ ndc_codes <- antibiotic_ndc_groups_new %>%
 
 #### Load Disease Data ---------------------------------------------------------
 
-db <- src_sqlite(paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db"))
+db <- DBI::dbConnect(RSQLite::SQLite(), paste0("~/Data/MarketScan/truven_extracts/small_dbs/",cond_name,"/",cond_name,".db"))
 
 abx_visits <- db %>% 
   tbl("all_rx_visits") %>% 
@@ -95,6 +97,84 @@ index_dates <- db %>%
 index_dates <- index_dates %>% 
   filter(time_before_index>=upper_bound) %>% 
   distinct(patient_id,index_date)
+
+crosswalk <- db %>% 
+  tbl("enrolid_crosswalk") %>% 
+  collect()
+
+histo_cw <- index_dates %>% 
+  inner_join(crosswalk)
+
+save(histo_cw, file = "/Volumes/AML/tmp_transfer/excess_abx/histo_index_cases.RData")
+
+## Pull Medicaid RX enroll On Argon --------------------------------------------
+
+load("/Shared/AML/tmp_transfer/excess_abx/histo_index_cases.RData")
+
+db <- DBI::dbConnect(RSQLite::SQLite(),"/Shared/Statepi_Marketscan/databases/Truven/enrollment_dbs/medicaid_fixes.db")
+
+tmp_ids <- histo_cw %>% 
+  filter(medicaid==1) %>% 
+  select(enrolid)
+
+tmp_collect_enroll_med <- function(year){
+  db %>% 
+    tbl(paste0("medicaid_drugcovg_",year)) %>% 
+    inner_join(tmp_ids, copy = TRUE, by = join_by(enrolid)) %>% 
+    collect()
+}
+
+tmp_enroll <- tibble(year=14:21) %>% 
+  mutate(data = map(year,tmp_collect_enroll_med))
+
+med_rx_enroll <- tmp_enroll %>% 
+  unnest(data) %>% 
+  inner_join(select(histo_cw,patient_id,enrolid)) %>% 
+  select(-year)
+
+save(med_rx_enroll, file = "/Shared/AML/tmp_transfer/excess_abx/histo_med_rx_enroll.RData")
+
+## Pull rx enroll locally for ccae/mdcr ----------------------------------------
+
+tmp_collect_enroll <- function(source,year){
+  db %>% 
+    tbl(paste0("enrollment_detail_",source,"_",year)) %>% 
+    filter(rx==1) %>% 
+    select(patient_id,dtstart,dtend) %>% 
+    collect() 
+}
+
+tmp_enroll_info <- collect_plan(db) %>% 
+  filter(source!="medicaid") %>% 
+  mutate(data = map2(source,year,tmp_collect_enroll))
+
+load("/Volumes/AML/tmp_transfer/excess_abx/histo_med_rx_enroll.RData")
+
+
+# assemble rx enrollment dates
+rx_enroll <- bind_rows(tmp_enroll_info %>% 
+                         unnest(data) %>% 
+                         select(patient_id,dtstart,dtend),
+                       select(med_rx_enroll,patient_id,dtstart,dtend)) %>% 
+  arrange(patient_id,dtstart) %>% 
+  mutate(gap = dtstart != lag(dtend)+1) %>% 
+  mutate(gap = replace_na(gap,FALSE)) %>% 
+  mutate(new_id = patient_id!=lag(patient_id)) %>% 
+  mutate(new_id = replace_na(new_id,FALSE)) %>% 
+  mutate(tmp =  ifelse(gap==TRUE | new_id == TRUE, 1L, 0L)) %>% 
+  mutate(period = cumsum(tmp)) %>% 
+  group_by(patient_id,period) %>% 
+  summarise(dtstart = min(dtstart),
+            dtend = max(dtend)) %>% 
+  ungroup()
+
+# Final index dates
+index_dates <- index_dates %>% 
+  inner_join(rx_enroll) %>% 
+  filter(index_date<=dtend & index_date>=dtstart) %>% 
+  mutate(rx_days_before = index_date-dtstart) %>% 
+  filter(rx_days_before>=365) %>% 
+  select(patient_id,index_date) 
 
 
 #### Assemble Final Data -------------------------------------------------------
@@ -126,6 +206,122 @@ final_abx_counts <- final_abx_counts %>%
 
 final_abx_visits <- final_abx_visits %>% 
   anti_join(week_exclude)
+
+################################
+#### Compute Baseline Stats ####
+################################
+
+
+demo_data <- bind_rows(db %>% 
+                         tbl("all_enroll") %>% 
+                         select(patient_id,dobyr,sex,enrmon) %>% 
+                         collect(),
+                       db %>% 
+                         tbl("all_enroll_medicaid") %>% 
+                         select(patient_id,dobyr,sex,enrmon) %>% 
+                         collect())
+
+demo_data <- demo_data %>% 
+  group_by(patient_id) %>% 
+  filter(enrmon == max(enrmon)) %>% 
+  ungroup()
+
+demo_data <- index_dates %>% 
+  inner_join(demo_data) %>% 
+  mutate(age = year(as_date(index_date))-dobyr) %>% 
+  mutate(age_cat = cut(age,breaks = c(-1,17,34,49,64,120)))
+
+tmp1 <- demo_data %>% 
+  summarise(out = as.character(n())) %>% 
+  mutate(name = "N",
+         cat = "") %>% 
+  select(name,cat,out)
+
+tmp2 <- demo_data %>% 
+  count(sex) %>% 
+  mutate(frac = round(100*n/sum(n),2)) %>% 
+  mutate(cat = ifelse(sex==1,"Male","Female"),
+         name = "sex") %>% 
+  mutate(out = paste0(n," (",frac,")")) %>% 
+  select(name,cat,out)
+
+tmp3 <- demo_data %>% 
+  summarise(mean_age = round(mean(age),2),
+            median_age = median(age)) %>% 
+  mutate(name = "age",
+         cat = "mean/median",
+         out = paste0(mean_age," (",median_age,")")) %>% 
+  select(name,cat,out)
+
+tmp4 <- demo_data %>% 
+  count(age_cat) %>% 
+  mutate(frac = round(100*n/sum(n),2)) %>% 
+  mutate(out = paste0(n," (",frac,")")) %>% 
+  mutate(name = "age") %>% 
+  select(name,cat=age_cat,out)
+
+
+tmp5 <- db %>% 
+  tbl("tm") %>% 
+  select(patient_id,index_date=svcdate,mdcr:medicaid) %>% 
+  collect() %>% 
+  inner_join(index_dates) %>% 
+  summarise(mdcr = sum(mdcr),
+            ccae = sum(ccae),
+            medicaid = sum(medicaid)) %>% 
+  gather(key = cat, value = n) %>% 
+  mutate(name = "source") %>% 
+  mutate(frac = round(100*n / sum(n),2)) %>% 
+  mutate(out = paste0(n," (",frac,")")) %>% 
+  select(name,cat,out)
+
+
+tmp_abx_count <- filter(final_abx_visits,
+                        week<=15) %>% 
+  count(patient_id, name = "abx_count")
+
+tmp6 <- demo_data %>% 
+  left_join(tmp_abx_count) %>% 
+  mutate(abx_count = replace_na(abx_count,0)) %>% 
+  summarise(abx = sum(abx_count>0),
+            abx_frac = round(100*abx/n(),2)) %>% 
+  mutate(name = "abx",
+         cat = "1 - 15 weeks",
+         out = paste0(abx," (", abx_frac,")")) %>% 
+  select(name,cat,out)
+
+tmp_abx_count <- filter(final_abx_visits,
+                        week<=52) %>% 
+  count(patient_id, name = "abx_count")
+
+tmp7 <- demo_data %>% 
+  left_join(tmp_abx_count) %>% 
+  mutate(abx_count = replace_na(abx_count,0)) %>% 
+  summarise(abx = sum(abx_count>0),
+            abx_frac = round(100*abx/n(),2)) %>% 
+  mutate(name = "abx",
+         cat = "1 - 52 weeks",
+         out = paste0(abx," (", abx_frac,")")) %>% 
+  select(name,cat,out)
+
+tmp_abx_count <- filter(final_abx_visits,
+                        week<=52 & week>15) %>% 
+  count(patient_id, name = "abx_count")
+
+tmp8 <- demo_data %>% 
+  left_join(tmp_abx_count) %>% 
+  mutate(abx_count = replace_na(abx_count,0)) %>% 
+  summarise(abx = sum(abx_count>0),
+            abx_frac = round(100*abx/n(),2)) %>% 
+  mutate(name = "abx",
+         cat = "16 - 52 weeks",
+         out = paste0(abx," (", abx_frac,")")) %>% 
+  select(name,cat,out)
+
+
+baseline_data <- bind_rows(tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7,tmp8)
+
+save(baseline_data, file = paste0("~/Data/projects/excess_abx/",cond_name,"/data/baseline_data.RData"))
 
 ##############################
 #### Fit Aggregate Models ####
@@ -391,7 +587,9 @@ quad_res_plots <- plot_model_res("quad")
 cubic_res_plots <- plot_model_res("cubic")
 
 lm_res_plots$p1
-cubic_res_plots$p3
+lm_res_plots$p2
+lm_res_plots$p3
+
 
 p4 <- agg_boot_res %>%  
   mutate(week = ifelse(model == "lm", week + 0.25,
@@ -1240,7 +1438,8 @@ save(index_dates,
      p4,p5,
      excess_res1,excess_res2,
      lm_stats,quad_stats,cubic_stats,
-     file = "~/Data/projects/excess_abx/cocci/data/report_data.RData")
+     agg_boot_res,
+     file = "~/Data/projects/excess_abx/histo/data/report_data.RData")
 
 ### Simulation results ---------------------------------------------------------
 
@@ -1250,5 +1449,5 @@ save(final_abx_counts,
      tmp_excess_lm,
      tmp_excess_quad,
      tmp_excess_cubic,
-     file = "~/Data/projects/excess_abx/cocci/data/simulation_results.RData")
+     file = "~/Data/projects/excess_abx/histo/data/simulation_results.RData")
 
