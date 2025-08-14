@@ -1,0 +1,37 @@
+metric,label,delay_window_1_56,delay_window_1_63,delay_window_1_70
+Percent of patients that experienced a delay (95%CI),Full,"39.6
+(95%CI: 36.5-42.1)","41.0
+(95%CI: 38.2-43.4)","41.9
+(95%CI: 38.9-44.4)"
+Percent of patients that experienced a delay (95%CI),Inpatient,"72.0
+(95%CI: 66.7-76.9)","72.3
+(95%CI: 66.2-76.9)","72.0
+(95%CI: 65.1-76.6)"
+Percent of patients that experienced a delay (95%CI),Outpatient,"31.2
+(95%CI: 27.8-34.1)","32.3
+(95%CI: 29.3-35.4)","33.7
+(95%CI: 29.8-36.8)"
+Mean number of missed opportunities per patient (95%CI),Full,"3.05
+(95%CI: 2.72-3.36)","3.23
+(95%CI: 2.9-3.57)","3.3
+(95%CI: 2.94-3.66)"
+Mean number of missed opportunities per patient (95%CI),Inpatient,"3.99
+(95%CI: 3.24-4.61)","4.05
+(95%CI: 3.41-4.72)","3.98
+(95%CI: 3.36-4.72)"
+Mean number of missed opportunities per patient (95%CI),Outpatient,"2.64
+(95%CI: 2.25-3.03)","2.75
+(95%CI: 2.4-3.13)","2.86
+(95%CI: 2.44-3.24)"
+Mean delay duration (days) (95%CI),Full,"24.70
+(95%CI: 22.77-26.36)","26.82
+(95%CI: 24.57-28.96)","28.48
+(95%CI: 26.01-31.08)"
+Mean delay duration (days) (95%CI),Inpatient,"20.30
+(95%CI: 16.52-22.64)","21.15
+(95%CI: 17.12-24.39)","21.10
+(95%CI: 17.35-24.84)"
+Mean delay duration (days) (95%CI),Outpatient,"27.52
+(95%CI: 25.34-29.73)","29.89
+(95%CI: 27.75-32.26)","32.15
+(95%CI: 29.14-34.87)"

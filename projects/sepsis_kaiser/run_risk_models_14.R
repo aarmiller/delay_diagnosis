@@ -53,7 +53,7 @@ tm <- tm %>%
   mutate(days_since_index = days_since_index - shift) %>%
   select(-shift) %>%
   filter(days_since_index<=0) %>%
-  select(patient_id, days_since_index, outpatient, ed, inpatient, other) %>% 
+  select(patient_id, svcdate, days_since_index, outpatient, ed, inpatient, other) %>% 
   filter(!(outpatient==0 & ed==0 & inpatient==0)) # subset to only visits from AV, ED, IP, or IS
 
 # update all_dx_visits
@@ -273,34 +273,60 @@ tm <- tm %>% rename(admdate = svcdate)
 #   mutate_at(vars(num_vis_before),~replace_na(.,0L))
 
 ## Prepare fever indicator ------------------------------------------------
-cond_temp <- "sepsis"
-vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/", cond_temp, "/", cond_temp, "_vital_signs_12sep23final.sas7bdat"))
+vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/", str_remove(delay_params$cond_name, "_kaiser"), "/",
+                                           str_remove(delay_params$cond_name, "_kaiser"), "_vital_signs_12sep23final.sas7bdat"))
 
 vital_signs_info <- vital_signs_info %>% 
-  rename(admdate = measurement_date,
-         patient_id = STUDYID) %>% 
-  mutate(admdate = as.integer(admdate) )%>% 
-  inner_join(index_cases %>% select(patient_id, index_date)) %>% 
-  mutate(days_since_index = admdate - index_date) %>% 
-  filter(days_since_index <= 0 & days_since_index >= -delay_params$upper_bound) 
+  rename(patient_id = STUDYID) %>% 
+  inner_join(index_cases %>% select(patient_id, index_date), by = "patient_id") %>% 
+  mutate(days_since_index = as.numeric(measurement_date - index_date)) %>% 
+  filter(days_since_index <= 0 & days_since_index >= -delay_params$upper_bound )
+
+vital_signs_info_w_temp <- vital_signs_info %>% 
+  filter(!is.na(temp)) %>% 
+  filter(encounter_type %in%  c("AV", "ED", "IP", "IS")) %>% 
+  group_by(patient_id, days_since_index) %>% 
+  summarise(temp = max(temp)) %>% 
+  ungroup()
+
+# Add fever dx
+fever_codes <- tibble(dx = codeBuildr::load_symptom_codes("fever")$icd9_codes,
+       dx_ver = "09") %>% 
+  bind_rows(tibble(dx = codeBuildr::load_symptom_codes("fever")$icd10_codes,
+                   dx_ver = "10"))
+
+tm <- tm %>% 
+  left_join(
+    all_dx_visits %>% 
+      inner_join(fever_codes, by = c("dx", "dx_ver")) %>% 
+      distinct(patient_id, days_since_index) %>% 
+      mutate(fever_dx = 1L), by = c("patient_id", "days_since_index")) %>% 
+  mutate(fever_dx = replace_na(fever_dx, 0L))
 
 for (x in c(100, 100.4, 101.3)) {
-  temp <- vital_signs_info %>% 
-    filter(!is.na(temp)) %>%
-    filter(encounter_type %in%  c("AV", "ED", "IP", "IS")) %>% 
-    filter(temp >= x) %>% 
-    distinct(patient_id, admdate) 
+  temp <- vital_signs_info_w_temp %>% 
+    mutate(ind = (temp >= x)*1) %>% 
+    distinct(patient_id, days_since_index, ind) 
   
   # add or fever dx 
-  
   tm <- tm %>% 
-    left_join(temp %>% mutate(ind = 1L), by = c("patient_id", "admdate")) %>% 
-    mutate_at(vars(ind),~replace_na(.,0L)) 
+    left_join(temp, by = c("patient_id", "days_since_index"))  
   
   names(tm)[names(tm) == "ind"] <- paste0("fever_", x)
 }
 
+tm <- tm %>% 
+  mutate(fever_100_or_dx = ifelse(is.na(.data[["fever_100"]]) & fever_dx == 0, NA, .data[["fever_100"]] == 1 | fever_dx == 1),
+         "fever_100.4_or_dx" = ifelse(is.na(.data[["fever_100.4"]]) & fever_dx == 0, NA, .data[["fever_100.4"]] == 1 | fever_dx == 1),
+         "fever_101.3_or_dx" = ifelse(is.na(.data[["fever_101.3"]]) & fever_dx == 0, NA, .data[["fever_101.3"]] == 1 | fever_dx == 1))
 
+# tm %>% count(.data[["fever_100_or_dx"]], .data[["fever_100"]], fever_dx)
+# tm %>% count(.data[["fever_100.4_or_dx"]], .data[["fever_100.4"]], fever_dx)
+# tm %>% count(.data[["fever_101.3_or_dx"]], .data[["fever_101.3"]], fever_dx)
+# tm %>% 
+#   filter(between(days_since_index, -14,-1))%>% count(.data[["fever_100_or_dx"]], .data[["fever_100"]], fever_dx)
+
+# all.equal((tm2[["fever_101.3"]] + tm2[["fever_dx"]]>1)*1, tm2[[ "fever_101.3_or_dx"]])
 # vital_signs_info %>% 
 #   filter(!is.na(temp)) %>%
 #   filter(encounter_type %in%  c("AV", "ED", "IP", "IS")) %>% 
@@ -360,13 +386,13 @@ index_locations <- tm %>%
   filter(outpatient==1 | ed==1  | inpatient==1) %>%
   # filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
   # distinct(patient_id,outpatient,ed,other,inpatient,admdate,abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>% 
-  distinct(patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100.4, fever_101.3) %>% 
+  distinct(patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100_or_dx, fever_100.4_or_dx, fever_101.3_or_dx) %>% 
   mutate(dow=weekdays(as_date(admdate))) %>% 
   mutate(weekend = dow %in% c("Saturday","Sunday")) %>% 
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
   # select(patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>% 
-  select(patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, fever_100, fever_100.4, fever_101.3) %>% 
+  select(patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, fever_100, fever_100_or_dx, fever_100.4_or_dx, fever_101.3_or_dx) %>% 
   inner_join(setting_labels) 
 
 obs_locations <- tm %>% 
@@ -375,7 +401,7 @@ obs_locations <- tm %>%
   filter(outpatient==1 | ed==1  | inpatient==1) %>%
   # filter(outpatient==1 | ed==1 | other==1 | inpatient==1) %>%
   # distinct(obs,patient_id,outpatient,ed,other,inpatient,admdate,abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>%
-  distinct(obs,patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100.4, fever_101.3) %>%
+  distinct(obs,patient_id,outpatient,ed,other,inpatient,admdate, fever_100, fever_100_or_dx, fever_100.4_or_dx, fever_101.3_or_dx) %>%
   mutate(dow = weekdays(as_date(admdate))) %>% 
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
@@ -383,7 +409,7 @@ obs_locations <- tm %>%
   mutate(year = year(as_date(admdate)),
          month = month(as_date(admdate))) %>% 
   # select(obs,patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, abx, opioid, inhaler, fever_100, fever_100.4, fever_101.3) %>% 
-  select(obs,patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, fever_100, fever_100.4, fever_101.3) %>%
+  select(obs,patient_id,outpatient,ed,other,inpatient,weekend,dow, year, month, fever_100, fever_100_or_dx, fever_100.4_or_dx, fever_101.3_or_dx) %>%
   inner_join(setting_labels) 
 
 ### Prep weekend visit info ------------
@@ -426,7 +452,7 @@ get_miss_res <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>%
     select(miss, age_cat, sex, weekend, year, month,
-            fever_100) %>%
+           fever_100_or_dx) %>%
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   
   fit <- glm(miss~., 
@@ -443,7 +469,7 @@ miss_opp_res <- parallel::mclapply(1:max(full_reg_data$trial),
                                             mc.cores = num_cores)
 
 
-miss_opp_res <- bind_rows(miss_opp_res) %>% 
+miss_opp_res_fever_100_or_dx <- bind_rows(miss_opp_res) %>% 
   group_by(term) %>% 
   summarise(est = median(exp(estimate), na.rm = T),
             low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
@@ -451,6 +477,98 @@ miss_opp_res <- bind_rows(miss_opp_res) %>%
 
 # rm(cluster)
 gc()
+
+#### Missed opportunities All --------------------------------------------------
+
+get_miss_res <- function(trial_val){
+  
+  # trial_val <- 1
+  
+  tmp1 <- full_reg_data %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% select(data) %>%
+                          unnest(data) %>%
+                          mutate(miss=TRUE),
+                        tmp1 %>% select(boot_sample) %>%
+                          unnest(boot_sample) %>%
+                          mutate(miss=FALSE)) %>%
+    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>%
+    select(miss, age_cat, sex, weekend, year, month,
+           fever_100) %>%
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
+  fit <- glm(miss~., 
+             family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+
+miss_opp_res_fever_100 <- parallel::mclapply(1:max(full_reg_data$trial),
+                                   function(x){get_miss_res(x)}, 
+                                   mc.cores = num_cores)
+
+
+miss_opp_res_fever_100 <- bind_rows(miss_opp_res_fever_100) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+# rm(cluster)
+gc()
+
+#### Missed opportunities All --------------------------------------------------
+
+get_miss_res <- function(trial_val){
+  
+  # trial_val <- 1
+  
+  tmp1 <- full_reg_data %>% 
+    filter(trial==trial_val)
+  
+  reg_data <- bind_rows(tmp1 %>% select(data) %>%
+                          unnest(data) %>%
+                          mutate(miss=TRUE),
+                        tmp1 %>% select(boot_sample) %>%
+                          unnest(boot_sample) %>%
+                          mutate(miss=FALSE)) %>%
+    inner_join(reg_demo %>% select(-year, -month), by = "patient_id") %>% #remove year and month as that is for index date in reg_demo
+    mutate(year = as.factor(year),
+           month = factor(month, levels = 1:12)) %>%
+    select(miss, age_cat, sex, weekend, year, month,
+           fever_100) %>%
+    mutate(fever_100 = replace_na(fever_100, 0L)) %>% 
+    drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
+  
+  fit <- glm(miss~., 
+             family = "binomial", data=reg_data)
+  
+  broom::tidy(fit)
+  
+  
+}
+
+
+miss_opp_res_fever_100_na_0  <- parallel::mclapply(1:max(full_reg_data$trial),
+                                             function(x){get_miss_res(x)}, 
+                                             mc.cores = num_cores)
+
+
+miss_opp_res_fever_100_na_0 <- bind_rows(miss_opp_res_fever_100_na_0 ) %>% 
+  group_by(term) %>% 
+  summarise(est = median(exp(estimate), na.rm = T),
+            low = quantile(exp(estimate),probs = c(0.025), na.rm = T),
+            high = quantile(exp(estimate),probs = c(0.975), na.rm = T))
+
+# rm(cluster)
+gc()
+
 
 # 
 # #### Missed opportunities Medicaid ---------------------------------------------
@@ -820,7 +938,9 @@ gc()
 ##### Save Results #####
 ########################
 
-ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res)
+ssd_miss_risk_models <- list(miss_opp_res_fever_100 = miss_opp_res_fever_100,
+                             miss_opp_res_fever_100_or_dx = miss_opp_res_fever_100_or_dx,
+                             miss_opp_res_fever_100_na_0 = miss_opp_res_fever_100_na_0)
                              # miss_opp_res_med = miss_opp_res_med,
                              # miss_dur_res = miss_dur_res,
                              # miss_dur_res_med = miss_dur_res_med,
@@ -828,7 +948,13 @@ ssd_miss_risk_models <- list(miss_opp_res = miss_opp_res)
                              # miss_delay_pat_res_med = miss_delay_pat_res_med)
 
 
-save(ssd_miss_risk_models,file = paste0(out_path,"ssd_miss_risk_models.RData"))
+dist_fever_days_since <- tm %>% 
+  group_by(days_since_index) %>% 
+  summarise(fever = sum(fever_100 == 1, na.rm = T)/n(),
+            no_fever = sum(fever_100 == 0, na.rm = T)/n(),
+            missing_temp = sum(is.na(fever_100))/n()) 
+
+save(ssd_miss_risk_models, dist_fever_days_since, file = paste0(out_path,"ssd_miss_risk_models.RData"))
 # load(paste0(out_path,"ssd_miss_risk_models.RData"))
 
 

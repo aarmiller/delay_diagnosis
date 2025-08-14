@@ -44,9 +44,14 @@ figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD
                 bottom = grid::textGrob("Days Before Index Measles Diagnosis", gp = grid::gpar(fontsize = 10)),
                 #top="Figure 1"
                 ) 
-ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure1.pdf",
-       width = 5, height = 2.8,dpi = 600,units = "in",
+ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure1.pdf",
+       width = 5, height = 2.8,dpi = 1200,units = "in",
        plot = figure1)
+
+# ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure1.pdf",
+#        width = 5, height = 2.8,dpi = 600,units = "in",
+#        plot = figure1)
+
 
 # ggsave("publications/dengue/figures/figure1.jpg",
 #        width = 5, height = 2.8,dpi = 600,units = "in",
@@ -71,8 +76,12 @@ ssd_vis_count %>%
         axis.text = element_text(size=10)) +
   # ggtitle("Figure 2",) +
   theme(plot.title = element_text(hjust = 0.5))
-ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure2.pdf",
-       width = 5, height = 2.8, dpi = 600,units = "in")
+
+ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure2.pdf",
+       width = 5, height = 2.8,dpi = 1200,units = "in")
+
+# ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure2.pdf",
+#        width = 5, height = 2.8, dpi = 600,units = "in")
 # ?ggtitle
 # 
 # ggsave("publications/dengue/figures/figure2.jpg",

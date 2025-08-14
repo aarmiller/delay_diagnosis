@@ -1,0 +1,231 @@
+---
+title: "Temperature Data Evaluation in Kaiser Sepsis Cohort"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(psych)
+```
+
+# Load in cohort membership SAS data
+
+```{r}
+patients <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_cohort_12sep23final.sas7bdat"))
+```
+
+# Load in raw SAS vitals data
+
+```{r}
+vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_vital_signs_12sep23final.sas7bdat"))
+```
+
+# Load in raw SAS encounters data
+
+```{r}
+all_dx <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_enc_diag_12sep23final.sas7bdat"))
+```
+
+# Number of patients in cohort with at least 180 days of enrollment prior to index
+
+```{r}
+enrolled_180 <- patients %>% 
+  filter(enroll_before >= 180) %>% 
+  distinct(STUDYID)
+
+enrolled_180 %>% nrow
+```
+
+# Number of patients enrolled for >=180 days with at least one vital reading 
+
+```{r}
+vital_signs_info <- vital_signs_info %>% 
+  inner_join(enrolled_180, by = "STUDYID") 
+
+vital_signs_info%>% 
+  distinct(STUDYID) %>% 
+  nrow()
+```
+
+So of the 21,480 patients enrolled for >=180 days prior to index, 401 had no vital data at all 
+
+# Check to see if each obs in vitals table has at least one non missing measurement for DIASTOLIC, SYSTOLIC, PULSE, RESP, or TEMP
+
+```{r}
+vital_signs_info %>% 
+  filter(is.na(diastolic) & is.na(systolic) & is.na(pulse) & is.na(resp) & is.na(temp))
+```
+
+# Check to see if there are obs in vitals table where diastolic is recorded but systolic is not or vice versa
+
+```{r}
+vital_signs_info %>% 
+  filter(xor(is.na(diastolic), is.na(systolic)))
+```
+
+1,875 observations where diastolic is recorded but systolic is not or vice versa
+
+# Check ranges for each of the vitals
+```{r}
+vital_signs_info %>% 
+  select(diastolic, systolic, pulse, resp, temp) %>% 
+  pivot_longer(cols = everything(), names_to = "vitals", values_to = "value") %>% 
+  group_by(vitals) %>% 
+  summarise(Range = paste0(range(value, na.rm = T), collapse = " - "))
+```
+
+We can see some abnormalities with the values recorded for the vitals. For example someone had a temp of 33.8F recorded and another 137F.
+
+# Check to see how many obs has missing temp
+
+```{r}
+vital_signs_info %>% 
+  count(is.na(temp)) %>% 
+  mutate(percent = n/sum(n)*100)
+```
+
+85.9% of the vital records are missing temperature readings.
+
+```{r}
+vital_signs_info %>% 
+  filter(is.na(temp)) %>% 
+  count(encounter_type) %>% 
+  mutate(percent = n/sum(n)*100)
+```
+
+The majority of missing temps occured in IP = Acute inpatient hospital stay and AV = Ambulatory visit.
+
+# Patients could have multiple temp readings on a given day, so collapse to visit day by looking at max temp on a given day and see how many are missing
+
+```{r}
+vital_signs_info_visit_day <- vital_signs_info %>% 
+  group_by(STUDYID, measurement_date) %>% 
+  summarise(temp = max(temp)) %>% 
+  ungroup()
+
+vital_signs_info_visit_day %>% 
+  count(is.na(temp)) %>% 
+  mutate(percent = n/sum(n)*100)
+```
+
+66.0% of the recored vitals on a given visit-day are missing temperature readings.
+
+# Distribution of non-missing temp
+
+```{r}
+vital_signs_info_visit_day %>% 
+  filter(!is.na(temp)) %>% 
+  ggplot(aes(x = "", y = temp)) +
+  geom_violin(fill = "lightblue") +
+  geom_boxplot(width = 0.1, fill = "white", outlier.shape = NA) +
+  coord_flip()+
+  xlab("")
+```
+
+# Count of unreasonable temp readings
+
+```{r}
+vital_signs_info_visit_day %>% 
+  count(between(temp, 95,105)) %>% 
+  mutate(percent = n/sum(n)*100)
+```
+
+248 visit-days had temperature readings that are outside the range of a reasonable temperature reading.
+
+# Check if temp readings are reliable based on recorded fever diagnosis in encounters table
+
+```{r}
+# fever dx codes
+fever_codes <- tibble(dx = codeBuildr::load_symptom_codes("fever")$icd9_codes,
+       dx_ver = "09") %>% 
+  bind_rows(tibble(dx = codeBuildr::load_symptom_codes("fever")$icd10_codes,
+                   dx_ver = "10"))
+
+all_dx <- all_dx %>% 
+  inner_join(enrolled_180) %>% 
+  mutate(dx = str_remove_all(dx, "\\.")) %>% 
+  rename(dx_ver = dx_codetype)
+
+all_dx_w_fever <- all_dx %>% 
+  left_join(fever_codes %>% mutate(fever_dx = 1L), by = c("dx", "dx_ver"))  %>% 
+  mutate(fever_dx = replace_na(fever_dx, 0L)) %>% 
+  group_by(STUDYID, encounter_date) %>% 
+  summarise(fever_dx = max(fever_dx)) %>% 
+  ungroup() %>% 
+  mutate(fever_dx = factor(fever_dx, levels = c(1,0)))
+  
+all_dx_w_fever_temp <- all_dx_w_fever %>% 
+  left_join(vital_signs_info_visit_day %>% rename(encounter_date = measurement_date),
+            by = c("STUDYID", "encounter_date"))
+
+compute_metrics <- function(cutoff){
+  temp <- all_dx_w_fever_temp %>% 
+    mutate(ind = factor(temp >= cutoff, labels = c(1,0), levels = c(T,F))) 
+  tab <- table( "Temp >= cutoff" = temp$ind, "Fever Dx" = temp$fever_dx)
+  
+  cat("Contingency table:\n")
+  print(tab)
+  
+   cat("Sensitivity:", prop.table(tab, margin = 2)[1,1], "\n")
+   cat("Specificity:", prop.table(tab, margin = 2)[2,2], "\n")
+   cat("PPV:", prop.table(tab, margin = 1)[1,1], "\n")
+   cat("NPV:", prop.table(tab, margin = 1)[2,2], "\n")
+   cat("Kappa:", psych::cohen.kappa(tab)$kappa,"\n")
+}
+
+```
+
+### Temp cuttoff >= 100
+```{r}
+compute_metrics(100)
+```
+
+### Temp cuttoff >= 100.4
+```{r}
+compute_metrics(100.4)
+```
+
+### Temp cuttoff >= 101.3
+```{r}
+compute_metrics(101.3)
+```
+
+### Temp cuttoff >= 103
+```{r}
+compute_metrics(103)
+```
+
+In general, as we increase the cuttoff from 100 to 101.3, the number of false positives decreases (PPV goes up and specificity goes up) while the number of false negatives increases (sensitivity goes down). The stricter cutoff means fewer observations are classified as fever, but among those classified as fever, they are more likely to also have a fever dx.
+
+The low Kappa values suggest that the recorded temperature measurements may not reliably reflect the fever diagnosis.
+
+
+# Missing temp readings by fever dx
+```{r}
+all_dx_w_fever_temp %>% count(fever_dx, missing_temp = is.na(temp)) %>% 
+  group_by(fever_dx) %>% 
+  mutate(percent = n/sum(n)*100)
+```
+
+The proportion of visit days missing a temp is similar by whether or not the visit day involved a fever diagnosis.
+
+### Density plots of temperature readings by fever diagnosis
+
+```{r}
+# Compute medians per group
+medians <- all_dx_w_fever_temp %>%
+  group_by(fever_dx) %>%
+  summarise(med_temp = median(temp, na.rm = T))
+
+
+all_dx_w_fever_temp %>% 
+  ggplot(aes(x = temp, fill = fever_dx)) +
+  geom_density(alpha = 0.6, position = "identity") +
+  geom_vline(data = medians, aes(xintercept = med_temp, color = fever_dx), linetype = "dashed") +
+  labs(x = "Temperature (°F)", y = "Density", fill = "Fever Diagnosis", color = "Median Temp Fever Diagnosis") +
+  theme_minimal()
+```
+
+The distribution of temperature reading seems to be shifted more to the right for observations with a fever diagnosis, which makes sense. However, there is substantial overlap present in temperature readings between visits involving and not involving a fever diagnosis.
