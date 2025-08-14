@@ -224,7 +224,7 @@ all_dx_w_fever_temp %>%
   ggplot(aes(x = temp, fill = fever_dx)) +
   geom_density(alpha = 0.6, position = "identity") +
   geom_vline(data = medians, aes(xintercept = med_temp, color = fever_dx), linetype = "dashed") +
-  labs(x = "Temperature (°F)", y = "Density", fill = "Fever Diagnosis", color = "Median Temp Fever Diagnosis") +
+  labs(x = "Temperature (F)", y = "Density", fill = "Fever Diagnosis", color = "Median Temp by Fever Diagnosis") +
   theme_minimal()
 ```
 
