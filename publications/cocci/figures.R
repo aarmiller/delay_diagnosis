@@ -41,7 +41,7 @@ figure1 <- ggpubr::ggarrange(fig1_A, fig1_B,
                              labels = c("A", "B"),
                              ncol = 2, nrow = 1)
 figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD Visits", rot = 90, vjust = 1, gp = grid::gpar(fontsize = 10)),
-                bottom = grid::textGrob("Days Before Index Coccidiomycosis Diagnosis", gp = grid::gpar(fontsize = 10)),
+                bottom = grid::textGrob("Days Before Index Coccidioidomycosis Diagnosis", gp = grid::gpar(fontsize = 10)),
                 #top="Figure 1"
                 ) 
 ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/cocci/figures/figure1.pdf",
@@ -65,7 +65,7 @@ ssd_vis_count %>%
   geom_histogram(stat = "identity") +
   scale_x_reverse() +
   ylab("Number of Missed Opportunities") +
-  xlab("Days Before Index Coccidiomycosis Diagnosis") +
+  xlab("Days Before Index Coccidioidomycosis Diagnosis") +
   theme_bw() +
   theme(axis.title = element_text(size=10),
         axis.text = element_text(size=10)) +
