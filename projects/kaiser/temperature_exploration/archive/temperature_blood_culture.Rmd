@@ -1,0 +1,401 @@
+---
+title: "Fever and Blood Culture Evaluation in Kaiser Sepsis Cohort"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(survival)
+```
+
+# Load in cohort membership SAS data
+
+```{r}
+patients <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_cohort_12sep23final.sas7bdat"))
+```
+
+### Compute enrollment period for each patient
+```{r}
+patients <- patients %>% 
+  distinct(STUDYID, index_date, enroll_before, enroll_after) %>% 
+  mutate(enroll_lower = index_date-enroll_before,
+         enroll_upper = index_date+enroll_after) %>% 
+  filter(between(index_date,enroll_lower, enroll_upper)) # removes those with missing enrollement info
+
+cat("Number of patients:", patients %>% nrow())
+```
+
+# Load in raw SAS vitals data
+
+```{r}
+vital_signs_info <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_vital_signs_12sep23final.sas7bdat"))
+```
+
+### Filter to non-missing temperature observations
+```{r}
+temp_data <- vital_signs_info %>% 
+  filter(!is.na(temp)) %>% 
+  distinct(STUDYID, measurement_date, temp)
+```
+
+### Make sure patient was enrolled druing time of temp reading
+```{r}
+temp_data <- temp_data %>% 
+  inner_join(patients %>% select(STUDYID, enroll_lower, enroll_upper), by = "STUDYID") %>% 
+  filter(between(measurement_date, enroll_lower, enroll_upper)) %>% 
+  distinct(STUDYID, measurement_date, temp)
+```
+
+### Collapse temp data to visit days (i.e., max temp on a given day)
+```{r}
+temp_data <- temp_data %>% 
+  group_by(STUDYID, measurement_date) %>% 
+  summarise(temp = max(temp),
+            .groups = "drop")
+```
+
+# Load in raw SAS procedures data
+
+```{r}
+all_px <- haven::read_sas(paste0("/Shared/AML/kaiser_data/sepsis/sepsis_px_12sep23final.sas7bdat"))
+```
+
+### Filter to CPT code for blood cultures (87040, 87070, 87075, 87076, 87149)
+```{r}
+BC_data <- all_px %>% 
+  filter(px_codetype == "C4") %>% # filter to CPT codes
+  filter(px %in% c("87040", "87070", "87075", "87076", "87149")) %>%  # filter to blood cluture codes
+  distinct(STUDYID, procdate) # use PROCDATE (procedure date) as opposed to ADATE which is admisson date
+```
+
+### Make sure patient was enrolled at time of procedure
+```{r}
+BC_data <- BC_data %>% 
+  inner_join(patients %>% select(STUDYID, enroll_lower, enroll_upper), by = "STUDYID") %>% 
+  filter(between(procdate, enroll_lower, enroll_upper)) %>% 
+  distinct(STUDYID, procdate)
+```
+
+
+# Approach 1
+
+Find first visit day with non-missing temperature reading with no recorded blood culture codes prior to visit day. Look for first blood culture px that occured within a window after (0-7 days) the first visit day with a temperature reading. Allow for fever threshold to vary (>=100F, >=101F, >=103F) and compute the proportion that had a blood culture within the given window by fever definition.
+
+```{r, echo=F, include=F}
+# expand_data1 <-  temp_data %>% 
+#   mutate(window = map(measurement_date, ~tibble(window = seq(.x, .x+7, "1 day"))))
+# 
+# expand_data_w_BC <- expand_data1 %>%
+#   unnest(window) %>% 
+#   left_join(BC_data %>% mutate(BC = 1L) %>% 
+#               rename(window = procdate), by = c("STUDYID", "window"))
+# 
+# temp1 <- expand_data_w_BC %>% filter(window >= measurement_date & window <= measurement_date + j) %>%
+#   group_by(STUDYID, measurement_date, temp) %>%
+#   summarise(BC_window = as.numeric(any(!is.na(BC))), .groups = "drop") %>%
+#   mutate(fever = as.numeric(temp >= 100))
+# 
+# cat("Window = ", j, "\n\n")
+# cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0)))
+# prop.table(cont_table, margin = 1)
+# test <- prop.test(cont_table)
+# print(test)
+# cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)))
+
+```
+
+
+```{r}
+
+# find first non-missing temp visit day by patient
+first_non_missing_temp <- temp_data %>% 
+  group_by(STUDYID) %>% 
+  filter(measurement_date == min(measurement_date)) %>% 
+  ungroup()
+
+# left join with BC data by STUDYID 
+expand_data <- first_non_missing_temp %>% 
+  left_join(BC_data %>% 
+              group_by(STUDYID) %>% 
+              summarise(procdate = min(procdate),
+                        .groups = "drop") %>% 
+              mutate(BC = 1L), by ="STUDYID") 
+
+# remove cases where there was a BC before temp reading
+expand_data <- expand_data %>% 
+  anti_join(expand_data %>% filter(procdate < measurement_date) %>% # find cases where first BC px was before first non-missing temp
+              distinct(STUDYID, measurement_date, temp),
+            by = c("STUDYID", "measurement_date", "temp"))
+
+
+```
+
+### Fever definition >= 100F
+
+```{r}
+
+fever_def <- 100
+window <- 0:7
+
+for(j in window){
+  
+  temp <- expand_data %>% 
+    mutate(BC_window = ifelse(between(procdate, measurement_date, measurement_date + j), 1L, NA)) %>% 
+    group_by(STUDYID, measurement_date, temp) %>% 
+    summarise(BC_window = as.numeric(any(!is.na(BC_window))), .groups = "drop") %>%
+    mutate(fever = as.numeric(temp >= fever_def)) 
+  
+  cat("##### Window =", j, "#####\n")
+  cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
+  cat("\n")
+  print(prop.table(cont_table, margin = 1)*100)
+  test <- prop.test(cont_table)
+  print(test)
+  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  
+}
+
+```
+
+### Fever definition >= 101F
+
+```{r}
+
+fever_def <- 101
+window <- 0:7
+
+for(j in window){
+  
+  temp <- expand_data %>% 
+    mutate(BC_window = ifelse(between(procdate, measurement_date, measurement_date + j), 1L, NA)) %>% 
+    group_by(STUDYID, measurement_date, temp) %>% 
+    summarise(BC_window = as.numeric(any(!is.na(BC_window))), .groups = "drop") %>%
+    mutate(fever = as.numeric(temp >= fever_def)) 
+  
+  cat("##### Window =", j, "#####\n")
+  cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
+  cat("\n")
+  print(prop.table(cont_table, margin = 1)*100)
+  test <- prop.test(cont_table)
+  print(test)
+  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  
+}
+
+```
+
+### Fever definition >= 103F
+
+```{r}
+
+fever_def <- 103
+window <- 0:7
+
+for(j in window){
+  
+  temp <- expand_data %>% 
+    mutate(BC_window = ifelse(between(procdate, measurement_date, measurement_date + j), 1L, NA)) %>% 
+    group_by(STUDYID, measurement_date, temp) %>% 
+    summarise(BC_window = as.numeric(any(!is.na(BC_window))), .groups = "drop") %>%
+    mutate(fever = as.numeric(temp >= fever_def)) 
+  
+  cat("##### Window =", j, "#####\n")
+  cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
+  cat("\n")
+  print(prop.table(cont_table, margin = 1)*100)
+  test <- prop.test(cont_table)
+  print(test)
+  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  
+}
+
+```
+
+# Approach 2 
+
+<!-- Approach 1 maybe problematic as we are assuming independence, yet patients with multiple visit days with temperature measurements may have correlated outcomes: 1) multiple observations from the same patient can share the same BC outcome if window is >0 (e.g. if patient had blood culture (BC) on day 2 the observation for day 1 and day 2 will have the outcome of "Yes" if we use window of 1 day) and 2) If patient had BC on given day they are probably less likely to have a BC on the next day. -->
+
+Here, we focus on each patient’s first BC and compare the odds of having a fever measurement within a specified window (0–7 days) prior to that event between cases and matched controls. Perform 1:1 matching based on the index BC patient date: for each case, a control patient is selected who had a patient procedure encounter on the same date for reasons unrelated to BC. 
+
+```{r}
+# Find index BC cases
+cases <- BC_data %>% 
+  group_by(STUDYID) %>% 
+  summarise(index_BC_date = min(procdate),
+            .groups = "drop")
+# %>% 
+#   sample_n(1000)
+
+# Find avaliable controls that were not patients who had BC and 
+# had a non BC px visit
+available_controls <- all_px %>% 
+  filter(!px %in% c("87040", "87070", "87075", "87076", "87149")) %>% 
+  distinct(STUDYID, procdate) %>%
+  anti_join(cases, by = "STUDYID") %>% 
+  rename(control_id = STUDYID)
+  
+# Match controls to cases based on data of BC px index visit
+n_avilable <- cases %>% 
+  left_join(available_controls,
+            by = c("index_BC_date" = "procdate")) %>% 
+  filter(!is.na(control_id)) %>% 
+  group_by(STUDYID) %>% 
+  mutate(n = n()) %>% 
+  arrange(n) %>% 
+  ungroup()
+
+# Implement 1:1 matching without replacement, if control for a given
+# index BC date is used for a case it is no longer available for other cases.
+k <- 1
+matched_df <- tibble()
+used_control <- tibble()
+for (i in unique(n_avilable$STUDYID)){
+  
+  selected_control <- n_avilable %>% 
+    filter(STUDYID == i) 
+  
+  if(nrow(used_control)>0){
+    selected_control <- selected_control %>% 
+      anti_join(used_control,
+                by = c("index_BC_date", "control_id"))
+  }
+  
+  if(nrow(selected_control) >0) {
+    
+    selected_control <- selected_control %>% 
+      sample_n(1) %>% 
+      mutate(case = 0L)
+    
+    used_control <- bind_rows(used_control,
+                              selected_control %>% select(control_id, index_BC_date))
+    
+    matched_df <- matched_df %>% 
+      bind_rows(., 
+                bind_rows(cases %>% 
+                            filter(STUDYID == i) %>% 
+                            mutate(case = 1L),
+                          selected_control %>% 
+                            select(STUDYID = control_id, index_BC_date,
+                                   case)) %>% 
+                  mutate(strata = k))
+  }
+  
+  # print(k)
+  k <- k + 1
+  
+}
+
+main_temp_data <- matched_df %>% 
+  left_join(temp_data,
+            by = "STUDYID")
+
+```
+
+### Fever definition >= 100F
+
+```{r}
+
+fever_def <- 100
+window <- 0:7
+
+for (j in window){
+  
+df <- matched_df %>% 
+  left_join(main_temp_data %>% 
+              filter(between(measurement_date, index_BC_date - j, index_BC_date)) %>% 
+              group_by(STUDYID, index_BC_date) %>% 
+              summarise(temp = max(temp), .groups = "drop"),
+              by = c("STUDYID", "index_BC_date")) %>% 
+  mutate(fever = factor(temp >= fever_def,
+                        exclude = NULL,
+                        levels = c(FALSE, TRUE, NA),
+                        labels = c( "No Fever", "Fever", "Missing"))) %>% 
+  rename(stratum = strata) 
+
+cat("##### Window =", j, "#####\n\n")
+
+cat("Counts fever by case status\n")
+print(prop.table(table("case" = df$case, "Missing fever" = df$fever), margin = 1) * 100)
+
+print(clogit(case ~ fever + strata(stratum), data = df))
+
+cat("\n")
+
+}
+
+```
+
+
+### Fever definition >= 101F
+
+```{r}
+
+fever_def <- 101
+window <- 0:7
+
+for (j in window){
+  
+df <- matched_df %>% 
+  left_join(main_temp_data %>% 
+              filter(between(measurement_date, index_BC_date - j, index_BC_date)) %>% 
+              group_by(STUDYID, index_BC_date) %>% 
+              summarise(temp = max(temp), .groups = "drop"),
+              by = c("STUDYID", "index_BC_date")) %>% 
+  mutate(fever = factor(temp >= fever_def,
+                        exclude = NULL,
+                        levels = c(FALSE, TRUE, NA),
+                        labels = c( "No Fever", "Fever", "Missing"))) %>% 
+  rename(stratum = strata) 
+
+cat("##### Window =", j, "#####\n\n")
+
+cat("Counts fever by case status\n")
+print(prop.table(table("case" = df$case, "Missing fever" = df$fever), margin = 1) * 100)
+
+print(clogit(case ~ fever + strata(stratum), data = df))
+
+cat("\n")
+
+}
+
+```
+
+
+### Fever definition >= 103F
+
+```{r}
+
+fever_def <- 103
+window <- 0:7
+
+for (j in window){
+  
+df <- matched_df %>% 
+  left_join(main_temp_data %>% 
+              filter(between(measurement_date, index_BC_date - j, index_BC_date)) %>% 
+              group_by(STUDYID, index_BC_date) %>% 
+              summarise(temp = max(temp), .groups = "drop"),
+              by = c("STUDYID", "index_BC_date")) %>% 
+  mutate(fever = factor(temp >= fever_def,
+                        exclude = NULL,
+                        levels = c(FALSE, TRUE, NA),
+                        labels = c( "No Fever", "Fever", "Missing"))) %>% 
+  rename(stratum = strata) 
+
+cat("##### Window =", j, "#####\n\n")
+
+cat("Counts fever by case status\n")
+print(prop.table(table("case" = df$case, "Missing fever" = df$fever), margin = 1) * 100)
+
+print(clogit(case ~ fever + strata(stratum), data = df))
+
+cat("\n")
+
+}
+
+```
+
+
+
