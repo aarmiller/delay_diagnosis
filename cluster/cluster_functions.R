@@ -77,3 +77,4 @@ find_focal_clusters <- function(cluster_data,focal_code,dx_ver){
   list(cluster_means = tmp_means,
        condition_counts = tmp_conds)
 }
+4

@@ -48,6 +48,8 @@ ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/coc
        width = 5, height = 2.8,dpi = 600,units = "in",
        plot = figure1)
 
+4
+
 # ggsave("publications/dengue/figures/figure1.jpg",
 #        width = 5, height = 2.8,dpi = 600,units = "in",
 #        plot = figure1)
