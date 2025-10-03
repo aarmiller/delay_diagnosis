@@ -45,7 +45,8 @@ better_labels <- tribble(~term,~label,
                          'age_cat(64,130]', 'Age >= 65'  ,
                          'sexFemale', 'Female'  ,
                          "weekendTRUE", "Weekend Visit",
-                         "fever_100", "Fever (>=100F) recorded during visit")
+                         "fever_100", "Temperature >=100F recorded during visit",
+                         "fever_100_or_dxTRUE", "Temperature >=100F or fever dx recorded during visit")
 
 # better_labels <- better_labels %>% 
 #   bind_rows(ssd_miss_risk_models$miss_opp_res %>% 
@@ -64,11 +65,46 @@ opportunity at a given visit. All missed visits and index dates are included in
 this model with an outcome of 1 assigned to missed opportunities and 0 to index 
 diagnoses.
 
-The following risk model pertains to all observations (CCAE, MDCR and Medicaid)
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid) using a fever indicator constructed as either a temperature >=100F or fever dx recorded during the visit (Note, missing values can be generated particularly if the temperature reading is missing and there is no fever dx recorded during the visit. Missing observations are removed here)
 
 ```{r, echo = FALSE}
 
-ssd_miss_risk_models$miss_opp_res %>% 
+ssd_miss_risk_models$miss_opp_res_fever_100_or_dx %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+Note: models also adjusted for year and month of visit.
+
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid) using a fever indicator constructed as a temperature >=100F during the visit (Note, observations with a missing temperature reading are removed here)
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res_fever_100 %>% 
+  mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
+                               " (",
+                               formatC(low, digits = 3, format = "g", flag= "#"),
+                               "-",
+                               formatC(high, digits = 3, format = "g", flag= "#"),")")) %>% 
+  inner_join(better_labels) %>% 
+  select(label, `Odds Ratio`) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+Note: models also adjusted for year and month of visit.
+
+The following risk model pertains to all observations (CCAE, MDCR and Medicaid) using a fever indicator constructed as a temperature >=100F during the visit, where missing temperature readings are imputed as no fever.
+
+```{r, echo = FALSE}
+
+ssd_miss_risk_models$miss_opp_res_fever_100_na_0 %>% 
   mutate(`Odds Ratio` = paste0(formatC(est, digits = 3, format = "g", flag= "#"),
                                " (",
                                formatC(low, digits = 3, format = "g", flag= "#"),
