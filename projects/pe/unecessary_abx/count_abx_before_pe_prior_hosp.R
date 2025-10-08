@@ -70,7 +70,7 @@ rm(list = ls())
 load("~/Data/MarketScan/truven_extracts/small_dbs/pe/tmp_transfer/abx_visits.RData")
 
 ## Params ##
-inpatient_window <- 90
+inpatient_window <- 365
 
 ############
 
@@ -99,7 +99,6 @@ abx_counts <- rename(abx_codes,ndcnum=ndc) %>%
 
 
 library("ggh4x")
-install.packages("ggh4x")
 
 abx_counts %>% 
   filter(days_since_index >= -98) %>% 
@@ -110,9 +109,10 @@ abx_counts %>%
   slice(1:3) %>% 
   select(name) %>% 
   inner_join(abx_counts) %>% 
+  mutate(inpatient = ifelse(prior_inpatient==1,"Prior Inpatient Visit", "No Prior Inpatient")) %>% 
   ggplot(aes(days_since_index,n)) +
   geom_line() +
-  facet_grid(name~prior_inpatient, scales = "free") +
+  ggh4x::facet_grid2(name~inpatient, scales = "free_y", independent = "y") +
   theme_bw()
 
 all_abx_counts <- abx_counts %>% 
@@ -122,22 +122,103 @@ all_abx_counts <- abx_counts %>%
   arrange(desc(n))
 
 
-pdf("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/pe/excess_abx/results/abx_plots/all_abx.pdf",onefile = TRUE)
-for (i in 1:199){
+pdf(paste0("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/pe/excess_abx/results/abx_plots/all_abx_by_inpatient_",inpatient_window,".pdf"),onefile = TRUE)
+for (i in 1:31){
+  tmp_conds <- all_abx_counts %>%
+    slice((i*3-2):(i*3)) %>% 
+    select(name)
+  
+  p <- tmp_conds %>% 
+    inner_join(abx_counts) %>% 
+    mutate(inpatient = ifelse(prior_inpatient==1,"Prior Inpatient Visit", "No Prior Inpatient")) %>% 
+    ggplot(aes(days_since_index,n)) +
+    geom_line() +
+    ggh4x::facet_grid2(name~inpatient, scales = "free_y", independent = "y") +
+    theme_bw()
+  
+  print(p)
+}
+dev.off()
+
+
+## Plot together frac --------------
+
+prior_in_counts <- index_dx_dates %>% 
+  left_join(prior_in_inds) %>% 
+  mutate(prior_inpatient = replace_na(prior_inpatient,0L)) %>% 
+  count(prior_inpatient, name = "tot_cases")
+
+abx_counts %>% 
+  filter(days_since_index >= -98) %>% 
+  group_by(name) %>% 
+  summarise(n = sum(n)) %>% 
+  arrange(desc(n)) %>% 
+  filter(name != "uncategorized") %>% 
+  slice(1:6) %>% 
+  select(name) %>% 
+  inner_join(abx_counts) %>% 
+  mutate(inpatient = ifelse(prior_inpatient==1,"Prior Inpatient Visit", "No Prior Inpatient")) %>% 
+  inner_join(prior_in_counts) %>% 
+  mutate(frac = 1000*n/tot_cases) %>% 
+  ggplot(aes(-days_since_index,frac, color = inpatient)) +
+  geom_line() +
+  facet_wrap(~name, scales = "free_y",nrow = 3) +
+  theme_bw() +
+  scale_x_reverse() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank()) +
+  xlab("Days Before PE Diagnosis") +
+  ylab("Total Visits (per 1K enrollees)")
+
+nrow(all_abx_counts)/6
+
+pdf(paste0("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/pe/excess_abx/results/abx_plots/all_abx_by_inpatient2_",inpatient_window,".pdf"),onefile = TRUE)
+for (i in 1:16){
   tmp_conds <- all_abx_counts %>%
     slice((i*6-5):(i*6)) %>% 
     select(name)
   
   p <- tmp_conds %>% 
     inner_join(abx_counts) %>% 
-    ggplot(aes(days_since_index,n)) +
+    mutate(inpatient = ifelse(prior_inpatient==1,"Prior Inpatient Visit", "No Prior Inpatient")) %>% 
+    inner_join(prior_in_counts) %>% 
+    mutate(frac = 1000*n/tot_cases) %>% 
+    ggplot(aes(-days_since_index,frac, color = inpatient)) +
     geom_line() +
-    facet_wrap(~name, scales = "free_y", nrow = 3) +
-    theme_bw()
+    facet_wrap(~name, scales = "free_y",nrow = 3) +
+    theme_bw() +
+    scale_x_reverse() +
+    theme(legend.position = "bottom",
+          legend.title = element_blank()) +
+    xlab("Days Before PE Diagnosis") +
+    ylab("Total Visits (per 1K enrollees)")
   
   print(p)
 }
 dev.off()
+
+
+
+
+#### Old ####
+
+
+abx_counts %>% 
+  filter(days_since_index >= -98) %>% 
+  group_by(name) %>% 
+  summarise(n = sum(n)) %>% 
+  arrange(desc(n)) %>% 
+  filter(name != "uncategorized") %>% 
+  slice(1:3) %>% 
+  select(name) %>% 
+  inner_join(abx_counts) %>% 
+  mutate(inpatient = ifelse(prior_inpatient==1,"Prior Inpatient Visit", "No Prior Inpatient")) %>% 
+  ggplot(aes(days_since_index,n)) +
+  geom_line() +
+  ggh4x::facet_grid2(name~inpatient, scales = "free_y", independent = "y") +
+  theme_bw()
+
+
 
 pdf("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/pe/excess_abx/results/abx_plots/all_abx_week.pdf",onefile = TRUE)
 for (i in 1:199){
