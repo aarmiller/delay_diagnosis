@@ -11,14 +11,17 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(tidyverse)
 library(survival)
 cond <- params$cond
-data_path <- paste0("/Shared/AML/kaiser_data/", cond, "/", cond, "_")
+data_path <- paste0("/Shared/AML/kaiser_data/", cond, "/")
+files <- dir(data_path)
 ```
 
 
 # Load in cohort membership SAS data
 
 ```{r}
-patients <- haven::read_sas(paste0(data_path, "cohort_12sep23final.sas7bdat"))
+# patients <- haven::read_sas(paste0(data_path, "cohort_12sep23final.sas7bdat"))
+patients <- haven::read_sas(paste0(data_path, files[grepl("cohort", files)]))
+
 ```
 
 ### Compute enrollment period for each patient
@@ -35,7 +38,9 @@ cat("Number of patients:", patients %>% nrow())
 # Load in raw SAS vitals data
 
 ```{r}
-vital_signs_info <- haven::read_sas(paste0(data_path, "vital_signs_12sep23final.sas7bdat"))
+# vital_signs_info <- haven::read_sas(paste0(data_path, "vital_signs_12sep23final.sas7bdat"))
+vital_signs_info <- haven::read_sas(paste0(data_path,  files[grepl("vital_signs", files)]))
+
 ```
 
 ### Filter to non-missing temperature observations
@@ -64,7 +69,9 @@ temp_data <- temp_data %>%
 # Load in raw SAS procedures data
 
 ```{r}
-all_px <- haven::read_sas(paste0(data_path, "px_12sep23final.sas7bdat"))
+# all_px <- haven::read_sas(paste0(data_path, "px_12sep23final.sas7bdat"))
+all_px <- haven::read_sas(paste0(data_path, files[grepl("px", files)]))
+
 ```
 
 ### Filter to CPT code for blood cultures (87040, 87070, 87075, 87076, 87149)
@@ -90,21 +97,31 @@ First identify each patient’s earliest visit with a recorded, non-missing temp
 
 ```{r, echo=F, include=F}
 # expand_data1 <-  temp_data %>% 
+#   group_by(STUDYID) %>% 
+#   filter(measurement_date == min(measurement_date)) %>% 
+#   ungroup() %>%
 #   mutate(window = map(measurement_date, ~tibble(window = seq(.x, .x+7, "1 day"))))
 # 
 # expand_data_w_BC <- expand_data1 %>%
-#   unnest(window) %>% 
-#   left_join(BC_data %>% mutate(BC = 1L) %>% 
+#   unnest(window) %>%
+#   left_join(BC_data %>% mutate(BC = 1L) %>%
 #               rename(window = procdate), by = c("STUDYID", "window"))
 # 
-# temp1 <- expand_data_w_BC %>% filter(window >= measurement_date & window <= measurement_date + j) %>%
+# temp1 <- expand_data_w_BC %>% 
+#   anti_join(BC_data %>% inner_join(temp_data %>% 
+#                                      group_by(STUDYID) %>% 
+#                                      filter(measurement_date == min(measurement_date)) %>% 
+#                                      ungroup()) %>% 
+#               filter(procdate < measurement_date) %>% 
+#               distinct(STUDYID)) %>%
+#   filter(window >= measurement_date & window <= measurement_date + j) %>% 
 #   group_by(STUDYID, measurement_date, temp) %>%
 #   summarise(BC_window = as.numeric(any(!is.na(BC))), .groups = "drop") %>%
-#   mutate(fever = as.numeric(temp >= 100))
+#   mutate(fever = as.numeric(temp >= 101))
 # 
 # cat("Window = ", j, "\n\n")
-# cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0)))
-# prop.table(cont_table, margin = 1)
+# cont_table <- table("Fever" = factor(temp1$fever, levels = c(1,0)), "Blood Culture" = factor(temp1$BC_window, levels = c(1,0)))
+# prop.table(cont_table, margin = 1)*100
 # test <- prop.test(cont_table)
 # print(test)
 # cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)))
@@ -124,7 +141,7 @@ first_non_missing_temp <- temp_data %>%
 expand_data <- first_non_missing_temp %>% 
   left_join(BC_data %>% 
               group_by(STUDYID) %>% 
-              summarise(procdate = min(procdate),
+              summarise(procdate = min(procdate), # find when their first BC date occured
                         .groups = "drop") %>% 
               mutate(BC = 1L), by ="STUDYID") 
 
@@ -156,9 +173,11 @@ for(j in window){
   cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
   cat("\n")
   print(prop.table(cont_table, margin = 1)*100)
-  test <- prop.test(cont_table)
-  print(test)
-  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  if(all(rowSums(cont_table) != 0)){
+    test <- prop.test(cont_table)
+    print(test)
+    cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  }
   
 }
 
@@ -183,9 +202,11 @@ for(j in window){
   cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
   cat("\n")
   print(prop.table(cont_table, margin = 1)*100)
-  test <- prop.test(cont_table)
-  print(test)
-  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  if(all(rowSums(cont_table) != 0)){
+    test <- prop.test(cont_table)
+    print(test)
+    cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  }
   
 }
 
@@ -210,10 +231,11 @@ for(j in window){
   cont_table <- table("Fever" = factor(temp$fever, levels = c(1,0)), "Blood Culture" = factor(temp$BC_window, levels = c(1,0))) 
   cat("\n")
   print(prop.table(cont_table, margin = 1)*100)
-  test <- prop.test(cont_table)
-  print(test)
-  cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
-  
+  if(all(rowSums(cont_table) != 0)){
+    test <- prop.test(cont_table)
+    print(test)
+    cat("Diff in proportion BS fever vs no fever:", abs(diff(test$estimate)), "\n\n")
+  }
 }
 
 ```

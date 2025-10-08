@@ -87,3 +87,56 @@ ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure2.pdf",
 # ggsave("publications/dengue/figures/figure2.jpg",
 #        width = 5, height = 3,dpi = 600,units = "in")
 
+
+########################
+#### Temporal Trend ####
+########################
+
+time_data <- read_csv("/Volumes/Statepi_Diagnosis/projects/measles/delay_window_1_14/risk_models/month_year_cases.csv")
+
+time_data %>% 
+  mutate(date = as.Date(paste(year, month, "1", sep = "-"))) %>% 
+  ggplot(aes(x = date, y = n)) +
+  geom_line(linewidth = 1) +
+  geom_point( size = 2) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
+  labs(
+    x = "Year",
+    y = "Number of measles cases",
+  ) +
+  theme_bw() +
+  theme(axis.title = element_text(size=10),
+        axis.text = element_text(size=10)) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure3.pdf",
+       width = 6, height = 2.8,dpi = 1200,units = "in")
+
+cdc <- readxl::read_xlsx("/Users/alanarakkal/Desktop/ongoing projects/measles/data-table.xlsx")
+time_data %>% 
+  group_by(year) %>% 
+  summarise(n = sum(n), .groups = "drop") %>% 
+  mutate(Group = "Study Population") %>% 
+  bind_rows(cdc %>% select(year, n = cases) %>% 
+              mutate(Group = "CDC") ) %>% 
+  filter(between(year, 2001, 2023)) %>% 
+  mutate(year = as.factor(year)) %>%
+  ggplot(aes(x = year, y = n , colour = Group, group = Group)) +
+  geom_line(linewidth = 1) +
+  geom_point( size = 2) +
+  labs(
+    x = "Year",
+    y = "Number of measles cases",
+  ) +
+  theme_bw() +
+  theme(axis.title = element_text(size=10),
+        axis.text = element_text(size=10)) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(title = NULL))
+
+ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure3_v2.pdf",
+       width = 6, height = 2.8,dpi = 1200,units = "in")
+
