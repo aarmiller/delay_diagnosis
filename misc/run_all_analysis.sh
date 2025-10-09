@@ -523,7 +523,7 @@ qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh meningitis
 qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh endocarditis
 qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh epidural_abs
 
-# qsqsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh long_covid
+# qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh long_covid
 # qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh long_covid
 # qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh long_covid
 # qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh long_covid
