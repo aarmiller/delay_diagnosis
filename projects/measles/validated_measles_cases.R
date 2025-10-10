@@ -15,7 +15,7 @@ index_dx %>%
 # find cases with lab testing within 30 days of index diagnosis
 validated_cases <- db %>% 
   tbl("all_proc_visits") %>% 
-  filter(proc %in% c("86762","87798")) %>% 
+  filter(proc %in% c("86765","87798")) %>% 
   filter(between(days_since_index,-30,30)) %>% 
   distinct(patient_id,date) %>% 
   collect()
