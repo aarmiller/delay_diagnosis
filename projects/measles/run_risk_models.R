@@ -134,6 +134,9 @@ reg_demo <- reg_demo %>%
               mutate(rural = 1L), by = "patient_id") %>% 
   mutate(rural = replace_na(rural,0L))
 
+reg_demo %>% 
+  count(year, month) %>% 
+  write.csv(file = paste0(out_path,"month_year_cases.csv"))
 
 rx_visits <- con %>% tbl("all_rx_visits") %>% 
   filter(patient_id %in% local(unique(index_cases$patient_id))) %>% 
@@ -198,6 +201,9 @@ proc_visits <- con %>% tbl("all_proc_visits") %>% collect()
 proc_visits <- proc_visits %>%
   inner_join(select(demo1,patient_id,index_date)) %>%
   filter(days_since_index< (-cp_selected)) # any prior history of vaccination prior to cp
+
+# > proc_visits %>% .$days_since_index %>% range
+# [1] -8147   -15
 
 vaccination_hist <- proc_visits %>%
   filter(proc %in% vaccination) %>%

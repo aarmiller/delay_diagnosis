@@ -1,0 +1,405 @@
+---
+title: "Time of day, Fever, and Blood Culture Evaluation in Kaiser `r stringr::str_to_title(params$cond)` Cohort"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+  cond: "default condition"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(lubridate)
+cond <- params$cond
+data_path <- paste0("/Shared/AML/kaiser_data/", cond, "/")
+files <- dir(data_path)
+```
+
+
+# Load in cohort membership SAS data
+
+```{r}
+# patients <- haven::read_sas(paste0(data_path, "cohort_12sep23final.sas7bdat"))
+patients <- haven::read_sas(paste0(data_path, files[grepl("cohort", files)]))
+
+```
+
+### Compute enrollment period for each patient
+```{r}
+patients <- patients %>% 
+  distinct(STUDYID, index_date, enroll_before, enroll_after) %>% 
+  mutate(enroll_lower = index_date-enroll_before,
+         enroll_upper = index_date+enroll_after) %>% 
+  filter(between(index_date,enroll_lower, enroll_upper)) # removes those with missing enrollement info
+
+cat("Number of patients:", patients %>% nrow())
+```
+
+# Load in raw SAS vitals data
+
+```{r}
+# vital_signs_info <- haven::read_sas(paste0(data_path, "vital_signs_12sep23final.sas7bdat"))
+vital_signs_info <- haven::read_sas(paste0(data_path,  files[grepl("vital_signs", files)]))
+
+```
+
+### Filter to non-missing temperature and measurement time observations that occured in AV or ED
+```{r}
+temp_data <- vital_signs_info %>% 
+  filter(!is.na(temp)) %>%
+  filter(!is.na(measurement_time)) %>%
+  filter(encounter_type %in% c("AV", "ED")) %>% 
+  distinct(STUDYID,measurement_time, measurement_date, temp)
+```
+
+### Make sure patient was enrolled druing time of temp reading
+```{r}
+temp_data <- temp_data %>% 
+  inner_join(patients %>% select(STUDYID, enroll_lower, enroll_upper), by = "STUDYID") %>% 
+  filter(between(measurement_date, enroll_lower, enroll_upper)) %>% 
+  distinct(STUDYID,measurement_time, measurement_date, temp)
+
+nrow(temp_data)
+```
+
+Observations that had multiple temp reading for a patient on a given day
+```{r}
+multiple_readings <- temp_data %>% 
+  count(STUDYID, measurement_date) %>% 
+  filter(n >1)
+
+nrow(multiple_readings)
+#sum(multiple_readings$n)
+```
+
+For the observations above with multiple temp readings in a given day, randomly select the temperature observations
+
+```{r}
+set.seed(1234)
+temp_dataset <- temp_data %>% 
+  anti_join(multiple_readings, by = c("STUDYID", "measurement_date")) %>% 
+  bind_rows(temp_data %>% 
+              inner_join(multiple_readings %>% select(-n), by = c("STUDYID", "measurement_date")) %>% 
+              group_by(STUDYID, measurement_date) %>% 
+              sample_n(size = 1, replace = FALSE) %>% 
+              ungroup())
+
+# temp_dataset %>% 
+#   count(STUDYID, measurement_date) %>% 
+#   filter(n >1)          
+
+```
+
+Check for unreasonable temp readings
+
+```{r}
+temp_dataset %>% 
+  count(between(temp, 90,110)) %>% 
+  mutate(percent = n/sum(n)*100)
+
+temp_dataset %>% 
+  filter(!between(temp, 90,110)) %>% 
+  summarise(range = paste0(range(temp), collapse = " - "),
+            quartiles = paste0(quantile(temp, probs = c(.25, .5, .75)), collapse = ", "))
+
+temp_dataset <- temp_dataset %>% 
+    filter(between(temp, 90,110)) 
+```
+
+# Load in raw SAS procedures data
+
+```{r}
+# all_px <- haven::read_sas(paste0(data_path, "px_12sep23final.sas7bdat"))
+all_px <- haven::read_sas(paste0(data_path, files[grepl("px", files)]))
+
+```
+
+### Filter to CPT code for blood cultures (87040, 87070, 87075, 87076, 87149) (the procedure claim could come from any setting)
+```{r}
+BC_data <- all_px %>% 
+  filter(px_codetype == "C4") %>% # filter to CPT codes
+  filter(px %in% c("87040", "87070", "87075", "87076", "87149")) %>%  # filter to blood cluture codes
+  distinct(STUDYID, procdate) # use PROCDATE (procedure date) as opposed to ADATE which is admisson date
+```
+
+### Make sure patient was enrolled at time of procedure
+```{r}
+BC_data <- BC_data %>% 
+  inner_join(patients %>% select(STUDYID, enroll_lower, enroll_upper), by = "STUDYID") %>% 
+  filter(between(procdate, enroll_lower, enroll_upper)) %>% 
+  distinct(STUDYID, procdate)
+```
+
+# Methods
+
+First identify each patient’s earliest visit with a recorded, non-missing, temperature and measurement time within a 2-week period prior to index. Look for first blood culture (BC)  px that occured within 24 (or 48) hours of the first temperature reading. Also require that it had been more than 30 days since a prior blood culture px to deal with recurrent cases or continual care. Allow for fever threshold to vary (>=100F, >=1.01F, >=103F).
+
+Consider the mediation model: Time of day (TOD) -> Fever -> BC and TOD -> BC. Estimate percent mediated through fever.
+
+### Create time of day bins
+
+```{r}
+plot_data <- temp_dataset %>% 
+  mutate(hour = hour(measurement_time)) %>% 
+  group_by(hour) %>% 
+  summarise(mean_temp = mean(temp),
+            median_temp = median(temp),
+            n = n(), .groups = "drop") 
+
+plot_data %>% 
+    print(n = Inf)
+  
+plot_data %>% 
+  ggplot(aes(x = hour, y = mean_temp))+
+  geom_line()+
+  theme_classic()
+
+```
+
+Consider bins:
+
+ - Morning – 12 AM to 6 AM
+ - Afternoon – 7 AM  to 12 PM
+ - Evening – 1 PM to 5 PM
+ - Night – 6 PM to 11 PM
+
+```{r}
+temp_dataset <- temp_dataset %>% 
+  mutate(hour = hour(measurement_time)) %>% 
+  mutate(TOD = cut(hour, breaks = c(-1, 6, 12, 17, 23),
+             labels = c("12 AM to 6 AM", "7 AM  to 12 PM", "1 PM to 5 PM", "6 PM to 11 PM")))
+
+temp_dataset %>% 
+  group_by(TOD) %>% 
+  summarise(mean_temp = mean(temp),
+            median_temp = median(temp),
+            n = n(), .groups = "drop") 
+```
+
+```{r}
+
+time_before_index <- 14L
+BC_window <- 1L
+fever_def <- 100
+
+reg_data <- function(time_before_index, BC_window, fever_def){
+  
+  # find first non-missing temp visit day in [-time_before_index, -1] days of index by patient
+  first_non_missing_temp <- temp_dataset %>% 
+    inner_join(patients %>% select(STUDYID,index_date)) %>% 
+    filter(between(measurement_date, index_date-time_before_index, index_date-1)) %>% 
+    group_by(STUDYID) %>% 
+    filter(measurement_date == min(measurement_date)) %>% 
+    ungroup()
+  
+  # left join with BC data by STUDYID 
+  expand_data <- first_non_missing_temp %>% 
+    left_join(BC_data %>% 
+                arrange(STUDYID, procdate) %>% 
+                group_by(STUDYID) %>% 
+                mutate(days_since_last_BC = as.numeric(procdate -lag(procdate))) %>% #compute time since last BC
+                ungroup() %>% 
+                mutate(BC = 1L), by ="STUDYID") 
+  
+  
+  out_data <- expand_data %>%
+    mutate(BC_ind = case_when(
+      between(procdate, measurement_date, measurement_date + BC_window) & (is.na(days_since_last_BC) | days_since_last_BC > 30) ~ 1L,
+      .default = 0
+    )) %>% 
+    group_by(STUDYID, measurement_time, measurement_date, TOD, temp) %>% 
+    summarise(BC_ind = max(BC_ind)) %>% 
+    ungroup() %>% 
+    mutate(fever = as.numeric(temp >= fever_def)) 
+  
+  # test <- BC_data %>% 
+  #               arrange(STUDYID, procdate) %>% 
+  #               group_by(STUDYID) %>% 
+  #               mutate(days_since_last_BC = as.numeric(procdate -lag(procdate)))        
+  # 
+  # test %>% filter(STUDYID == "SE000105")
+  if(nrow(out_data) != nrow(first_non_missing_temp)){
+    stop("problem")
+  }
+  return(out_data)
+}
+
+
+
+```
+
+### Fever definition >= 100F and BC within 24hrs of temp reading
+
+**Build regression dataset**
+
+```{r}
+data <- reg_data(time_before_index =14, BC_window = 1, fever_def = 101)
+
+table(data$TOD, data$fever )
+
+table(data$TOD, data$BC_ind )
+
+table(data$fever, data$BC_ind )
+
+levels(data$TOD)[levels(data$TOD) %in% c( "12 AM to 6 AM", "7 AM  to 12 PM")] <- "12 AM to 12PM"
+table(data$TOD, data$fever )
+
+```
+
+**Fit linear probability model** (Fever ~ TOD)
+
+```{r}
+linear_prob_model <- glm(fever ~ TOD,
+                        family = binomial(link = "identity"),
+                        data = data)
+summary(linear_prob_model)
+```
+
+**Fit logistic regression model model** (BC ~ TOD + Fever)
+
+```{r}
+logit_model <- glm(BC_ind ~ TOD + fever,
+                   family = binomial(link = "logit"),
+                   data = data)
+summary(logit_model)
+
+```
+
+**Compute Total Effect (on logit scale) of TOD**
+
+```{r, echo=F}
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 12 AM to 6 AM\n")
+TE_15_126 <- coef(logit_model)["TOD1 PM to 5 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]) 
+TE_15_126
+
+cat("Log-odds ratio TOD 6 PM to 11 PM vs 12 AM to 6 AM\n")
+TE_611_126 <- coef(logit_model)["TOD6 PM to 11 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+TE_611_126
+
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 6 PM to 11 PM")
+TE_15_611 <-(coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"]) + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+TE_15_611
+```
+
+**Compute Direct Effect (on logit scale) of TOD**
+
+```{r, echo=F}
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 12 AM to 6 AM\n")
+DE_15_126 <- coef(logit_model)["TOD1 PM to 5 PM"] 
+DE_15_126
+
+cat("Log-odds ratio TOD 6 PM to 11 PM vs 12 AM to 6 AM\n")
+DE_611_126 <- coef(logit_model)["TOD6 PM to 11 PM"] 
+DE_611_126
+
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 6 PM to 11 PM")
+DE_15_611<- (coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"])
+DE_15_611
+```
+
+**Compute Indirect Effect (on logit scale) of TOD**
+
+```{r, echo=F}
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 12 AM to 6 AM\n")
+IDE_15_126 <- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]) 
+IDE_15_126
+
+cat("Log-odds ratio TOD 6 PM to 11 PM vs 12 AM to 6 AM\n")
+IDE_611_126 <- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+IDE_611_126
+
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 6 PM to 11 PM")
+IDE_15_611<- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+IDE_15_611
+```
+
+**Compute Percent mediated (on logit scale) through fever**
+
+```{r, echo=F}
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 12 AM to 6 AM\n")
+PM_15_126 <- (abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"])) / abs(coef(logit_model)["TOD1 PM to 5 PM"] + coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]))) *100
+PM_15_126
+
+cat("Log-odds ratio TOD 6 PM to 11 PM vs 12 AM to 6 AM\n")
+PM_611_126 <- ( abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD6 PM to 11 PM"])) /abs( coef(logit_model)["TOD6 PM to 11 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) )) *100
+PM_611_126
+
+cat("Log-odds ratio TOD 1 PM to 5 PM vs 6 PM to 11 PM")
+
+PM_15_611<- (abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) )/abs((coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"]) + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) ))*100
+PM_15_611
+```
+
+**Bootstrap to get CI**
+
+```{r}
+
+mediation_boot <- function(x){
+  res <- numeric(12)
+  names(res) <- c("total_15_126", "total_611_126", "total_15_611",
+                  "direct_15_126", "direct_611_126", "direct_15_611",
+                  "indirect_15_126", "indirect_611_126", "indirect_15_611",
+                  "percent_med_15_126", "percent_med_611_126", "percent_med_15_611"
+  )
+  
+  BS_data <- data %>% 
+    sample_n(size = nrow(data), replace = T)
+  
+  linear_prob_model <- glm(fever ~ TOD,
+                           family = binomial(link = "identity"),
+                           data = BS_data)
+  
+  logit_model <- glm(BC_ind ~ TOD + fever,
+                     family = binomial(link = "logit"),
+                     data = BS_data)
+  
+  res["total_15_126"] <- coef(logit_model)["TOD1 PM to 5 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]) 
+  res["total_611_126"] <- coef(logit_model)["TOD6 PM to 11 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+  res["total_15_611"] <- (coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"]) + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+  res["direct_15_126"] <- coef(logit_model)["TOD1 PM to 5 PM"] 
+  res["direct_611_126"] <- coef(logit_model)["TOD6 PM to 11 PM"] 
+  res["direct_15_611"] <- (coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"])
+  res["indirect_15_126"] <- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]) 
+  res["indirect_611_126"] <- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+  res["indirect_15_611"] <- coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) 
+  res["percent_med_15_126"] <- (abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"])) / abs(coef(logit_model)["TOD1 PM to 5 PM"] + coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]))) *100
+  res["percent_med_611_126"] <- ( abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD6 PM to 11 PM"])) /abs( coef(logit_model)["TOD6 PM to 11 PM"] + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD6 PM to 11 PM"]) )) *100
+  res["percent_med_15_611"] <- (abs(coef(logit_model)[["fever"]]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) )/abs((coef(logit_model)["TOD1 PM to 5 PM"] - coef(logit_model)["TOD6 PM to 11 PM"]) + coef(logit_model)["fever"]*(coef(linear_prob_model)["TOD1 PM to 5 PM"]- coef(linear_prob_model)["TOD6 PM to 11 PM"]) ))*100
+  
+  return(res)
+}
+
+set.seed(1234, kind = "L'Ecuyer-CMRG")
+boot_results <- do.call("rbind",parallel::mclapply(1:1e3,
+                                           FUN=function(x){mediation_boot(x)},
+                                           mc.cores = 80))
+lower <- apply(boot_results, 2, quantile, probs = 0.025)
+upper <- apply(boot_results, 2, quantile, probs = 0.975)
+
+
+tibble(Effect = paste0(rep(c("Total - ",
+                              "Direct - ",
+                              "Indirect - ",
+                              "Percent Med. - "), each = 3),
+                        rep(c("1 PM to 5 PM vs 12 AM to 6 AM",
+                              "6 PM to 11 PM  vs 12 AM to 6 AM",
+                              "1 PM to 5 PM vs 6 PM to 11 PM"), times = 3))) %>% 
+   bind_cols(tibble("Log OR" = c(TE_15_126,
+                                 TE_611_126,
+                                 TE_15_611,
+                                 DE_15_126,
+                                 DE_611_126,
+                                 DE_15_611,
+                                 IDE_15_126,
+                                 IDE_611_126,
+                                 IDE_15_611,
+                                 PM_15_126,
+                                 PM_611_126,
+                                 PM_15_611))) %>% 
+   bind_cols(tibble(lower_95CI = lower)) %>% 
+   bind_cols(tibble(upper_95CI = upper)) %>% 
+  print(n = Inf)
+
+```
+
+

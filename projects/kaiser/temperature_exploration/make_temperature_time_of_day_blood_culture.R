@@ -16,8 +16,7 @@ for (conds in all_cond$cond){
   
   tryCatch({
     
-  set.seed(123) # seed for selecting control
-  rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/kaiser/temperature_exploration/temperature_blood_culture.Rmd",
+  rmarkdown::render(input = "/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/projects/kaiser/temperature_exploration/temperature_time_of_day_blood_culture.Rmd",
                     output_dir = out_path,
                     params = list(cond = conds))
   

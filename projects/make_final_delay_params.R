@@ -265,7 +265,7 @@ final_delay_params <- list(meningitis_bacterial = list(small_db_path = "/Shared/
                                         base_path = "/Shared/Statepi_Diagnosis/prelim_results/measles/",  # base path to original prelim extract results
                                         out_path = "/Shared/Statepi_Diagnosis/projects/measles/",   # path to output delay new results
                                         ssd_name = "measles",
-                                        cp = c(14+1, 21+1),
+                                        cp = c(14+1, 21+1, 7+1),
                                         upper_bound = 180,
                                         final_model = "linear",
                                         periodicity = TRUE,
