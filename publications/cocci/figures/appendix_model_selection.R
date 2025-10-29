@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-load("/Volumes/Statepi_Diagnosis-1/prelim_results/cocci/delay_results/all_dx_visits.RData")
+load("/Volumes/Statepi_Diagnosis/prelim_results/cocci/delay_results/all_dx_visits.RData")
 
 
 condition <- "cocci"
@@ -60,7 +60,7 @@ ssd_fits <- ssd_fits %>%
   mutate(miss = map(miss,~summarise(.,n_miss = sum(n_miss)))) %>% 
   unnest(miss)
 
-ssd_fits %>% 
+appendix_figure1 <- ssd_fits %>% 
   filter(model == "quad",
          periodicity == TRUE) %>% 
   filter(cp %in% c(63,70,77,
@@ -69,6 +69,7 @@ ssd_fits %>%
   mutate(weeks = cp/7) %>% 
   mutate(label = paste0(weeks,"-Week Opportunity Window")) %>% 
   unnest(pred) %>% 
+  filter(weeks %in% 12:14) %>%
   ggplot(aes(period,n)) +
   geom_line(aes(y = pred2), color = "blue", size = .75) +
   geom_line(aes(y = pred1), color ="red", size = .75) +
@@ -79,4 +80,6 @@ ssd_fits %>%
   theme_bw() +
   ylab("Number of SSD Visits") +
   xlab("Days Before Diagnosis")
-
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/cocci/submissions/OFID/revisions/appendix_figure1.pdf",
+       width = 10, height = 5,dpi = 600,units = "in",
+       plot = appendix_figure1 )

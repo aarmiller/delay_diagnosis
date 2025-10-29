@@ -45,8 +45,38 @@ figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD
                 #top="Figure 1"
                 ) 
 ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/cocci/figures/figure1.pdf",
-       width = 5, height = 2.8,dpi = 600,units = "in",
+       width = 10, height = 5.6,dpi = 600,units = "in",
        plot = figure1)
+
+# For revisions -----
+
+fig1_A <- ssd_vis_count %>% 
+  ggplot(aes(period,n)) +
+  geom_point(size = 1) +
+  geom_line(size = 1) +
+  scale_x_reverse() +
+  theme_bw()+
+  ylab("Number of SSD Visits")+
+  xlab("Days Before Index Coccidioidomycosis Diagnosis")
+
+fig1_B <- ssd_vis_count %>% 
+  ggplot(aes(period,n)) +
+  geom_point(size = 1) +
+  geom_line(size = 1) +
+  geom_line(aes(y = pred), color = "red", linewidth = .7) +
+  scale_x_reverse() +
+  geom_vline(aes(xintercept = delay_params$cp-1), col = "blue", linewidth = .4) +
+  theme_bw()+
+  ylab("Number of SSD Visits")+
+  xlab("Days Before Index Coccidioidomycosis Diagnosis")
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/cocci/submissions/OFID/revisions/figure1_A.pdf",
+       width = 6, height = 5.6,dpi = 600,units = "in",
+       plot = fig1_A)
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/cocci/submissions/OFID/revisions/figure1_B.pdf",
+       width = 6, height = 5.6,dpi = 600,units = "in",
+       plot = fig1_B)
 
 4
 
@@ -69,12 +99,14 @@ ssd_vis_count %>%
   ylab("Number of Missed Opportunities") +
   xlab("Days Before Index Coccidioidomycosis Diagnosis") +
   theme_bw() +
-  theme(axis.title = element_text(size=10),
-        axis.text = element_text(size=10)) +
+  theme(axis.title = element_text(size=20),
+        axis.text = element_text(size=20)) +
   # ggtitle("Figure 2",) +
   theme(plot.title = element_text(hjust = 0.5))
 ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/cocci/figures/figure2.pdf",
-       width = 5, height = 2.8, dpi = 600,units = "in")
+       width = 10, height = 5.6, dpi = 600,units = "in")
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/cocci/submissions/OFID/revisions/figure2.pdf",
+       width = 10, height = 5.6, dpi = 600,units = "in")
 # ?ggtitle
 # 
 # ggsave("publications/dengue/figures/figure2.jpg",
