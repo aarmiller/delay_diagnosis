@@ -6,7 +6,7 @@ library(smallDB)
 # devtools::install_github("aarmiller/smallDB")
 
 # name of condition
-proj_name <- "measles_validated"
+proj_name <- "measles"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -163,7 +163,7 @@ table1_fun <- function(reg_demo){
 }
 
 table1 <- table1_fun(reg_demo)
-proj_name <- "measles"
+
 write_csv(table1, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/table1.csv"))
 
 
@@ -403,7 +403,7 @@ write_csv(table3, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis
 
 # Appendix Table 2 --------------------------------------------------------------
 # sensitivity analysis varying delay window
-proj_name <- "measles_validated"
+
 appendix_table2 <- tibble()
 
 for(i in final_delay_params[[proj_name]]$cp){
@@ -469,5 +469,4 @@ for(i in final_delay_params[[proj_name]]$cp){
   
 }
 
-proj_name <- "measles"
 write_csv(appendix_table2, paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/tables/appendix_table2.csv"))

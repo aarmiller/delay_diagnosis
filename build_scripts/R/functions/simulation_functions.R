@@ -333,12 +333,12 @@ generate_setting_counts_2 <- function(obs_tm, bootstrap_data, sim_res, tm_stdpla
                  unnest(potential_miss_setting), by = c("trial", "setting_type")) %>% 
     mutate(pct_potential_miss_vis_days_setting = n/n_potential_miss*100) %>% 
     group_by(setting_type) %>%
-    summarise(n_mean_potential_miss_vis_days_setting = mean(n_potential_miss),
-              n_potential_miss_vis_days_setting_low = quantile(n_potential_miss,probs = 0.025),
-              n_potential_miss_vis_days_setting_high = quantile(n_potential_miss,probs = 0.975),
-              pct_mean_potential_miss_vis_days_setting = mean(pct_potential_miss_vis_days_setting),
-              pct_potential_miss_vis_days_setting_low = quantile(pct_potential_miss_vis_days_setting,probs = 0.025),
-              pct_potential_miss_vis_days_setting_high = quantile(pct_potential_miss_vis_days_setting,probs = 0.975)) 
+    summarise(n_mean_potential_miss_vis_days_setting = mean(n_potential_miss, na.rm = T),
+              n_potential_miss_vis_days_setting_low = quantile(n_potential_miss,probs = 0.025, na.rm = T),
+              n_potential_miss_vis_days_setting_high = quantile(n_potential_miss,probs = 0.975, na.rm = T),
+              pct_mean_potential_miss_vis_days_setting = mean(pct_potential_miss_vis_days_setting, na.rm = T),
+              pct_potential_miss_vis_days_setting_low = quantile(pct_potential_miss_vis_days_setting,probs = 0.025, na.rm = T),
+              pct_potential_miss_vis_days_setting_high = quantile(pct_potential_miss_vis_days_setting,probs = 0.975, na.rm = T))
   
   setting_type_res <- setting_type_res %>% inner_join(setting_type_res_p2)
   

@@ -4,12 +4,12 @@ library(ggplot2)
 library(lubridate)
 
 
-params <- list(proj = "measles_validated")
+params <- list(proj = "measles")
 # load delay_parms
 load("/Volumes/AML/params/final_delay_params.RData")
 delay_params <- final_delay_params[[params$proj]]
 delay_params$cp <- 14+1
-sim_in_path <- paste0("/Volumes/Statepi_Diagnosis/projects/measles/measles_validated/delay_window_1_", delay_params$cp - 1,"/sim_results/")
+sim_in_path <- paste0("/Volumes/Statepi_Diagnosis/projects/", params$proj, "/delay_window_1_", delay_params$cp - 1,"/sim_results/")
 
 load(paste0(sim_in_path,"fit_trends.RData"))
 
@@ -17,62 +17,75 @@ load(paste0(sim_in_path,"fit_trends.RData"))
 #### Figure 1 ####
 ##################
 
-figure1 <- ssd_vis_count %>% 
+fig1_A <- ssd_vis_count %>% 
   ggplot(aes(period,n)) +
   geom_point(size = 0.5) +
   geom_line(size = 0.5) +
   scale_x_reverse() +
   theme_bw()+
-  ylab("Number of SSD Visits")+
-  xlab("Days Before Index Measles Diagnosis")
+  ylab("")+
+  xlab("")
 
+fig1_B <- ssd_vis_count %>% 
+  ggplot(aes(period,n)) +
+  geom_point(size = 0.5) +
+  geom_line(size = 0.5) +
+  geom_line(aes(y = pred), color = "red", linewidth = .7) +
+  scale_x_reverse() +
+  geom_vline(aes(xintercept = delay_params$cp-1), col = "blue", linewidth = .4) +
+  theme_bw()+
+  ylab("")+
+  xlab("")
+
+figure1 <- ggpubr::ggarrange(fig1_A, fig1_B,
+                             labels = c("A", "B"),
+                             ncol = 2, nrow = 1)
+figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD Visits", rot = 90, vjust = 1, gp = grid::gpar(fontsize = 10)),
+                bottom = grid::textGrob("Days Before Index Measles Diagnosis", gp = grid::gpar(fontsize = 10)),
+                #top="Figure 1"
+                ) 
 ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure1.pdf",
        width = 5, height = 2.8,dpi = 1200,units = "in",
        plot = figure1)
+
+# ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure1.pdf",
+#        width = 5, height = 2.8,dpi = 600,units = "in",
+#        plot = figure1)
+
+
+# ggsave("publications/dengue/figures/figure1.jpg",
+#        width = 5, height = 2.8,dpi = 600,units = "in",
+#        plot = figure1)
+# 
+# ?ggsave
+
 
 ##################
 #### Figure 2 ####
 ##################
 
-fig2_A <- ssd_vis_count %>% 
-  ggplot(aes(period,n)) +
-  geom_ribbon(
-    data = filter(ssd_vis_count, period <= delay_params$cp - 1),
-    aes(ymin = pmin(n, pred), ymax = pmax(n, pred)),
-    fill = "darkorange", alpha = 0.8
-  ) +
-  geom_point(size = 0.5) +
-  geom_line(size = 0.5) +
-  geom_line(aes(y = pred), color = "red", linewidth = .7) +
-  scale_x_reverse() +
-  theme(axis.title = element_text(size=10),
-        axis.text = element_text(size=10)) +
-  geom_vline(aes(xintercept = delay_params$cp-1), col = "blue", linewidth = .4) +
-  theme_bw()+
-  ylab("Number of SSD Visits")+
-  xlab("")
-
-fig2_B <- ssd_vis_count %>% 
+ssd_vis_count %>% 
   filter(period<delay_params$cp) %>% 
   ggplot(aes(period,num_miss)) +
-  geom_histogram(stat = "identity", fill = "darkorange") +
+  geom_histogram(stat = "identity") +
   scale_x_reverse() +
-  ylab("Number of Missed\nOpportunities") +
-  xlab("") +
+  ylab("Number of Missed Opportunities") +
+  xlab("Days Before Index Measles Diagnosis") +
   theme_bw() +
   theme(axis.title = element_text(size=10),
-        axis.text = element_text(size=10)) 
+        axis.text = element_text(size=10)) +
+  # ggtitle("Figure 2",) +
+  theme(plot.title = element_text(hjust = 0.5))
 
-figure2 <- ggpubr::ggarrange(fig2_A, fig2_B,
-                             labels = c("A", "B"),
-                             ncol = 2, nrow = 1)
-figure2 <- ggpubr::annotate_figure(figure2, 
-                bottom = grid::textGrob("Days Before Index Measles Diagnosis", gp = grid::gpar(fontsize = 12)),
-                #top="Figure 1"
-                ) 
 ggsave("/Users/alanarakkal/Desktop/ongoing projects/measles/figure2.pdf",
-       width = 6.5, height = 3,dpi = 1200,units = "in",
-       plot = figure2)
+       width = 5, height = 2.8,dpi = 1200,units = "in")
+
+# ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/measles/figures/figure2.pdf",
+#        width = 5, height = 2.8, dpi = 600,units = "in")
+# ?ggtitle
+# 
+# ggsave("publications/dengue/figures/figure2.jpg",
+#        width = 5, height = 3,dpi = 600,units = "in")
 
 
 ########################
@@ -105,7 +118,7 @@ cdc <- readxl::read_xlsx("/Users/alanarakkal/Desktop/ongoing projects/measles/da
 time_data %>% 
   group_by(year) %>% 
   summarise(n = sum(n), .groups = "drop") %>% 
-  mutate(Group = "Study Population - Original") %>% 
+  mutate(Group = "Study Population") %>% 
   bind_rows(cdc %>% select(year, n = cases) %>% 
               mutate(Group = "CDC") ) %>% 
   bind_rows(time_data2 %>% 

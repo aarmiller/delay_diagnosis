@@ -6,7 +6,7 @@ library(smallDB)
 # devtools::install_github("aarmiller/smallDB")
 
 # name of condition
-proj_name <- "measles_validated"
+proj_name <- "measles"
 cond_name <- stringr::str_split(proj_name, "_")[[1]][1]
 
 load("/Shared/AML/params/final_delay_params.RData")
@@ -22,7 +22,6 @@ out_path <- paste0(delay_params$out_path,"risk_models/")
 
 load(paste0(out_path,"ssd_miss_risk_models.RData"))
 
-proj_name <- "measles"
 table_out_path <- paste0("/Shared/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/", proj_name, "/reg_tables/")
 
 # setup better labels
@@ -61,7 +60,7 @@ year <- bind_rows(tibble(term = c("Header", "REF"),
 
 master_table <- bind_rows(better_labels, month, year)
 
-data <- ssd_miss_risk_models$miss_delay_pat_res_firth
+data <- ssd_miss_risk_models$miss_delay_pat_res
 
 miss_delay_pat_res <- left_join(master_table, data) %>% 
   filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
@@ -74,4 +73,4 @@ miss_delay_pat_res <- left_join(master_table, data) %>%
                                ifelse(term == "Header",  "", term))) %>% 
   select(2, 8)
 
-write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res_firth.csv") )
+write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res.csv") )

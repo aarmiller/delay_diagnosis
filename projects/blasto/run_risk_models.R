@@ -2,6 +2,7 @@
 library(tidyverse)
 library(lubridate)
 library(smallDB)
+library(codeBuildr)
 # devtools::install_github("aarmiller/smallDB")
 
 print("started")
@@ -244,6 +245,82 @@ reg_demo <- reg_demo %>%
   left_join(chest_xray_visits) %>% 
   mutate_at(vars(chest_ct_prior_cp, chest_xray_prior_cp),~replace_na(.,0L))
 
+## Prepare immunosuppression, hiv, and diabetes indicators ------------------------------------
+
+#code
+# IMMUNOSUPRESSION (lump all codes together).
+# 
+# ICD-10-CM   Z79.5 Long term (current) use of steroids
+# ICD-9-CM    V58.65 Long-term (current) use of steroids
+# 
+# ICD-9-CM   V87.46 Personal history of immunosuppressive therapy
+# ICD-10-CM   Z92.25 Personal history of immunosuppression therapy
+# 
+# ICD-9-CM    no code for Long term (current) use of immunomodulators and immunosuppressants
+# ICD-10-CM   Z79.6 Long term (current) use of immunomodulators and immunosuppressants
+# 
+# ICD-9-CM    042 Human immunodeficiency virus [HIV] disease
+# ICD-10-CM   B20 Human immunodeficiency virus [HIV] disease
+# 
+# 
+# DIABETES:
+#   
+#   ICD-9-CM    250 Diabetes mellitus
+# 
+# ICD-10-CM   E10 Type 1 diabetes mellitus
+# ICD-10-CM   E11 Type 2 diabetes mellitus
+
+immuno_dia_hiv_codes <- tibble(dx_supp = c("Z795", "V5865",
+                                      "V8746", "Z9225",
+                                      "Z796", "Z7960", "Z7961", "Z7962", "Z79620", "Z79621", "Z79622", "Z79623", "Z79624",
+                                      "042", "B20",
+                                      "250", "E10", "E11" ),
+                               dx_ver = c(10,9,9,10,rep(10, 9),9,10,9,10,10),
+                               cond = c(rep("Immunosuppression", 13),
+                                        rep("HIV", 2),
+                                        rep("Diabetes", 3))) %>% 
+  mutate(dx = map2(dx_supp, dx_ver, ~{
+    if(.y == 9){
+      children_safe(.x)
+    } else {
+      temp <- children10(.x)
+      if(length(temp)==0){
+        .x
+      } else {
+        temp
+      }
+    }})) %>% 
+  unnest(dx) %>% 
+  select(-dx_supp) %>% 
+  distinct()
+
+dx_visits <- con %>% tbl("all_dx_visits") %>% collect()
+
+dx_visits <- dx_visits %>% 
+  inner_join(select(demo1,patient_id,index_date)) %>% 
+  filter(days_since_index< (-cp_selected) & days_since_index>=-delay_params$upper_bound)
+
+# Immunosuppression (40)
+immunosuppression <- dx_visits %>% 
+  inner_join(immuno_dia_hiv_codes %>% filter( cond == "Immunosuppression") %>% select(-cond)) %>% 
+  distinct(patient_id) %>% mutate(immunosuppression_prior_cp = 1L) 
+
+# HIV (40) only one in common with Immunosuppression 
+hiv <- dx_visits %>% 
+  inner_join(immuno_dia_hiv_codes %>% filter( cond == "HIV") %>% select(-cond)) %>% 
+  distinct(patient_id) %>% mutate(hiv_prior_cp = 1L) 
+
+# Diabetes (670) 
+diabetes <- dx_visits %>% 
+  inner_join(immuno_dia_hiv_codes %>% filter( cond == "Diabetes") %>% select(-cond)) %>% 
+  distinct(patient_id) %>% mutate(diabetes_prior_cp = 1L) 
+
+reg_demo <- reg_demo %>%
+  left_join(immunosuppression) %>% 
+  left_join(hiv) %>% 
+  left_join(diabetes) %>% 
+  mutate_at(vars(immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp),~replace_na(.,0L))
+
 ## Prepare IPD 
 
 #IPD
@@ -476,7 +553,7 @@ get_miss_res <- function(trial_val){
     filter(year>2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, source, weekend, year, month,
+    select(miss, age_cat, female, rural, source, weekend, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley, ID_consult) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   
@@ -524,7 +601,7 @@ get_miss_res_interaction <- function(trial_val){
     filter(year>2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, source, weekend, year, month,
+    select(miss, age_cat, female, rural, source, weekend, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, top2_high_inc_state_baddley, ID_consult) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
   
@@ -913,7 +990,7 @@ get_dur_res <- function(trial_val){
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(duration, age_cat, female, rural, source, year, month,
+    select(duration, age_cat, female, rural, source, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley,
            resp_antibiotic_drugs_window, inhalers_window) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
@@ -964,7 +1041,7 @@ get_dur_res_log_normal <- function(trial_val){
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(log_duration, age_cat, female, rural, source, year, month,
+    select(log_duration, age_cat, female, rural, source, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley,
            resp_antibiotic_drugs_window, inhalers_window) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data
@@ -1015,7 +1092,7 @@ get_dur_res_weibull <- function(trial_val){
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
     mutate(delta = 1) %>% 
-    select(duration, delta, age_cat, female, rural, source, year, month,
+    select(duration, delta, age_cat, female, rural, source, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley,
            resp_antibiotic_drugs_window, inhalers_window) %>% 
     drop_na() %>%  # have to do at the end as obs not in bootsample and boot_id not in data
@@ -1111,7 +1188,7 @@ get_delay_pat_res <- function(trial_val){
     filter(year > 2001) %>% 
     mutate(year = as.factor(year),
            month = factor(month, levels = 1:12)) %>% 
-    select(miss, age_cat, female, rural, source, year, month,
+    select(miss, age_cat, female, rural, source, year, month, immunosuppression_prior_cp, hiv_prior_cp, diabetes_prior_cp,
            asthma_prior_cp, copd_prior_cp, chest_ct_prior_cp, chest_xray_prior_cp, #top2_high_inc_state_baddley,
            resp_antibiotic_drugs_window, inhalers_window) %>% 
     drop_na() # have to do at the end as obs not in bootsample and boot_id not in data

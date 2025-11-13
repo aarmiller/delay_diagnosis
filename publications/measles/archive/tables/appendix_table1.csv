@@ -1,0 +1,55 @@
+icd_codes,icd_codes_nice,icd_version,desc
+0340,'034.0,9,Streptococcal sore throat
+0529,'052.9,9,Varicella without mention of complication
+0539,'053.9,9,Herpes zoster without mention of complication
+0569,'056.9,9,Rubella without mention of complication
+0578,'057.8,9,Other specified viral exanthemata
+0579,'057.9,9,"Viral exanthem, unspecified"
+075,'075,9,Infectious mononucleosis
+07999,'079.99,9,Unspecified viral infection
+3510,'351.0,9,Bell's palsy
+3829,'382.9,9,Unspecified otitis media
+462,'462,9,Acute pharyngitis
+4658,'465.8,9,Acute upper respiratory infections of other multiple sites
+4659,'465.9,9,Acute upper respiratory infections of unspecified site
+4660,'466.0,9,Acute bronchitis
+486,'486,9,"Pneumonia, organism unspecified"
+6929,'692.9,9,"Contact dermatitis and other eczema, unspecified cause"
+78009,'780.09,9,Other alteration of consciousness
+7806,'780.6,9,Fever and other physiologic disturbances of temperature regulation
+78060,'780.60,9,"Fever, unspecified"
+78061,'780.61,9,Fever presenting with conditions classified elsewhere
+78062,'780.62,9,Postprocedural fever
+78063,'780.63,9,Postvaccination fever
+78064,'780.64,9,Chills (without fever)
+78065,'780.65,9,Hypothermia not associated with low environmental temperature
+78066,'780.66,9,Febrile nonhemolytic transfusion reaction
+7821,'782.1,9,Rash and other nonspecific skin eruption
+7856,'785.6,9,Enlargement of lymph nodes
+7862,'786.2,9,Cough
+V048,'V04.8,9,Other viral diseases
+V0481,'V04.81,9,Need for prophylactic vaccination and inoculation against influenza
+V0482,'V04.82,9,Need for prophylactic vaccination and inoculation against respiratory syncytial virus (RSV)
+V0489,'V04.89,9,Need for prophylactic vaccination and inoculation against other viral diseases
+V741,'V74.1,9,Screening examination for pulmonary tuberculosis
+Z111,'Z11.1,10,Encounter for screening for respiratory tuberculosis
+R21,'R21,10,Rash and other nonspecific skin eruption
+B349,'B34.9,10,"Viral infection, unspecified"
+L259,'L25.9,10,"Unspecified contact dermatitis, unspecified cause"
+J189,'J18.9,10,"Pneumonia, unspecified organism"
+H6691,'H66.91,10,"Otitis media, unspecified, right ear"
+L309,'L30.9,10,"Dermatitis, unspecified"
+R05,'R05,10,Cough
+R509,'R50.9,10,"Fever, unspecified"
+J069,'J06.9,10,"Acute upper respiratory infection, unspecified"
+J020,'J02.0,10,Streptococcal pharyngitis
+J209,'J20.9,10,"Acute bronchitis, unspecified"
+J029,'J02.9,10,"Acute pharyngitis, unspecified"
+R590,'R59.0,10,Localized enlarged lymph nodes
+H6693,'H66.93,10,"Otitis media, unspecified, bilateral"
+H6692,'H66.92,10,"Otitis media, unspecified, left ear"
+B029,'B02.9,10,Zoster without complications
+B2790,'B27.90,10,"Infectious mononucleosis, unspecified without complication"
+G510,'G51.0,10,Bell's palsy
+B019,'B01.9,10,Varicella without complication
+B069,'B06.9,10,Rubella without complication
