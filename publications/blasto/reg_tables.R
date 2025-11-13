@@ -43,6 +43,9 @@ better_labels <- tribble(~term,~label,
                          "weekendTRUE", "Weekend Visit", 
                          "asthma_prior_cp", "Asthma dx prior to delay window", 
                          "copd_prior_cp", "COPD dx prior to delay window", 
+                         'immunosuppression_prior_cp',  'Immunosuppression dx prior to delay window',
+                         'hiv_prior_cp', 'HIV dx prior to delay window',
+                         'diabetes_prior_cp', 'Diabetes dx priorto delay window',
                          "chest_ct_prior_cp", "Chest CT prior to delay window", 
                          "chest_xray_prior_cp", "Chest X-ray prior to delay window", 
                          "Est ID_consult vs no ID_consult - top2_high_inc_state_baddley", "Infectious Disease consult during visit - Residing in top 2 highest blastomycosis incidence state",
@@ -65,21 +68,21 @@ master_table <- bind_rows(better_labels, month, year)
 #############
 ## Table 1 ##
 #############
-
-data <- ssd_miss_risk_models$miss_opp_res_interaction
-
-miss_opp_table <- left_join(master_table, data) %>% 
-  filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
-  mutate("OR (95%CI)" = ifelse(!is.na(est), paste0(trimws(format(round(est, 2), nsmall = 2)), 
-                                               " (",
-                                               trimws(format(round(low, 2), nsmall = 2)),
-                                               "-",
-                                               trimws(format(round(high, 2), nsmall = 2)),
-                                               ")"),
-                                               ifelse(term == "Header",  "", term))) %>% 
-  select(2, 8)
-
-write_csv(x = miss_opp_table, file = paste0(table_out_path,"miss_opp_table.csv") )
+# 
+# data <- ssd_miss_risk_models$miss_opp_res_interaction
+# 
+# miss_opp_table <- left_join(master_table, data) %>% 
+#   filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
+#   mutate("OR (95%CI)" = ifelse(!is.na(est), paste0(trimws(format(round(est, 2), nsmall = 2)), 
+#                                                " (",
+#                                                trimws(format(round(low, 2), nsmall = 2)),
+#                                                "-",
+#                                                trimws(format(round(high, 2), nsmall = 2)),
+#                                                ")"),
+#                                                ifelse(term == "Header",  "", term))) %>% 
+#   select(2, 8)
+# 
+# write_csv(x = miss_opp_table, file = paste0(table_out_path,"miss_opp_table.csv") )
 
 
 #############
@@ -107,6 +110,9 @@ better_labels <- tribble(~term,~label,
                          "chest_ct_prior_cp", "Chest CT prior to delay window", 
                          "chest_xray_prior_cp", "Chest X-ray prior to delay window", 
                          'resp_antibiotic_drugs_window', 'Respiratory abx rx during delay window',
+                         'immunosuppression_prior_cp',  'Immunosuppression dx prior to delay window',
+                         'hiv_prior_cp', 'HIV dx prior to delay window',
+                         'diabetes_prior_cp', 'Diabetes dx priorto delay window',
                          'inhalers_window', 'Inhaler rx during delay window',
                          'top2_high_inc_state_baddley', 'Residing in top 2 highest blastomycosis incidence state',
 )
@@ -125,24 +131,24 @@ miss_delay_pat_res <- left_join(master_table, data) %>%
                                ifelse(term == "Header",  "", term))) %>% 
   select(2, 8)
 
-write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res.csv") )
+write_csv(x = miss_delay_pat_res, file = paste0(table_out_path,"miss_delay_pat_res_new.csv") )
 
 
-#############
-## Table 3 ##
-#############
-
-data <- ssd_miss_risk_models$miss_dur_res
-
-miss_dur_res <- left_join(master_table, data) %>% 
-  filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
-  mutate("Estimate (95%CI)" = ifelse(!is.na(est), paste0(trimws(format(round(est, 2), nsmall = 2)), 
-                                                   " (",
-                                                   trimws(format(round(low, 2), nsmall = 2)),
-                                                   "-",
-                                                   trimws(format(round(high, 2), nsmall = 2)),
-                                                   ")"),
-                               ifelse(term == "Header",  "", term))) %>% 
-  select(2, 8)
-
-write_csv(x = miss_dur_res, file = paste0(table_out_path,"miss_dur_res.csv") )
+# #############
+# ## Table 3 ##
+# #############
+# 
+# data <- ssd_miss_risk_models$miss_dur_res
+# 
+# miss_dur_res <- left_join(master_table, data) %>% 
+#   filter(!is.na(est) | (term %in% c("Header", "REF")) ) %>% 
+#   mutate("Estimate (95%CI)" = ifelse(!is.na(est), paste0(trimws(format(round(est, 2), nsmall = 2)), 
+#                                                    " (",
+#                                                    trimws(format(round(low, 2), nsmall = 2)),
+#                                                    "-",
+#                                                    trimws(format(round(high, 2), nsmall = 2)),
+#                                                    ")"),
+#                                ifelse(term == "Header",  "", term))) %>% 
+#   select(2, 8)
+# 
+# write_csv(x = miss_dur_res, file = paste0(table_out_path,"miss_dur_res.csv") )
