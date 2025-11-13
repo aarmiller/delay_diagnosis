@@ -1,5 +1,6 @@
+rm(list = ls())
 library(tidyverse)
-db <- src_sqlite("/Shared/AML/truven_extracts/small_dbs/cocci/cocci.db")
+# db <- src_sqlite("/Shared/AML/truven_extracts/small_dbs/cocci/cocci.db")
 db <- src_sqlite("~/Data/MarketScan/truven_extracts/small_dbs/cocci/cocci.db")
 
 tmp <- codeBuildr::load_disease_codes("cocci",return_tibble = TRUE)
@@ -34,7 +35,7 @@ outpatient_ssd_days <- ssd_vis %>%
 
 # window used for defining index inpatient admission (time between first cocci 
 # diagnoisis and subsequent cocci admission)
-admission_window <- 7
+admission_window <- 1
 
 admitted_cases <- cocci_dx %>% 
   group_by(patient_id) %>% 
