@@ -529,3 +529,18 @@ qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh epidural_abs
 # qsub github/delay_diagnosis/build_scripts/jobs/make_delay_base_data.sh long_covid
 qsub github/delay_diagnosis/build_scripts/jobs/make_potential_ssd_plots.sh long_covid
 
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh ntm_pulmonary
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh ntm_cutaneous
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh ntm_unspecified
+
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh ntm_cutaneous
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh ntm_unspecified
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh ntm_pulmonary
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh ntm_cutaneous
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh ntm_unspecified
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh ntm_pulmonary
+
+
+
