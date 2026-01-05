@@ -35,7 +35,7 @@ fig1_B <- ssd_vis_count %>%
   geom_vline(aes(xintercept = delay_params$cp-1), col = "blue", linewidth = .4) +
   theme_bw()+
   ylab("")+
-  xlab("")
+  xlab("") 
 
 figure1 <- ggpubr::ggarrange(fig1_A, fig1_B,
                              labels = c("A", "B"),
@@ -45,6 +45,10 @@ figure1 <- ggpubr::annotate_figure(figure1, left = grid::textGrob("Number of SSD
                 #top="Figure 1"
                 ) 
 ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/blasto/figures/figure1.pdf",
+       width = 5, height = 2.8,dpi = 600,units = "in",
+       plot = figure1)
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/blasto/manuscripts/nov_2025/figure1.tif",
        width = 5, height = 2.8,dpi = 600,units = "in",
        plot = figure1)
 
@@ -73,6 +77,10 @@ ssd_vis_count %>%
   theme(plot.title = element_text(hjust = 0.5))
 ggsave("/Volumes/Statepi_Diagnosis/atlan/github/delay_diagnosis/publications/blasto/figures/figure2.pdf",
        width = 5, height = 2.8, dpi = 600,units = "in")
+
+
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/delay_dx_projects/blasto/manuscripts/nov_2025/figure2.tif",
+       width = 5, height = 2.8,dpi = 600,units = "in")
 # ?ggtitle
 # 
 # ggsave("publications/dengue/figures/figure2.jpg",
