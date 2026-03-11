@@ -1,4 +1,5 @@
 
+# This file adds parameter to adjust duration
 
 rm(list = ls())
 library(tidyverse)
@@ -18,8 +19,10 @@ cond_name <- "bronchiectasis"
 # set number of dx codes to consider
 dx_cluter_lim <- 2000
 
-# time_before <- 365*3
-# time_after <- 365*3
+time_before <- 365*3
+time_after <- 365*3
+
+dx_rank_time_before <- 90
 
 # load("/Volumes/AML/params/delay_any_params.RData")
 
@@ -34,8 +37,64 @@ delay_params <- delay_any_params[[cond_name]]
 cluster_out_path <- "~/Data/Statepi_Diagnosis/prelim_results/bronchiectasis/cluster_results/"
 
 
-# load cluster data
-load(paste0("~/Data/Statepi_Diagnosis/prelim_results/bronchiectasis/cluster_results/","/dx_counts.RData"))
+db <- src_sqlite("~/Data/MarketScan/truven_extracts/small_dbs/bronchiectasis/bronchiectasis.db")
+
+
+
+
+
+###########################
+#### Compute DX Counts ####
+###########################
+
+### Collect Data ---------------------------------------------------------------
+
+collapse_enroll <- bind_rows(tbl(db,"ccae_mdcr_collapse_enroll") %>% 
+                               collect(),
+                             tbl(db,"medicaid_collapse_enroll") %>% 
+                               collect())
+
+index_dates <- tbl(db,"index_dx_dates") %>% collect()
+
+all_dx_visits <- tbl(db,"all_dx_visits") %>% collect()
+
+enroll_periods <- collapse_enroll %>% 
+  inner_join(select(index_dates,patient_id,index_date)) %>% 
+  filter(dtstart<=index_date,dtend>=index_date)
+
+all_dx_visits <- all_dx_visits %>% 
+  inner_join(enroll_periods) %>% 
+  filter(date>=dtstart,date<=dtend) %>% 
+  distinct(patient_id,dx,dx_ver,days_since_index)
+
+all_dx_visits <- all_dx_visits %>% 
+  filter(days_since_index>= -time_before,
+         days_since_index<= time_after)
+
+# dx counts
+dx_counts <- all_dx_visits %>%
+  distinct(patient_id,dx,dx_ver,days_since_index) %>%
+  count(dx,dx_ver,days_since_index)
+
+# visit counts
+visit_counts <- all_dx_visits %>%
+  distinct(patient_id,dx_ver,days_since_index) %>%
+  count(dx_ver,days_since_index)
+
+# populate missing valules in visit counts (i.e., assign 0 to days missing)
+visit_counts <- tibble(days_since_index=-time_before:time_after) %>%
+  mutate(dx_ver=map(days_since_index,~c(9,10))) %>%
+  unnest(dx_ver) %>%
+  arrange(dx_ver,days_since_index) %>%
+  left_join(visit_counts,by = c("days_since_index", "dx_ver")) %>%
+  mutate(n = replace_na(n,0))
+
+dx_counts <- dx_counts %>%
+  rename(n_dx=n) %>%
+  inner_join(visit_counts,by = c("dx_ver", "days_since_index")) %>%
+  rename(n_visits = n) %>%
+  mutate(frac = 100*n_dx/n_visits)
+
 
 ###########################
 #### Correct DX Counts ####
@@ -92,7 +151,7 @@ dx10_counts <- dx10_span %>%
 #############################
 
 tmp <- dx_counts %>%
-  filter(between(days_since_index,-90,-1)) %>%
+  filter(between(days_since_index,-dx_rank_time_before ,-1)) %>%
   group_by(dx,dx_ver) %>%
   summarise(n = sum(n_dx)) %>%
   arrange(dx_ver,desc(n)) %>%
@@ -106,9 +165,6 @@ icd9_ranks <- tmp %>%
               select(dx=code,long_desc) %>%
               mutate(dx = as.character(dx))) %>%
   select(code = dx, n_14day =n, rank, description =long_desc)
-
-icd9_ranks %>% 
-  filter(code == "4940")
 
 icd10_ranks <- tmp %>%
   filter(dx_ver==10) %>%
@@ -250,24 +306,29 @@ if (!dir.exists(paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_")))){
   dir.create(paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_")))
 }
 
+if (!dir.exists(paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after))){
+  dir.create(paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after))
+}
+
+paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after)
+
 save(clust_res_9,clust_res_9_pre,clust_res_9_post,
-     clust_res_10,clust_res_10_pre,clust_res_10_post,file = paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/cluster_res.RData"))
+     clust_res_10,clust_res_10_pre,clust_res_10_post,file = paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after,"/cluster_res.RData"))
 
 
 save(dx9_counts_nested,
      dx10_counts_nested,
      icd9_ranks,
      icd10_ranks,
-     file = paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/cluster_count_data.RData"))
+     file = paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after,"/cluster_count_data.RData"))
 
-icd9_ranks %>% filter(code=="4940")
 
 
 ####################
 #### Make Plots ####
 ####################
 
-plot_path <- paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/")
+plot_path <- paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/",time_before,"_",time_after,"/")
 
 ### Plot dx 9  before and after -----------------------------------------------
 
@@ -336,14 +397,4 @@ for (i in 1:ceiling(2000/6)){
   print(p)
 }
 dev.off()
-
-
-
-
-
-save(dx9_counts_nested,
-     dx10_counts_nested,
-     icd9_ranks,
-     icd10_ranks,
-     file = paste0(cluster_out_path,str_replace_all(Sys.Date(),"-","_"),"/cluster_count_data.RData"))
 
