@@ -390,7 +390,6 @@ ssd_vis <- bind_rows(ssd_vis %>%
                        filter(name!="Type 1 Diabetes"),
                      diabetes_vis)
 
-
 index_dates <- tbl(db,"index_dx_dates") %>% 
   collect()
 
@@ -400,6 +399,9 @@ ssd_counts <- ssd_vis %>%
   count(name,group,days_since_index)
 
 ssd_counts2 <- ssd_counts
+
+ssd_counts2 %>% 
+  filter(name=="Type 1 Diabetes")
 
 save(ssd_counts2,
      file = "/Shared/AML/grant_proposal_work/ami_linnea_2026/data/ssd_unrelated_counts_365.RData")

@@ -543,4 +543,13 @@ qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh ntm_uns
 qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh ntm_pulmonary
 
 
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh cf
+qsub github/truven_db_extracts/jobs/main_scripts/get_index_dx.sh cf_carrier
+
+qsub github/truven_db_extracts/jobs/main_scripts/build_small_db.sh cftr_main_cohort
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh cftr_main_cohort
+
+qsub github/truven_db_extracts/jobs/main_scripts/get_all_visit_counts.sh cf
+
+
 

@@ -233,7 +233,8 @@ blasto_res$agg_boot_res %>%
   theme_bw() +
   ylab("Number of Antibiotic Prescriptions") +
   xlab("Weeks Before Index Blastomycosis Diagnosis")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/blasto_expected.pdf")
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/blasto_expected.pdf",
+       width = 8, height = 6)
 
 blasto_res$agg_boot_res %>% 
   filter(model == "lm") %>% 
@@ -266,7 +267,8 @@ cocci_res$agg_boot_res %>%
   theme_bw() +
   ylab("Number of Antibiotic Prescriptions") +
   xlab("Weeks Before Index Coccidioidomycosis Diagnosis")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/cocci_expected.pdf")
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/cocci_expected.pdf",
+       width = 10, height = 6)
 
 cocci_res$agg_boot_res %>% 
   filter(model == "lm") %>% 
@@ -299,7 +301,8 @@ histo_res$agg_boot_res %>%
   theme_bw() +
   ylab("Number of Antibiotic Prescriptions") +
   xlab("Weeks Before Index Histoplasmosis Diagnosis")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/histo_expected.pdf")
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/histo_expected.pdf",
+       width = 10, height = 6)
 
 histo_res$agg_boot_res %>% 
   filter(model == "lm") %>% 
@@ -382,7 +385,8 @@ bind_rows(blasto_res$agg_boot_res %>%
   theme_bw() +
   ylab("Number of Antibiotic Prescriptions") +
   xlab("Weeks Before Index Diagnosis")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/total_expected.pdf")
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/total_expected.pdf",
+       width = 6, height = 4)
 
 bind_rows(blasto_res$agg_boot_res %>% 
             filter(model == "lm") %>% 

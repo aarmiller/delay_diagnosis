@@ -1,7 +1,8 @@
-
+rm(list = ls())
 
 library(tidyverse)
 library(readxl)
+library(smallDB)
 
 upper_bound <- 365
 
@@ -510,5 +511,7 @@ out_data %>%
   facet_wrap(~disease, scales = "free_y") +
   theme_bw() +
   ylab("Number of Antibiotic Prescriptions") +
-  xlab("Weeks Since Disease Diagnosis")
-ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/abx_before_after.pdf")
+  xlab("Weeks Since Disease Diagnosis") +
+  geom_vline(aes(xintercept = 0), linetype = 2)
+ggsave("~/OneDrive - University of Iowa/WorkingPapers/excess_abx/endemic_myco/results/abx_before_after.pdf",
+       width = 6, height = 4)

@@ -314,6 +314,7 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
 
 # save parameters
 save(delay_any_params,file = "/Volumes/AML/params/delay_any_params.RData")
+save(delay_any_params,file = "~/Data/params/delay_any_params.RData")
 
  # update master list
 library(tidyverse)
