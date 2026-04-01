@@ -72,14 +72,15 @@ delay_any_params <- list(ami = list(path = "/Shared/AML/truven_extracts/small_db
                                      duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
                          
                          bronchiectasis = list(path = "/Shared/AML/truven_extracts/small_dbs/bronchiectasis/",
-                                       cp = 51,
+                                       cp = 365,
                                        cp_lower = NA,
                                        cp_upper = NA,
-                                       upper_bound = 365,
+                                       upper_bound = 365*4,
                                        final_model = "quadratic",
                                        periodicity = TRUE,
                                        miss_bins = c(1,2,3,4,5),
-                                       duration_bins = c(1,2,3,4,5,6,7,10,14,17,21,30,45,50)),
+                                       duration_bins = c(1,7,14,28,2*28,3*28,4*28,5*28,6*28,
+                                                         7*28,8*28,9*28,10*28,11*28,365)),
                          
                          chf = list(path = "/Shared/AML/truven_extracts/small_dbs/chf/",
                                        cp = 90,

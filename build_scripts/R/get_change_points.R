@@ -6,6 +6,8 @@ library(changepoint)
 library(trend)
 library(codeBuildr)
 
+rm(list = ls())
+
 
 
 # load delay_parms
@@ -14,7 +16,7 @@ load("/Shared/AML/params/delay_any_params.RData")
 
 args = commandArgs(trailingOnly=TRUE)
 
-# condition <- "meningitis"
+# condition <- "bronchiectasis"
 condition <- args[1]
 
 delay_params <- delay_any_params[[condition]]
@@ -138,12 +140,21 @@ find_cp <- function(data,cp_range,model="lm",periodicity = FALSE){
 }
 
 find_pred_bound_cp <- function(pred_data){
-  pred_data %>% 
-    arrange(period)  %>%
-    mutate(above_cp=cumsum(n>pred1)==row_number()) %>%
-    filter(above_cp) %>%
-    summarise(cp=max(period)) %>% 
-    .$cp
+  
+  suppressWarnings({
+    tmp <-   pred_data %>% 
+      arrange(period)  %>%
+      mutate(above_cp=cumsum(n>pred1)==row_number()) %>%
+      filter(above_cp) %>%
+      summarise(cp=max(period)) %>% 
+      .$cp
+    
+    if (is.infinite(tmp)){
+      return(max(pred_data$period))
+    }
+    
+    return(tmp)
+  })
 }
 
 get_rankings <- function(cp_data){
@@ -225,6 +236,16 @@ count_data_ssd <- all_dx_visits %>%
 
 #### Standard Approach - SSD Results ####
 
+cp_range1 <- seq(from = 7, to = (delay_params$upper_bound * .85), by = 7)
+
+
+
+# if (delay_params$upper_bound > 365*2){
+#   cp_range1 <- seq(from = 7, to = (delay_params$upper_bound * .85), by = 28)
+# } else {
+#   cp_range1 <- seq(from = 7, to = (delay_params$upper_bound * .85), by = 7)
+# }
+
 ### find all cp predictions ----------------------------------------------------
 ssd_fits <- tibble(model = c("lm","quad","cubic","exp")) %>% 
   mutate(label = c("Linear", "Quadratic", "Cubic", "Exponential")) %>% 
@@ -233,7 +254,7 @@ ssd_fits <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~fit_cp_range(count_data_ssd,
-                                     cp_range = seq(from = 7, to = 300, by = 7),
+                                     cp_range = cp_range1,
                                      model = .x,
                                      periodicity = .y)))
 
@@ -259,7 +280,7 @@ ssd_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~find_cp(count_data_ssd,
-                                cp_range = seq(from = 7, to = 300, by = 7),
+                                cp_range = cp_range1,
                                 model = .x,
                                 periodicity = .y))) %>% 
   mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
@@ -364,7 +385,7 @@ all_fits <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~fit_cp_range(count_data_all,
-                                     cp_range = seq(from = 7, to = 300, by = 7),
+                                     cp_range = cp_range1,
                                      model = .x,
                                      periodicity = .y)))
 
@@ -390,13 +411,14 @@ all_res1 <- tibble(model = c("lm","quad","cubic","exp")) %>%
   mutate(label = ifelse(periodicity==TRUE,paste0(label," w/ periodicity"),label)) %>% 
   mutate(cp_res = map2(model,periodicity,
                        ~find_cp(count_data_all,
-                                cp_range = seq(from = 7, to = 300, by = 7),
+                                cp_range = cp_range1,
                                 model = .x,
                                 periodicity = .y))) %>% 
   mutate(cp = map_dbl(cp_res,~.$cp)) %>% 
   mutate(pred = map(cp_res,~.$pred)) %>% 
   select(model,label,periodicity,cp,pred) %>% 
   mutate(pred_bound_cp = map_int(pred,find_pred_bound_cp)) %>% 
+  # mutate(pred_bound_cp = map(pred_bound_cp,as.integer)) %>%  
   mutate(label = paste0("Method: ",label,"\n Change point: ",cp," Pred Bound CP: ",pred_bound_cp))
 
 
@@ -501,11 +523,12 @@ save(ALL_res_standard,SSD_res_standard,
 # If change-point bounds are missing replace with default range from 10 to 100
 if (is.na(delay_params$cp_lower) | is.na(delay_params$cp_upper)){
   cp_lower <- 7
-  cp_upper <- 100
+  cp_upper <- delay_params$upper_bound*.75
 } else {
   cp_lower <- delay_params$cp_lower
   cp_upper <- delay_params$cp_upper
 }
+
 
 cp_range <- -seq(from = 7, to = cp_upper, by = 7)
 
